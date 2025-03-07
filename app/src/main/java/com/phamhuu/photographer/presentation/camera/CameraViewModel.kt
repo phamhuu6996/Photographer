@@ -1,0 +1,166 @@
+package com.phamhuu.photographer.presentation.camera
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.util.Log
+import android.widget.Toast
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModel
+import com.phamhuu.photographer.contants.Contants
+import com.phamhuu.photographer.presentation.utils.Gallery
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class CameraViewModel : ViewModel() {
+    private val _cameraState = MutableStateFlow(CameraState())
+    val cameraState = _cameraState.asStateFlow()
+    private var recording: Recording? = null
+    private var cameraProvider: ProcessCameraProvider? = null
+    private var imageCapture: ImageCapture? = null
+    private var videoCapture: VideoCapture<Recorder>? = null
+
+    fun startCamera(
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        previewView: PreviewView
+    ) {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+
+        cameraProviderFuture.addListener({
+            cameraProvider = cameraProviderFuture.get()
+
+            // Cấu hình preview
+            val preview = Preview.Builder().build().also {
+                it.surfaceProvider = previewView.surfaceProvider
+            }
+
+            // Cấu hình chụp ảnh
+            imageCapture = ImageCapture.Builder().build()
+
+            // Cấu hình quay video
+            val recorder = Recorder.Builder()
+                .setQualitySelector(QualitySelector.from(Quality.HIGHEST))
+                .build()
+            videoCapture = VideoCapture.withOutput(recorder)
+
+            try {
+                // Kết nối camera với lifecycle
+                cameraProvider?.unbindAll()
+                cameraProvider?.bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    preview,
+                    imageCapture,
+                    videoCapture
+                )
+            } catch (e: Exception) {
+                Toast.makeText(
+                    context,
+                    "Không thể khởi động camera: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    fun takePhoto(context: Context) {
+        val imageCapture = imageCapture ?: return
+        val photoFile = createFile(context, Contants.EXT_IMG, header = Contants.IMG_PREFIX)
+
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(context),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    Gallery.saveImageToGallery(context, photoFile)
+                    Toast.makeText(context, "Photo saved: ${output.savedUri}", Toast.LENGTH_SHORT)
+                        .show()
+                }
+
+                override fun onError(exc: ImageCaptureException) {
+                    Toast.makeText(
+                        context,
+                        "Photo capture failed: ${exc.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
+    }
+
+    // Checked permission before start camera screen
+    @SuppressLint("MissingPermission")
+    fun startRecording(context: Context) {
+        val videoCapture = videoCapture ?: return
+        val videoFile = createFile(context, Contants.EXT_VID, header = Contants.VID_PREFIX)
+
+        val fileOutputOptions = FileOutputOptions.Builder(videoFile).build()
+
+        recording = videoCapture.output
+            .prepareRecording(context, fileOutputOptions)
+            .apply {
+                withAudioEnabled()
+            }
+            .start(ContextCompat.getMainExecutor(context)) { event ->
+                when (event) {
+                    is VideoRecordEvent.Start -> {
+                        _cameraState.value = _cameraState.value.copy(isRecording = true)
+                    }
+
+                    is VideoRecordEvent.Finalize -> {
+                        _cameraState.value = _cameraState.value.copy(isRecording = false)
+                        if (!event.hasError()) {
+                            Toast.makeText(
+                                context,
+                                "Video saved: ${event.outputResults.outputUri}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            Gallery.saveVideoToGallery(context, videoFile)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Video capture failed: ${event.error}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            }
+    }
+
+    fun stopRecording() {
+        recording?.stop()
+        recording = null
+    }
+
+    private fun createFile(context: Context, extension: String, header: String): File {
+        val timeStamp =
+            SimpleDateFormat(Contants.DATE_TIME_FORMAT, Locale.getDefault()).format(Date())
+        val storageDir = context.getExternalFilesDir(null)
+        return File(storageDir, "${header}${timeStamp}.$extension")
+    }
+}
+
+data class CameraState(
+    val isRecording: Boolean = false,
+)
