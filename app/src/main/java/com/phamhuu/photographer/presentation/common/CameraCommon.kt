@@ -70,12 +70,10 @@ fun CameraControls(
                     containerColor = Color.Transparent
                 )
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.capture),
-                    contentDescription = "Capture Photo",
-                    modifier = Modifier.size(48.dp),
-                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
-
+                ImageCustom(
+                    id = R.drawable.capture,
+                    imageMode = ImageMode.LARGE,
+                    color = Color.Black
                 )
             }
 
@@ -93,11 +91,10 @@ fun CameraControls(
                     containerColor = Color.Transparent
                 ),
             ) {
-                Image(
-                    painter = painterResource(id = if (isRecording) R.drawable.stop else R.drawable.record),
-                    contentDescription = "Record video",
-                    modifier = Modifier.size(48.dp),
-                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Black)
+                ImageCustom(
+                    id = if (isRecording) R.drawable.stop_record else R.drawable.start_record,
+                    imageMode = ImageMode.LARGE,
+                    color = Color.Black
                 )
             }
         }

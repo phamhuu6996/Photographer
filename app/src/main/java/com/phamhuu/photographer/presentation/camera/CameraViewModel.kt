@@ -2,8 +2,14 @@ package com.phamhuu.photographer.presentation.camera
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.util.Log
+import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.Toast
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -36,6 +42,8 @@ class CameraViewModel : ViewModel() {
     private var cameraProvider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
+    private var camera: Camera? = null
+    private var cameraControl: CameraControl? = null
 
     fun startCamera(
         context: Context,
@@ -64,13 +72,15 @@ class CameraViewModel : ViewModel() {
             try {
                 // Kết nối camera với lifecycle
                 cameraProvider?.unbindAll()
-                cameraProvider?.bindToLifecycle(
+                camera = cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
                     CameraSelector.DEFAULT_BACK_CAMERA,
                     preview,
                     imageCapture,
                     videoCapture
                 )
+                cameraControl = camera?.cameraControl
+
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
@@ -80,6 +90,25 @@ class CameraViewModel : ViewModel() {
             }
         }, ContextCompat.getMainExecutor(context))
     }
+
+    fun setFlashMode() {
+        val newFlashMode = when (cameraState.value.flashMode) {
+            ImageCapture.FLASH_MODE_OFF -> ImageCapture.FLASH_MODE_ON
+            ImageCapture.FLASH_MODE_ON -> ImageCapture.FLASH_MODE_AUTO
+            else -> ImageCapture.FLASH_MODE_OFF
+        }
+        _cameraState.value = _cameraState.value.copy(flashMode = newFlashMode)
+        imageCapture?.flashMode = newFlashMode
+        cameraControl?.enableTorch(newFlashMode == ImageCapture.FLASH_MODE_ON)
+    }
+
+    fun setBrightness(brightness: Float) {
+        _cameraState.value = _cameraState.value.copy(brightness = brightness)
+        cameraControl?.let { control ->
+            val range = camera?.cameraInfo?.exposureState?.exposureCompensationRange ?: return
+            val index = (brightness * (range.upper - range.lower)).toInt() + range.lower
+            control.setExposureCompensationIndex(index)
+        }    }
 
     fun takePhoto(context: Context) {
         val imageCapture = imageCapture ?: return
@@ -163,4 +192,7 @@ class CameraViewModel : ViewModel() {
 
 data class CameraState(
     val isRecording: Boolean = false,
-)
+    val flashMode: Int = ImageCapture.FLASH_MODE_OFF,
+    val brightness: Float = 0.5f,
+    val color: Float = 1f,
+    val contrast: Float = 1f)
