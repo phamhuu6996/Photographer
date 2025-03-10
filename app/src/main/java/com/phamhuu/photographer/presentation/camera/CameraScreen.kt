@@ -26,9 +26,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,6 +45,7 @@ import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.SlideVertically
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CameraScreen(
     viewModel: CameraViewModel = viewModel()
@@ -77,6 +80,10 @@ fun CameraScreen(
                     }
                 )
             }
+            .pointerInteropFilter { event ->
+                val handled = viewModel.scaleGestureDetector?.onTouchEvent(event) ?: false
+                !handled
+            }
     ) {
         AndroidView(
             factory = { previewView },
@@ -87,6 +94,7 @@ fun CameraScreen(
             onCaptureClick = { viewModel.takePhoto(context) },
             onVideoClick = { viewModel.startRecording(context) },
             onStopRecord = { viewModel.stopRecording() },
+            onChangeCamera = { viewModel.changeCamera(context, lifecycleOwner, previewView) },
             isRecording = cameraState.value.isRecording,
             modifier = Modifier.align(Alignment.BottomCenter)
         )

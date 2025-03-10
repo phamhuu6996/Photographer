@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.util.Log
+import android.view.ScaleGestureDetector
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
@@ -43,6 +44,7 @@ class CameraViewModel : ViewModel() {
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var camera: Camera? = null
+    var scaleGestureDetector: ScaleGestureDetector? = null
     private var cameraControl: CameraControl? = null
 
     fun startCamera(
@@ -74,7 +76,7 @@ class CameraViewModel : ViewModel() {
                 cameraProvider?.unbindAll()
                 camera = cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    CameraSelector.Builder().requireLensFacing(cameraState.value.lensFacing).build(),
                     preview,
                     imageCapture,
                     videoCapture
@@ -89,6 +91,8 @@ class CameraViewModel : ViewModel() {
                 ).show()
             }
         }, ContextCompat.getMainExecutor(context))
+        scaleGestureDetector = getScaleGestureDetector(context)
+
     }
 
     fun setFlashMode() {
@@ -188,6 +192,36 @@ class CameraViewModel : ViewModel() {
         val storageDir = context.getExternalFilesDir(null)
         return File(storageDir, "${header}${timeStamp}.$extension")
     }
+
+    private fun getScaleGestureDetector(context: Context): ScaleGestureDetector {
+       return ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+
+                val maxZoom: Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1f
+                val minZoom: Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1f
+                var zoomDetector = detector.scaleFactor
+                if (zoomDetector > maxZoom) {
+                    zoomDetector = maxZoom
+                } else if (zoomDetector < minZoom) {
+                    zoomDetector = minZoom
+                }
+                _cameraState.value = _cameraState.value.copy(zoomState = zoomDetector)
+                cameraControl?.setZoomRatio(zoomDetector)
+                return true
+            }
+        })
+    }
+
+    fun changeCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+        val lensFacing = if (cameraState.value.lensFacing == CameraSelector.LENS_FACING_BACK) {
+            CameraSelector.LENS_FACING_FRONT
+        } else {
+            CameraSelector.LENS_FACING_BACK
+        }
+        _cameraState.value = _cameraState.value.copy(lensFacing = lensFacing)
+        startCamera(context, lifecycleOwner, previewView)
+    }
+
 }
 
 data class CameraState(
@@ -195,4 +229,7 @@ data class CameraState(
     val flashMode: Int = ImageCapture.FLASH_MODE_OFF,
     val brightness: Float = 0.5f,
     val color: Float = 1f,
-    val contrast: Float = 1f)
+    val contrast: Float = 1f,
+    val zoomState: Float = 1f,
+    val lensFacing: Int = CameraSelector.LENS_FACING_BACK,
+    )
