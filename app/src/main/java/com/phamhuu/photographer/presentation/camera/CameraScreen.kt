@@ -1,5 +1,6 @@
 package com.phamhuu.photographer.presentation.camera
 
+import LocalNavController
 import androidx.camera.core.ImageCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
@@ -20,15 +21,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,6 +47,7 @@ import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.SlideVertically
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CameraScreen(
     viewModel: CameraViewModel = viewModel()
@@ -53,9 +58,11 @@ fun CameraScreen(
     val cameraState = viewModel.cameraState.collectAsState()
     var isBrightnessVisible by remember { mutableStateOf(false) }
     val offsetY = remember { Animatable(0f) }
+    val navController = LocalNavController.current
 
     InitCameraPermission({
         viewModel.startCamera(context, lifecycleOwner, previewView)
+        viewModel.checkGalleryContent(context)
     }, context)
 
     Box(
@@ -77,6 +84,10 @@ fun CameraScreen(
                     }
                 )
             }
+            .pointerInteropFilter { event ->
+                val handled = viewModel.scaleGestureDetector?.onTouchEvent(event) ?: false
+                !handled
+            }
     ) {
         AndroidView(
             factory = { previewView },
@@ -87,8 +98,11 @@ fun CameraScreen(
             onCaptureClick = { viewModel.takePhoto(context) },
             onVideoClick = { viewModel.startRecording(context) },
             onStopRecord = { viewModel.stopRecording() },
+            onChangeCamera = { viewModel.changeCamera(context, lifecycleOwner, previewView) },
             isRecording = cameraState.value.isRecording,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.BottomCenter),
+            onShowGallery = { navController.navigate("gallery") },
+            fileUri = cameraState.value.fileUri,
         )
         Row(
             modifier = Modifier

@@ -2,11 +2,8 @@ package com.phamhuu.photographer.presentation.camera
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.util.Log
-import android.view.ViewGroup
-import android.widget.ImageView
+import android.net.Uri
+import android.view.ScaleGestureDetector
 import android.widget.Toast
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraControl
@@ -26,10 +23,12 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.phamhuu.photographer.contants.Contants
 import com.phamhuu.photographer.presentation.utils.Gallery
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -43,6 +42,7 @@ class CameraViewModel : ViewModel() {
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var camera: Camera? = null
+    var scaleGestureDetector: ScaleGestureDetector? = null
     private var cameraControl: CameraControl? = null
 
     fun startCamera(
@@ -74,7 +74,7 @@ class CameraViewModel : ViewModel() {
                 cameraProvider?.unbindAll()
                 camera = cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    CameraSelector.Builder().requireLensFacing(cameraState.value.lensFacing).build(),
                     preview,
                     imageCapture,
                     videoCapture
@@ -89,6 +89,8 @@ class CameraViewModel : ViewModel() {
                 ).show()
             }
         }, ContextCompat.getMainExecutor(context))
+        scaleGestureDetector = getScaleGestureDetector(context)
+
     }
 
     fun setFlashMode() {
@@ -121,9 +123,13 @@ class CameraViewModel : ViewModel() {
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    Gallery.saveImageToGallery(context, photoFile)
+                    val uri = Gallery.saveImageToGallery(context, photoFile)
                     Toast.makeText(context, "Photo saved: ${output.savedUri}", Toast.LENGTH_SHORT)
                         .show()
+                    if (uri != null) {
+                        _cameraState.value = _cameraState.value.copy(fileUri = uri)
+                    }
+
                 }
 
                 override fun onError(exc: ImageCaptureException) {
@@ -159,12 +165,15 @@ class CameraViewModel : ViewModel() {
                     is VideoRecordEvent.Finalize -> {
                         _cameraState.value = _cameraState.value.copy(isRecording = false)
                         if (!event.hasError()) {
+                            val uri = Gallery.saveVideoToGallery(context, videoFile)
                             Toast.makeText(
                                 context,
                                 "Video saved: ${event.outputResults.outputUri}",
                                 Toast.LENGTH_SHORT
                             ).show()
-                            Gallery.saveVideoToGallery(context, videoFile)
+                            if (uri != null) {
+                                _cameraState.value = _cameraState.value.copy(fileUri = uri)
+                            }
                         } else {
                             Toast.makeText(
                                 context,
@@ -188,6 +197,43 @@ class CameraViewModel : ViewModel() {
         val storageDir = context.getExternalFilesDir(null)
         return File(storageDir, "${header}${timeStamp}.$extension")
     }
+
+    private fun getScaleGestureDetector(context: Context): ScaleGestureDetector {
+       return ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+
+                val maxZoom: Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1f
+                val minZoom: Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1f
+                var zoomDetector = detector.scaleFactor
+                if (zoomDetector > maxZoom) {
+                    zoomDetector = maxZoom
+                } else if (zoomDetector < minZoom) {
+                    zoomDetector = minZoom
+                }
+                _cameraState.value = _cameraState.value.copy(zoomState = zoomDetector)
+                cameraControl?.setZoomRatio(zoomDetector)
+                return true
+            }
+        })
+    }
+
+    fun changeCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+        val lensFacing = if (cameraState.value.lensFacing == CameraSelector.LENS_FACING_BACK) {
+            CameraSelector.LENS_FACING_FRONT
+        } else {
+            CameraSelector.LENS_FACING_BACK
+        }
+        _cameraState.value = _cameraState.value.copy(lensFacing = lensFacing)
+        startCamera(context, lifecycleOwner, previewView)
+    }
+
+    fun checkGalleryContent(context: Context) {
+        viewModelScope.launch {
+            val uri = Gallery.getFirstImageOrVideo(context)
+            _cameraState.value = _cameraState.value.copy(fileUri = uri)
+        }
+    }
+
 }
 
 data class CameraState(
@@ -195,4 +241,8 @@ data class CameraState(
     val flashMode: Int = ImageCapture.FLASH_MODE_OFF,
     val brightness: Float = 0.5f,
     val color: Float = 1f,
-    val contrast: Float = 1f)
+    val contrast: Float = 1f,
+    val zoomState: Float = 1f,
+    val lensFacing: Int = CameraSelector.LENS_FACING_BACK,
+    val fileUri: Uri? = null
+)

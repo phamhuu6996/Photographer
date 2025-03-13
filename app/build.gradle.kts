@@ -49,6 +49,8 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.navigation.runtime.ktx)
+    implementation(libs.androidx.navigation.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -71,5 +73,7 @@ dependencies {
 // Permissions
     implementation(libs.androidx.activity.compose)
     implementation (libs.androidx.lifecycle.viewmodel.compose)
+
+    implementation(libs.coil.compose)
 
 }

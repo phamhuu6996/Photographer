@@ -149,20 +149,7 @@ fun CustomPaintSlider(
     }
 }
 
-@Composable
-fun ImageCustom(
-    id: Int,
-    contentDescription: String? = null,
-    imageMode: ImageMode = ImageMode.MEDIUM,
-    color: Color = Color.Black,
-){
-    Image(
-        painter = painterResource(id = id),
-        contentDescription = contentDescription,
-        modifier = Modifier.size(imageMode.size.dp),
-        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color)
-    )
-}
+
 
 enum class ImageMode (val size: Int) {
     SMALL(20), MEDIUM(30), LARGE(40)
