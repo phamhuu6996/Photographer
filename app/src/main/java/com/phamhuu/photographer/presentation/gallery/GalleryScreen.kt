@@ -1,6 +1,7 @@
 package com.phamhuu.photographer.presentation.gallery
 
 import LocalNavController
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,7 +59,13 @@ fun GalleryScreen() {
                         imageSource = imageSource,
                         modifier = Modifier
                             .padding(4.dp)
-                            .border(width = 1.dp, Color.Gray),
+                            .border(width = 1.dp, Color.Gray)
+                            .clickable {
+                                if (imageSource is Uri) {
+                                    val arg = Uri.encode(imageSource.toString())
+                                    navController.navigate("largeImage/${arg}")
+                                }
+                            },
                         size = width
                     )
                 }

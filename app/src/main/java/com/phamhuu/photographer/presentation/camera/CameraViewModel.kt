@@ -124,8 +124,6 @@ class CameraViewModel : ViewModel() {
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     val uri = Gallery.saveImageToGallery(context, photoFile)
-                    Toast.makeText(context, "Photo saved: ${output.savedUri}", Toast.LENGTH_SHORT)
-                        .show()
                     if (uri != null) {
                         _cameraState.value = _cameraState.value.copy(fileUri = uri)
                     }
@@ -166,11 +164,6 @@ class CameraViewModel : ViewModel() {
                         _cameraState.value = _cameraState.value.copy(isRecording = false)
                         if (!event.hasError()) {
                             val uri = Gallery.saveVideoToGallery(context, videoFile)
-                            Toast.makeText(
-                                context,
-                                "Video saved: ${event.outputResults.outputUri}",
-                                Toast.LENGTH_SHORT
-                            ).show()
                             if (uri != null) {
                                 _cameraState.value = _cameraState.value.copy(fileUri = uri)
                             }

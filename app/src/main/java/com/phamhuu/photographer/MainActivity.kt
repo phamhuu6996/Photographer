@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import com.phamhuu.photographer.presentation.camera.CameraScreen
 import com.phamhuu.photographer.presentation.common.FullScreen
 import com.phamhuu.photographer.presentation.gallery.GalleryScreen
+import com.phamhuu.photographer.presentation.gallery.LargeImageScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,6 +36,10 @@ fun AppNavHost(navController: NavHostController) {
         NavHost(navController = navController, startDestination = "camera") {
             composable("camera") { CameraScreen() }
             composable("gallery") { GalleryScreen() }
+            composable("largeImage/{imageUri}") { backStackEntry ->
+                val imageUri = backStackEntry.arguments?.getString("imageUri") ?: return@composable
+                LargeImageScreen(imageUri = imageUri)
+            }
         }
     }
 }
