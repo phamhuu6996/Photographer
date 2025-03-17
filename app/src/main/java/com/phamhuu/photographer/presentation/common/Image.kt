@@ -21,19 +21,22 @@ import coil.request.ImageRequest
 fun AsyncImageCustom(
     imageSource: Any?, // Can be a URL, File, or URI
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
+    size: Dp ?= null,
     color: Color = Color.Black,
     contentScale: ContentScale = ContentScale.FillWidth
 ) {
+    var customModifier = modifier
+    if(size != null)
+        customModifier = modifier.size(size)
     if(imageSource == null)
-        Spacer(modifier = modifier.size(size))
+        Spacer(modifier = customModifier)
     AsyncImage(
         model = ImageRequest.Builder(LocalContext.current)
             .data(imageSource)
             .crossfade(true)
             .build(),
         contentDescription = "Image from source",
-        modifier = modifier.size(size).background(color),
+        modifier = customModifier.background(color),
         contentScale = contentScale
     )
 }

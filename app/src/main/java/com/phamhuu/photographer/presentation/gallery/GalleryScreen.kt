@@ -33,7 +33,9 @@ fun GalleryScreen() {
     val images = remember { getAllImagesAndVideosFromGallery(context) }
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
     ) {
         val width = maxWidth / 2  // Lấy chiều rộng của Box
 
@@ -41,12 +43,12 @@ fun GalleryScreen() {
             modifier = Modifier.fillMaxSize()
 
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
             ImageCustom(id = R.drawable.back,
-                imageMode = ImageMode.LARGE,
-                color = Color.Black,
-                modifier = Modifier.clickable { navController.popBackStack()})
-            Spacer(modifier = Modifier.height(20.dp))
+                imageMode = ImageMode.MEDIUM,
+                color = Color.White,
+                modifier = Modifier
+                    .padding(all = 16.dp)
+                    .clickable { navController.popBackStack() })
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = width),
             ) {

@@ -68,7 +68,8 @@ fun CameraControls(
                     if (fileUri != null && onShowGallery != null) {
                         onShowGallery()
                     }
-                })
+                },
+                size = 48.dp,)
 
             ImageCustom(
                 id = R.drawable.capture,
