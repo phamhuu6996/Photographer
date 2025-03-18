@@ -2,15 +2,25 @@ package com.phamhuu.photographer.presentation.camera
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.ImageFormat
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.hardware.camera2.params.StreamConfigurationMap
 import android.net.Uri
+import android.util.Size
 import android.view.ScaleGestureDetector
 import android.widget.Toast
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
@@ -45,10 +55,57 @@ class CameraViewModel : ViewModel() {
     var scaleGestureDetector: ScaleGestureDetector? = null
     private var cameraControl: CameraControl? = null
 
+    @OptIn(ExperimentalCamera2Interop::class)
+    fun getCameraId(): String? {
+        val cameraInfo = camera?.cameraInfo ?: return null
+        val camera2Info = Camera2CameraInfo.from(cameraInfo)
+        return camera2Info.cameraId
+    }
+
+    @OptIn(ExperimentalCamera2Interop::class)
+    fun getSupportedResolutions(context: Context, oldsMap: Map<String, Array<Size>>?) : Map<String, Array<Size>>? {
+        val cameraId = getCameraId()
+        if((cameraId == null) || oldsMap?.get(cameraId) != null) {
+            return null
+        }
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
+        val streamConfigurationMap = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        val sizes = streamConfigurationMap?.getOutputSizes(ImageFormat.JPEG)
+        if(!sizes.isNullOrEmpty()) {
+            return mapOf(cameraId to sizes)
+        }
+        return null
+    }
+
+    fun getResolutionsWithCameraCurrent(): Array<Size>? {
+        val cameraId = getCameraId()
+        val sizesMap = cameraState.value.resolutionsMap
+        if((cameraId == null) || sizesMap?.get(cameraId) == null) {
+            return null
+        }
+        val sizes = sizesMap.get(cameraId)
+        return sizes
+    }
+
+    private fun resolutionStrategy(size: Size?): ResolutionStrategy {
+        if (size == null)
+            return ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
+        return ResolutionStrategy(
+            size,
+            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+        )
+    }
+
+    private fun resolutionSelector(size: Size?) : ResolutionSelector {
+        return ResolutionSelector.Builder().setResolutionStrategy(resolutionStrategy(size)).build()
+    }
+
     fun startCamera(
         context: Context,
         lifecycleOwner: LifecycleOwner,
-        previewView: PreviewView
+        previewView: PreviewView,
+        size: Size? = null
     ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
@@ -61,7 +118,8 @@ class CameraViewModel : ViewModel() {
             }
 
             // Cấu hình chụp ảnh
-            imageCapture = ImageCapture.Builder().build()
+            imageCapture = ImageCapture.Builder().setResolutionSelector(resolutionSelector(size)).build()
+            setResolution(size)
 
             // Cấu hình quay video
             val recorder = Recorder.Builder()
@@ -80,6 +138,12 @@ class CameraViewModel : ViewModel() {
                     videoCapture
                 )
                 cameraControl = camera?.cameraControl
+
+                val resolutionsMap =
+                    getSupportedResolutions(context, _cameraState.value.resolutionsMap)
+                if (resolutionsMap != null) {
+                    _cameraState.value = _cameraState.value.copy(resolutionsMap = resolutionsMap)
+                }
 
             } catch (e: Exception) {
                 Toast.makeText(
@@ -227,6 +291,13 @@ class CameraViewModel : ViewModel() {
         }
     }
 
+    fun changeShowSelectResolution(value: Boolean) {
+        _cameraState.value = _cameraState.value.copy(showSelectResolution = value)
+    }
+
+    fun setResolution(size: Size?) {
+        _cameraState.value = _cameraState.value.copy(resolution = size)
+    }
 }
 
 data class CameraState(
@@ -237,5 +308,8 @@ data class CameraState(
     val contrast: Float = 1f,
     val zoomState: Float = 1f,
     val lensFacing: Int = CameraSelector.LENS_FACING_BACK,
-    val fileUri: Uri? = null
+    val fileUri: Uri? = null,
+    val resolutionsMap: Map<String, Array<Size>>? = null,
+    val showSelectResolution: Boolean = false,
+    val resolution: Size? = null
 )

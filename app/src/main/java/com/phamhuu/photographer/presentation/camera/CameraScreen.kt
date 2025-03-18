@@ -10,15 +10,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,8 +39,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,6 +51,7 @@ import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.ImageCustom
 import com.phamhuu.photographer.presentation.common.ImageMode
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
+import com.phamhuu.photographer.presentation.common.ResolutionControl
 import com.phamhuu.photographer.presentation.common.SlideVertically
 import kotlinx.coroutines.launch
 
@@ -87,7 +95,9 @@ fun CameraScreen(
             .pointerInteropFilter { event ->
                 val handled = viewModel.scaleGestureDetector?.onTouchEvent(event) ?: false
                 !handled
-            }
+            },
+        contentAlignment = Alignment.TopStart // Align content to top start
+
     ) {
         AndroidView(
             factory = { previewView },
@@ -106,7 +116,8 @@ fun CameraScreen(
         )
         Row(
             modifier = Modifier
-                .padding(top = 20.dp).fillMaxSize(),
+                .padding(top = 20.dp)
+                .fillMaxSize(),
             horizontalArrangement = Arrangement.Absolute.Right
         ) {
             Button(
@@ -131,6 +142,14 @@ fun CameraScreen(
             SlideVertically(cameraState.value.brightness,
                 { brightness -> viewModel.setBrightness(brightness) })
         }
+        ResolutionControl(
+            viewModel = viewModel,
+            context = context,
+            lifecycleOwner = lifecycleOwner,
+            previewView = previewView,
+            showSelectResolution = cameraState.value.showSelectResolution,
+            resolution = cameraState.value.resolution,
+        )
     }
 }
 

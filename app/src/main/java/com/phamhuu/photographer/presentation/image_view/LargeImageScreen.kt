@@ -50,7 +50,7 @@ fun LargeImageScreen(imageUri: String) {
         if (state.imageUri != null)
             AsyncImageCustom(
                 imageSource = state.imageUri,
-                contentScale = ContentScale.FillWidth,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
         ImageCustom(id = R.drawable.back,
