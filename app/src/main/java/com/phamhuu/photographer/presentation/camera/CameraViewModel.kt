@@ -5,10 +5,8 @@ import android.content.Context
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
-import android.hardware.camera2.params.StreamConfigurationMap
 import android.net.Uri
 import android.util.Size
-import android.view.ScaleGestureDetector
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraInfo
@@ -121,8 +119,13 @@ class CameraViewModel : ViewModel() {
             cameraProvider = cameraProviderFuture.get()
 
             // Cấu hình preview
+            val previewBuilder = Preview.Builder()
+            if (cameraState.value.setupCapture) {
+                previewBuilder.setResolutionSelector(resolutionSelector(size))
+            }
+
             val preview =
-                Preview.Builder().setResolutionSelector(resolutionSelector(size)).build().also {
+                previewBuilder.build().also {
                     it.surfaceProvider = previewView.surfaceProvider
                 }
 
@@ -304,10 +307,15 @@ class CameraViewModel : ViewModel() {
     fun setResolution(size: Size?) {
         _cameraState.value = _cameraState.value.copy(resolution = size)
     }
+
+    fun changeCaptureOrVideo(value: Boolean) {
+        _cameraState.value = _cameraState.value.copy(setupCapture = value)
+    }
 }
 
 data class CameraState(
     val isRecording: Boolean = false,
+    val setupCapture: Boolean = true,
     val flashMode: Int = ImageCapture.FLASH_MODE_OFF,
     val brightness: Float = 0.5f,
     val isBrightnessVisible: Boolean = false,
