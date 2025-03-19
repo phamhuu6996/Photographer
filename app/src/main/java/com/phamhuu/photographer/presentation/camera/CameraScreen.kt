@@ -56,16 +56,16 @@ import com.phamhuu.photographer.presentation.common.ResolutionControl
 import com.phamhuu.photographer.presentation.common.SlideVertically
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CameraScreen(
     viewModel: CameraViewModel = viewModel()
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView = remember { PreviewView(context) }
+    val previewView = remember { PreviewView(context).apply {
+        scaleType = PreviewView.ScaleType.FIT_CENTER
+    } }
     val cameraState = viewModel.cameraState.collectAsState()
-    var isBrightnessVisible by remember { mutableStateOf(false) }
     val offsetY = remember { Animatable(0f) }
     val navController = LocalNavController.current
 
@@ -81,8 +81,8 @@ fun CameraScreen(
                 detectVerticalDragGestures(
                     onDragEnd = {
                         viewModel.viewModelScope.launch {
-                            if (offsetY.value < -50) isBrightnessVisible = true // Vuốt lên
-                            if (offsetY.value > 50) isBrightnessVisible = false // Vuốt xuống
+                            if (offsetY.value < -50) viewModel.changeShowBrightness(true) // Vuốt lên
+                            if (offsetY.value > 50) viewModel.changeShowBrightness(false)// Vuốt xuống
                             offsetY.snapTo(0f)
                         } // Reset vị trí kéo
                     },
@@ -135,7 +135,7 @@ fun CameraScreen(
 
         // Hiệu ứng hiện slider khi vuốt lên
         AnimatedVisibility(
-            visible = isBrightnessVisible,
+            visible = cameraState.value.isBrightnessVisible,
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
         ) {

@@ -121,9 +121,10 @@ class CameraViewModel : ViewModel() {
             cameraProvider = cameraProviderFuture.get()
 
             // Cấu hình preview
-            val preview = Preview.Builder().build().also {
-                it.surfaceProvider = previewView.surfaceProvider
-            }
+            val preview =
+                Preview.Builder().setResolutionSelector(resolutionSelector(size)).build().also {
+                    it.surfaceProvider = previewView.surfaceProvider
+                }
 
             // Cấu hình chụp ảnh
             imageCapture = ImageCapture.Builder().setResolutionSelector(resolutionSelector(size)).build()
@@ -182,6 +183,10 @@ class CameraViewModel : ViewModel() {
             val index = (brightness * (range.upper - range.lower)).toInt() + range.lower
             control.setExposureCompensationIndex(index)
         }    }
+
+    fun changeShowBrightness(isBrightnessVisible: Boolean) {
+        _cameraState.value = _cameraState.value.copy(isBrightnessVisible = isBrightnessVisible)
+    }
 
     fun takePhoto(context: Context) {
         val imageCapture = imageCapture ?: return
@@ -305,6 +310,7 @@ data class CameraState(
     val isRecording: Boolean = false,
     val flashMode: Int = ImageCapture.FLASH_MODE_OFF,
     val brightness: Float = 0.5f,
+    val isBrightnessVisible: Boolean = false,
     val color: Float = 1f,
     val contrast: Float = 1f,
     val zoomState: Float = 1f,
