@@ -19,6 +19,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -97,8 +98,16 @@ class CameraViewModel : ViewModel() {
         )
     }
 
-    private fun resolutionSelector(size: Size?) : ResolutionSelector {
-        return ResolutionSelector.Builder().setResolutionStrategy(resolutionStrategy(size)).build()
+    private fun resolutionSelector(size: Size?): ResolutionSelector {
+        val ratio = size?.width?.toFloat()?.div(size.height.toFloat()) ?: 0f
+        val aspectRatio = when {
+            ratio >= 1.77 -> AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+            else -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+        }
+        return ResolutionSelector.Builder().setResolutionStrategy(resolutionStrategy(size))
+            .setAspectRatioStrategy(
+                aspectRatio
+            ).build()
     }
 
     fun startCamera(
