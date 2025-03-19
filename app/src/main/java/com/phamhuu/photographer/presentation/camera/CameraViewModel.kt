@@ -53,7 +53,6 @@ class CameraViewModel : ViewModel() {
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var camera: Camera? = null
-    var scaleGestureDetector: ScaleGestureDetector? = null
     private var cameraControl: CameraControl? = null
 
     @OptIn(ExperimentalCamera2Interop::class)
@@ -162,7 +161,6 @@ class CameraViewModel : ViewModel() {
                 ).show()
             }
         }, ContextCompat.getMainExecutor(context))
-        scaleGestureDetector = getScaleGestureDetector(context)
 
     }
 
@@ -264,23 +262,17 @@ class CameraViewModel : ViewModel() {
         return File(storageDir, "${header}${timeStamp}.$extension")
     }
 
-    private fun getScaleGestureDetector(context: Context): ScaleGestureDetector {
-       return ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-            override fun onScale(detector: ScaleGestureDetector): Boolean {
-
-                val maxZoom: Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1f
-                val minZoom: Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1f
-                var zoomDetector = detector.scaleFactor
-                if (zoomDetector > maxZoom) {
-                    zoomDetector = maxZoom
-                } else if (zoomDetector < minZoom) {
-                    zoomDetector = minZoom
-                }
-                _cameraState.value = _cameraState.value.copy(zoomState = zoomDetector)
-                cameraControl?.setZoomRatio(zoomDetector)
-                return true
-            }
-        })
+    fun changeZoom(zoomChange: Float) {
+        val maxZoom: Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1f
+        val minZoom: Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1f
+        var zoomDetector = zoomChange
+        if (zoomDetector > maxZoom) {
+            zoomDetector = maxZoom
+        } else if (zoomDetector < minZoom) {
+            zoomDetector = minZoom
+        }
+        _cameraState.value = _cameraState.value.copy(zoomState = zoomDetector)
+        cameraControl?.setZoomRatio(zoomDetector)
     }
 
     fun changeCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
