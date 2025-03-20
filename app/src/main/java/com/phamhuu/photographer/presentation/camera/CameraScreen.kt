@@ -10,47 +10,31 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.ImageCustom
-import com.phamhuu.photographer.presentation.common.ImageMode
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.ResolutionControl
 import com.phamhuu.photographer.presentation.common.SlideVertically
@@ -78,6 +62,9 @@ fun CameraScreen(
         modifier = Modifier
             .background(Color.Black)
             .pointerInput(Unit) {
+                detectTransformGestures (panZoomLock = true){ _, _, zoomChange, _ ->
+                    viewModel.changeZoom(zoomChange)
+                }
                 detectVerticalDragGestures(
                     onDragEnd = {
                         viewModel.viewModelScope.launch {
@@ -92,9 +79,6 @@ fun CameraScreen(
                         } // Reset vị trí kéo
                     }
                 )
-                detectTransformGestures { _, _, zoomChange, _ ->
-                    viewModel.changeZoom(zoomChange)
-                }
             },
         contentAlignment = Alignment.TopStart // Align content to top start
 
@@ -109,29 +93,22 @@ fun CameraScreen(
             onVideoClick = { viewModel.startRecording(context) },
             onStopRecord = { viewModel.stopRecording() },
             onChangeCamera = { viewModel.changeCamera(context, lifecycleOwner, previewView) },
+            onChangeCaptureOrVideo = { value ->
+                viewModel.changeCaptureOrVideo(
+                    value,
+                    context,
+                    lifecycleOwner,
+                    previewView
+                )
+            },
+            onChangeFlashMode = { viewModel.setFlashMode() },
+            onShowGallery = { navController.navigate("gallery") },
+            isCapture = cameraState.value.setupCapture,
             isRecording = cameraState.value.isRecording,
             modifier = Modifier.align(Alignment.BottomCenter),
-            onShowGallery = { navController.navigate("gallery") },
             fileUri = cameraState.value.fileUri,
+            flashMode = cameraState.value.flashMode,
         )
-        Row(
-            modifier = Modifier
-                .padding(top = 20.dp)
-                .fillMaxSize(),
-            horizontalArrangement = Arrangement.Absolute.Right
-        ) {
-            Button(
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent
-                ),
-                onClick = {
-                viewModel.setFlashMode()
-            }) {
-                ImageCustom(
-                    id = flashModeToIcon(cameraState.value.flashMode),
-                )
-            }
-        }
 
         // Hiệu ứng hiện slider khi vuốt lên
         AnimatedVisibility(
@@ -142,22 +119,15 @@ fun CameraScreen(
             SlideVertically(cameraState.value.brightness,
                 { brightness -> viewModel.setBrightness(brightness) })
         }
-        ResolutionControl(
-            viewModel = viewModel,
-            context = context,
-            lifecycleOwner = lifecycleOwner,
-            previewView = previewView,
-            showSelectResolution = cameraState.value.showSelectResolution,
-            resolution = cameraState.value.resolution,
-        )
+        if(cameraState.value.enableSelectResolution)
+            ResolutionControl(
+                viewModel = viewModel,
+                context = context,
+                lifecycleOwner = lifecycleOwner,
+                previewView = previewView,
+                showSelectResolution = cameraState.value.showBottomSheetSelectResolution,
+                resolution = cameraState.value.captureResolution,
+            )
     }
 }
 
-private fun flashModeToIcon(flashMode: Int): Int {
-    return when (flashMode) {
-        ImageCapture.FLASH_MODE_OFF -> R.drawable.flash_off
-        ImageCapture.FLASH_MODE_ON -> R.drawable.flash_on
-        ImageCapture.FLASH_MODE_AUTO -> R.drawable.auto_flash
-        else -> R.drawable.flash_off
-    }
-}

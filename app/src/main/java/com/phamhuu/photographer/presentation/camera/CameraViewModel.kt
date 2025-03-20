@@ -78,7 +78,7 @@ class CameraViewModel : ViewModel() {
 
     fun getResolutionsWithCameraCurrent(): Array<Size>? {
         val cameraId = getCameraId()
-        val sizesMap = cameraState.value.resolutionsMap
+        val sizesMap = cameraState.value.captureResolutionsMap
         if((cameraId == null) || sizesMap?.get(cameraId) == null) {
             return null
         }
@@ -120,8 +120,12 @@ class CameraViewModel : ViewModel() {
 
             // Cấu hình preview
             val previewBuilder = Preview.Builder()
+            val imageCaptureBuilder = ImageCapture.Builder()
             if (cameraState.value.setupCapture) {
-                previewBuilder.setResolutionSelector(resolutionSelector(size))
+                val resolutionSelect = resolutionSelector(size)
+                previewBuilder.setResolutionSelector(resolutionSelect)
+                imageCaptureBuilder.setResolutionSelector(resolutionSelect)
+                setResolution(size)
             }
 
             val preview =
@@ -130,8 +134,7 @@ class CameraViewModel : ViewModel() {
                 }
 
             // Cấu hình chụp ảnh
-            imageCapture = ImageCapture.Builder().setResolutionSelector(resolutionSelector(size)).build()
-            setResolution(size)
+            imageCapture = imageCaptureBuilder.build()
 
             // Cấu hình quay video
             val recorder = Recorder.Builder()
@@ -152,9 +155,9 @@ class CameraViewModel : ViewModel() {
                 cameraControl = camera?.cameraControl
 
                 val resolutionsMap =
-                    getSupportedResolutions(context, _cameraState.value.resolutionsMap)
+                    getSupportedResolutions(context, _cameraState.value.captureResolutionsMap)
                 if (resolutionsMap != null) {
-                    _cameraState.value = _cameraState.value.copy(resolutionsMap = resolutionsMap)
+                    _cameraState.value = _cameraState.value.copy(captureResolutionsMap = resolutionsMap)
                 }
 
             } catch (e: Exception) {
@@ -273,7 +276,7 @@ class CameraViewModel : ViewModel() {
     fun changeZoom(zoomChange: Float) {
         val maxZoom: Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1f
         val minZoom: Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1f
-        var zoomDetector = zoomChange
+        var zoomDetector = zoomChange * cameraState.value.zoomState
         if (zoomDetector > maxZoom) {
             zoomDetector = maxZoom
         } else if (zoomDetector < minZoom) {
@@ -301,15 +304,28 @@ class CameraViewModel : ViewModel() {
     }
 
     fun changeShowSelectResolution(value: Boolean) {
-        _cameraState.value = _cameraState.value.copy(showSelectResolution = value)
+        _cameraState.value = _cameraState.value.copy(showBottomSheetSelectResolution = value)
     }
 
     fun setResolution(size: Size?) {
-        _cameraState.value = _cameraState.value.copy(resolution = size)
+        _cameraState.value = _cameraState.value.copy(captureResolution = size)
     }
 
-    fun changeCaptureOrVideo(value: Boolean) {
+    fun changeCaptureOrVideo(
+        value: Boolean,
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        previewView: PreviewView
+    ) {
         _cameraState.value = _cameraState.value.copy(setupCapture = value)
+        changeEnableSelectResolution(_cameraState.value.setupCapture)
+        startCamera(context, lifecycleOwner, previewView)
+    }
+
+    private fun changeEnableSelectResolution(
+        value: Boolean,
+    ) {
+        _cameraState.value = _cameraState.value.copy(enableSelectResolution = value)
     }
 }
 
@@ -324,7 +340,8 @@ data class CameraState(
     val zoomState: Float = 1f,
     val lensFacing: Int = CameraSelector.LENS_FACING_BACK,
     val fileUri: Uri? = null,
-    val resolutionsMap: Map<String, Array<Size>>? = null,
-    val showSelectResolution: Boolean = false,
-    val resolution: Size? = null
+    val captureResolutionsMap: Map<String, Array<Size>>? = null,
+    val showBottomSheetSelectResolution: Boolean = false,
+    val captureResolution: Size? = null,
+    val enableSelectResolution: Boolean = true
 )
