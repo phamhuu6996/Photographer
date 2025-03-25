@@ -70,8 +70,13 @@ class CameraViewModel : ViewModel() {
         val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
         val streamConfigurationMap = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         val sizes = streamConfigurationMap?.getOutputSizes(ImageFormat.JPEG)
-        if(!sizes.isNullOrEmpty()) {
-            return mapOf(cameraId to sizes)
+
+        // Filter 16:9 or 4:3 sizes
+        val filteredSizes = sizes?.filter { size ->
+            size.width * 9 == size.height * 16 || size.width * 3 == size.height * 4
+        }?.toTypedArray()
+        if(!filteredSizes.isNullOrEmpty()) {
+            return mapOf(cameraId to filteredSizes)
         }
         return null
     }
@@ -82,7 +87,7 @@ class CameraViewModel : ViewModel() {
         if((cameraId == null) || sizesMap?.get(cameraId) == null) {
             return null
         }
-        val sizes = sizesMap.get(cameraId)
+        val sizes = sizesMap[cameraId]
         return sizes
     }
 
