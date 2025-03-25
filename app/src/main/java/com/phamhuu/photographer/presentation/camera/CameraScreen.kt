@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -50,7 +51,7 @@ fun CameraScreen(
         scaleType = PreviewView.ScaleType.FIT_CENTER
     } }
     val cameraState = viewModel.cameraState.collectAsState()
-    val offsetY = remember { Animatable(0f) }
+    var offsetY = remember { 0f }
     val navController = LocalNavController.current
 
     InitCameraPermission({
@@ -62,23 +63,10 @@ fun CameraScreen(
         modifier = Modifier
             .background(Color.Black)
             .pointerInput(Unit) {
-                detectTransformGestures (panZoomLock = true){ _, _, zoomChange, _ ->
-                    viewModel.changeZoom(zoomChange)
+                detectTransformGestures (panZoomLock = true){ centroid, pan, zoomChange, rotation ->
+                    viewModel.getCameraPointerInput(centroid, pan, zoomChange, rotation)
                 }
-                detectVerticalDragGestures(
-                    onDragEnd = {
-                        viewModel.viewModelScope.launch {
-                            if (offsetY.value < -50) viewModel.changeShowBrightness(true) // Vuốt lên
-                            if (offsetY.value > 50) viewModel.changeShowBrightness(false)// Vuốt xuống
-                            offsetY.snapTo(0f)
-                        } // Reset vị trí kéo
-                    },
-                    onVerticalDrag = { _, dragAmount ->
-                        viewModel.viewModelScope.launch {
-                            offsetY.snapTo(offsetY.value + dragAmount)
-                        } // Reset vị trí kéo
-                    }
-                )
+
             },
         contentAlignment = Alignment.TopStart // Align content to top start
 

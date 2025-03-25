@@ -29,6 +29,11 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.runtime.State
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
@@ -332,6 +337,30 @@ class CameraViewModel : ViewModel() {
     ) {
         _cameraState.value = _cameraState.value.copy(enableSelectResolution = value)
     }
+
+    private fun changePan(
+        value: Float,
+    ) {
+        _cameraState.value = _cameraState.value.copy(offsetY = value)
+    }
+
+    fun getCameraPointerInput(centroid: Offset, pan: Offset, zoomChange: Float, rotation: Float) {
+        changeZoom(zoomChange)
+
+        // Change panned
+        changePan(pan.y)
+        // Show UI if panned up by 50 pixels
+        if (cameraState.value.offsetY <= -50f) {
+            changeShowBrightness(true)
+            changePan(0f)
+        }
+
+        // Hide UI if panned down by 50 pixels
+        if (cameraState.value.offsetY >= 50f) {
+            changeShowBrightness(false)
+            changePan(0f)
+        }
+    }
 }
 
 data class CameraState(
@@ -340,6 +369,7 @@ data class CameraState(
     val flashMode: Int = ImageCapture.FLASH_MODE_OFF,
     val brightness: Float = 0.5f,
     val isBrightnessVisible: Boolean = false,
+    val offsetY: Float = 0f,
     val color: Float = 1f,
     val contrast: Float = 1f,
     val zoomState: Float = 1f,
