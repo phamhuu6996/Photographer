@@ -74,6 +74,11 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation (libs.androidx.lifecycle.viewmodel.compose)
 
+// Image
     implementation(libs.coil.compose)
+
+// Media Pipe
+    implementation (libs.tasks.vision)
+
 
 }
