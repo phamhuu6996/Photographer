@@ -14,8 +14,10 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
@@ -38,8 +40,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.phamhuu.photographer.contants.Contants
 import com.phamhuu.photographer.presentation.utils.Gallery
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -47,16 +54,21 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
-class CameraViewModel : ViewModel() {
+class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     private val _cameraState = MutableStateFlow(CameraState())
     val cameraState = _cameraState.asStateFlow()
     private var recording: Recording? = null
     private var cameraProvider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
+    private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
     private var cameraControl: CameraControl? = null
+
+    private var faceLandmarkerHelper: FaceLandmarkerHelper? = null
 
     @OptIn(ExperimentalCamera2Interop::class)
     fun getCameraId(): String? {
@@ -111,7 +123,7 @@ class CameraViewModel : ViewModel() {
             ratio >= 1.77 -> AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
             else -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
         }
-        return ResolutionSelector.Builder().setResolutionStrategy(resolutionStrategy(size))
+        return ResolutionSelector.Builder()
             .setAspectRatioStrategy(
                 aspectRatio
             ).build()
@@ -131,10 +143,12 @@ class CameraViewModel : ViewModel() {
             // Cấu hình preview
             val previewBuilder = Preview.Builder()
             val imageCaptureBuilder = ImageCapture.Builder()
+            val imageAnalyzerBuilder = ImageAnalysis.Builder()
             if (cameraState.value.setupCapture) {
                 val resolutionSelect = resolutionSelector(size)
                 previewBuilder.setResolutionSelector(resolutionSelect)
                 imageCaptureBuilder.setResolutionSelector(resolutionSelect)
+                imageAnalyzerBuilder.setResolutionSelector(resolutionSelect)
                 setResolution(size)
             }
 
@@ -145,6 +159,17 @@ class CameraViewModel : ViewModel() {
 
             // Cấu hình chụp ảnh
             imageCapture = imageCaptureBuilder.build()
+
+            imageAnalyzer =
+                imageAnalyzerBuilder
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                    .build()
+                    .also {
+                        it.setAnalyzer(Dispatchers.Default.asExecutor()) { image ->
+                            detectFace(image)
+                        }
+                    }
 
             // Cấu hình quay video
             val recorder = Recorder.Builder()
@@ -160,7 +185,8 @@ class CameraViewModel : ViewModel() {
                     CameraSelector.Builder().requireLensFacing(cameraState.value.lensFacing).build(),
                     preview,
                     imageCapture,
-                    videoCapture
+                    videoCapture,
+                    imageAnalyzer,
                 )
                 cameraControl = camera?.cameraControl
 
@@ -361,6 +387,64 @@ class CameraViewModel : ViewModel() {
             changePan(0f)
         }
     }
+
+    private fun detectFace(imageProxy: ImageProxy) {
+        if (faceLandmarkerHelper?.isClose() == true) {
+            return
+        }
+        try {
+            faceLandmarkerHelper?.detectLiveStream(
+                imageProxy = imageProxy,
+                isFrontCamera = cameraState.value.lensFacing == CameraSelector.LENS_FACING_FRONT
+            )
+        } catch (e: Exception) {
+            println("Error: ${e.message}")
+        }
+    }
+
+    fun setupMediaPipe(context: Context){
+        val listener = this
+        viewModelScope.launch {
+            faceLandmarkerHelper = FaceLandmarkerHelper(
+                context = context,
+                faceLandmarkerHelperListener = listener
+            )
+        }
+    }
+
+    fun onresume(context: Context,
+                 lifecycleOwner: LifecycleOwner,
+                 previewView: PreviewView,) {
+        if (faceLandmarkerHelper?.isClose() == true) {
+            startCamera(context, lifecycleOwner, previewView)
+            faceLandmarkerHelper?.setupFaceLandmarker()
+        }
+    }
+
+    fun onPause() {
+        faceLandmarkerHelper?.clearFaceLandmarker()
+    }
+
+    override fun onError(error: String, errorCode: Int) {
+        println("onError: $error")
+        _cameraState.value =_cameraState.value.copy(landmarkResult = null)
+//        viewModelScope.launch {
+//
+//            if (errorCode == FaceLandmarkerHelper.GPU_ERROR) {
+//                fragmentCameraBinding.bottomSheetLayout.spinnerDelegate.setSelection(
+//                    FaceLandmarkerHelper.DELEGATE_CPU, false
+//                )
+//            }
+//        }
+    }
+
+    override fun onResults(resultBundle: FaceLandmarkerHelper.ResultBundle) {
+        _cameraState.value =_cameraState.value.copy(landmarkResult = resultBundle)
+    }
+
+    override fun onEmpty() {
+        _cameraState.value =_cameraState.value.copy(landmarkResult = null)
+    }
 }
 
 data class CameraState(
@@ -373,10 +457,11 @@ data class CameraState(
     val color: Float = 1f,
     val contrast: Float = 1f,
     val zoomState: Float = 1f,
-    val lensFacing: Int = CameraSelector.LENS_FACING_BACK,
+    val lensFacing: Int = CameraSelector.LENS_FACING_FRONT,
     val fileUri: Uri? = null,
     val captureResolutionsMap: Map<String, Array<Size>>? = null,
     val showBottomSheetSelectResolution: Boolean = false,
     val captureResolution: Size? = null,
-    val enableSelectResolution: Boolean = true
+    val enableSelectResolution: Boolean = true,
+    val landmarkResult: FaceLandmarkerHelper.ResultBundle? = null
 )
