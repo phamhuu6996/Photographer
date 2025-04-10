@@ -1,10 +1,8 @@
 package com.phamhuu.photographer.presentation.camera
 
 import LocalNavController
-import androidx.camera.core.ImageCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -12,18 +10,11 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,24 +26,18 @@ import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
-import com.phamhuu.photographer.R
 import com.phamhuu.photographer.presentation.common.CameraControls
-import com.phamhuu.photographer.presentation.common.ImageCustom
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.ResolutionControl
 import com.phamhuu.photographer.presentation.common.SlideVertically
-import kotlinx.coroutines.launch
-import kotlin.math.max
 import kotlin.math.min
 
 @Composable
@@ -61,9 +46,11 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView = remember { PreviewView(context).apply {
-        scaleType = PreviewView.ScaleType.FIT_CENTER
-    } }
+    val previewView = remember {
+        PreviewView(context).apply {
+            scaleType = PreviewView.ScaleType.FIT_CENTER
+        }
+    }
     val cameraState = viewModel.cameraState.collectAsState()
     var offsetY = remember { 0f }
     val navController = LocalNavController.current
@@ -144,7 +131,7 @@ fun CameraScreen(
             SlideVertically(cameraState.value.brightness,
                 { brightness -> viewModel.setBrightness(brightness) })
         }
-        if(cameraState.value.enableSelectResolution)
+        if (cameraState.value.enableSelectResolution)
             ResolutionControl(
                 viewModel = viewModel,
                 context = context,

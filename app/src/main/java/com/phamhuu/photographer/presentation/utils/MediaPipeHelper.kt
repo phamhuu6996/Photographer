@@ -76,6 +76,7 @@ class FaceLandmarkerHelper(
             DELEGATE_CPU -> {
                 baseOptionBuilder.setDelegate(Delegate.CPU)
             }
+
             DELEGATE_GPU -> {
                 baseOptionBuilder.setDelegate(Delegate.GPU)
             }
@@ -92,6 +93,7 @@ class FaceLandmarkerHelper(
                     )
                 }
             }
+
             else -> {
                 // no-op
             }
@@ -333,7 +335,7 @@ class FaceLandmarkerHelper(
         result: FaceLandmarkerResult,
         input: MPImage
     ) {
-        if( result.faceLandmarks().size > 0 ) {
+        if (result.faceLandmarks().size > 0) {
             val finishTimeMs = SystemClock.uptimeMillis()
             val inferenceTime = finishTimeMs - result.timestampMs()
 
@@ -345,8 +347,7 @@ class FaceLandmarkerHelper(
                     input.width
                 )
             )
-        }
-        else {
+        } else {
             faceLandmarkerHelperListener?.onEmpty()
         }
     }

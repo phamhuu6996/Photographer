@@ -1,6 +1,5 @@
 package com.phamhuu.photographer.presentation.common
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
@@ -21,14 +20,14 @@ import coil.request.ImageRequest
 fun AsyncImageCustom(
     imageSource: Any?, // Can be a URL, File, or URI
     modifier: Modifier = Modifier,
-    size: Dp ?= null,
+    size: Dp? = null,
     color: Color = Color.Black,
     contentScale: ContentScale = ContentScale.FillWidth
 ) {
     var customModifier = modifier
-    if(size != null)
+    if (size != null)
         customModifier = modifier.size(size)
-    if(imageSource == null)
+    if (imageSource == null)
         Spacer(modifier = customModifier)
     AsyncImage(
         model = ImageRequest.Builder(LocalContext.current)
@@ -49,11 +48,13 @@ fun ImageCustom(
     contentDescription: String? = null,
     imageMode: ImageMode = ImageMode.MEDIUM,
     color: Color = Color.Black,
-){
+) {
     Image(
         painter = painterResource(id = id),
         contentDescription = contentDescription,
-        modifier = modifier.size(imageMode.size.dp).fillMaxSize(),
+        modifier = modifier
+            .size(imageMode.size.dp)
+            .fillMaxSize(),
         colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color)
     )
 }

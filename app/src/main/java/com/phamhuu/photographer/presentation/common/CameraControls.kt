@@ -3,7 +3,6 @@ package com.phamhuu.photographer.presentation.common
 import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCapture.FlashMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -85,12 +84,14 @@ fun CameraControls(
                     .fillMaxWidth()
                     .padding(16.dp),
             ) {
-                CameraExtensionControl(title = "Ảnh",
+                CameraExtensionControl(
+                    title = "Ảnh",
                     callBack = { onChangeCaptureOrVideo(true) },
                     selected = isCapture
-                    )
+                )
                 Spacer(modifier = Modifier.width(10.dp))
-                CameraExtensionControl(title = "Video",
+                CameraExtensionControl(
+                    title = "Video",
                     callBack = { onChangeCaptureOrVideo(false) },
                     selected = !isCapture
                 )
@@ -101,20 +102,22 @@ fun CameraControls(
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                if(fileUri != null)
-                AsyncImageCustom(
-                    imageSource = Gallery.getResourceUri(LocalContext.current, fileUri),
-                    modifier.clickable {
-                        if (onShowGallery != null) {
-                            onShowGallery()
-                        }
-                    },
-                    size = 48.dp,
-                )
+                if (fileUri != null)
+                    AsyncImageCustom(
+                        imageSource = Gallery.getResourceUri(LocalContext.current, fileUri),
+                        modifier.clickable {
+                            if (onShowGallery != null) {
+                                onShowGallery()
+                            }
+                        },
+                        size = 48.dp,
+                    )
                 else
-                    Spacer(modifier = Modifier
-                        .height(48.dp)
-                        .width(48.dp))
+                    Spacer(
+                        modifier = Modifier
+                            .height(48.dp)
+                            .width(48.dp)
+                    )
 
                 if (isCapture)
                     ImageCustom(
@@ -156,7 +159,7 @@ fun CameraExtensionControl(
     selected: Boolean,
     title: String,
 
-){
+    ) {
     Text(
         text = title,
         modifier = Modifier.clickable { callBack() },

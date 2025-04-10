@@ -31,18 +31,12 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.runtime.State
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
-import com.google.mediapipe.tasks.vision.core.RunningMode
-import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.phamhuu.photographer.contants.Contants
 import com.phamhuu.photographer.presentation.utils.Gallery
 import kotlinx.coroutines.Dispatchers
@@ -54,8 +48,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     private val _cameraState = MutableStateFlow(CameraState())
@@ -78,21 +70,25 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     }
 
     @OptIn(ExperimentalCamera2Interop::class)
-    fun getSupportedResolutions(context: Context, oldsMap: Map<String, Array<Size>>?) : Map<String, Array<Size>>? {
+    fun getSupportedResolutions(
+        context: Context,
+        oldsMap: Map<String, Array<Size>>?
+    ): Map<String, Array<Size>>? {
         val cameraId = getCameraId()
-        if((cameraId == null) || oldsMap?.get(cameraId) != null) {
+        if ((cameraId == null) || oldsMap?.get(cameraId) != null) {
             return null
         }
         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
-        val streamConfigurationMap = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        val streamConfigurationMap =
+            cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         val sizes = streamConfigurationMap?.getOutputSizes(ImageFormat.JPEG)
 
         // Filter 16:9 or 4:3 sizes
         val filteredSizes = sizes?.filter { size ->
             size.width * 9 == size.height * 16 || size.width * 3 == size.height * 4
         }?.toTypedArray()
-        if(!filteredSizes.isNullOrEmpty()) {
+        if (!filteredSizes.isNullOrEmpty()) {
             return mapOf(cameraId to filteredSizes)
         }
         return null
@@ -101,7 +97,7 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     fun getResolutionsWithCameraCurrent(): Array<Size>? {
         val cameraId = getCameraId()
         val sizesMap = cameraState.value.captureResolutionsMap
-        if((cameraId == null) || sizesMap?.get(cameraId) == null) {
+        if ((cameraId == null) || sizesMap?.get(cameraId) == null) {
             return null
         }
         val sizes = sizesMap[cameraId]
@@ -182,7 +178,8 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
                 cameraProvider?.unbindAll()
                 camera = cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
-                    CameraSelector.Builder().requireLensFacing(cameraState.value.lensFacing).build(),
+                    CameraSelector.Builder().requireLensFacing(cameraState.value.lensFacing)
+                        .build(),
                     preview,
                     imageCapture,
                     videoCapture,
@@ -193,7 +190,8 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
                 val resolutionsMap =
                     getSupportedResolutions(context, _cameraState.value.captureResolutionsMap)
                 if (resolutionsMap != null) {
-                    _cameraState.value = _cameraState.value.copy(captureResolutionsMap = resolutionsMap)
+                    _cameraState.value =
+                        _cameraState.value.copy(captureResolutionsMap = resolutionsMap)
                 }
 
             } catch (e: Exception) {
@@ -224,7 +222,8 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
             val range = camera?.cameraInfo?.exposureState?.exposureCompensationRange ?: return
             val index = (brightness * (range.upper - range.lower)).toInt() + range.lower
             control.setExposureCompensationIndex(index)
-        }    }
+        }
+    }
 
     fun changeShowBrightness(isBrightnessVisible: Boolean) {
         _cameraState.value = _cameraState.value.copy(isBrightnessVisible = isBrightnessVisible)
@@ -402,7 +401,7 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
         }
     }
 
-    fun setupMediaPipe(context: Context){
+    fun setupMediaPipe(context: Context) {
         val listener = this
         viewModelScope.launch {
             faceLandmarkerHelper = FaceLandmarkerHelper(
@@ -412,9 +411,11 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
         }
     }
 
-    fun onresume(context: Context,
-                 lifecycleOwner: LifecycleOwner,
-                 previewView: PreviewView,) {
+    fun onresume(
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        previewView: PreviewView,
+    ) {
         if (faceLandmarkerHelper?.isClose() == true) {
             startCamera(context, lifecycleOwner, previewView)
             faceLandmarkerHelper?.setupFaceLandmarker()
@@ -427,7 +428,7 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
 
     override fun onError(error: String, errorCode: Int) {
         println("onError: $error")
-        _cameraState.value =_cameraState.value.copy(landmarkResult = null)
+        _cameraState.value = _cameraState.value.copy(landmarkResult = null)
 //        viewModelScope.launch {
 //
 //            if (errorCode == FaceLandmarkerHelper.GPU_ERROR) {
@@ -439,11 +440,11 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     }
 
     override fun onResults(resultBundle: FaceLandmarkerHelper.ResultBundle) {
-        _cameraState.value =_cameraState.value.copy(landmarkResult = resultBundle)
+        _cameraState.value = _cameraState.value.copy(landmarkResult = resultBundle)
     }
 
     override fun onEmpty() {
-        _cameraState.value =_cameraState.value.copy(landmarkResult = null)
+        _cameraState.value = _cameraState.value.copy(landmarkResult = null)
     }
 }
 
