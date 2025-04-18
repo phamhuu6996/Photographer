@@ -1,143 +1,122 @@
-package com.example.filamentglasses
-
-import android.renderscript.Matrix4f
-import android.view.Surface
-import android.view.SurfaceView
+import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.PointF
 import android.view.Choreographer
-import com.google.android.filament.*
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
+import android.view.Surface
+import com.google.android.filament.Camera
+import com.google.android.filament.Engine
+import com.google.android.filament.Renderer
+import com.google.android.filament.Scene
+import com.google.android.filament.SwapChain
+import com.google.android.filament.View
 
-class FilamentGlassesHelper(
-    private val surfaceView: SurfaceView,
-    private val previewWidth: Int,
-    private val previewHeight: Int,
-    private val loadMaterialBuffer: () -> ByteBuffer
+// Core refactored structure to support multiple 3D objects using CameraX + MediaPipe + Filament
+
+// Data class for each renderable object
+data class RenderableObject(
+    val name: String,
+    val modelFileName: String,
+    val attachPoints: List<Int>,
+    var transform: FloatArray = FloatArray(16) { if (it % 5 == 0) 1f else 0f } // identity matrix
+)
+
+// Helper to compute transform matrix
+object TransformUtils {
+    fun createTranslationMatrix(centerX: Float, centerY: Float, z: Float = -3f): FloatArray {
+        val tx = centerX / 1280f * 2 - 1
+        val ty = -(centerY / 720f * 2 - 1)
+        return floatArrayOf(
+            1f, 0f, 0f, 0f,
+            0f, 1f, 0f, 0f,
+            0f, 0f, 1f, 0f,
+            tx, ty, z, 1f
+        )
+    }
+}
+
+// Object manager to load and transform multiple assets
+class ObjectManager(
+    private val context: Context,
+    private val engine: Engine,
+    private val scene: Scene
 ) {
+    private val assets = mutableMapOf<String, FilamentAsset>()
 
-    private lateinit var engine: Engine
-    private lateinit var scene: Scene
-    private lateinit var renderer: Renderer
-    private lateinit var view: View
-    private lateinit var swapChain: SwapChain
-    private lateinit var camera: Camera
-    private lateinit var material: MaterialInstance
+    fun loadObject(obj: RenderableObject) {
+        val buffer = context.assets.open(obj.modelFileName).use { it.readBytes() }
+        val loader = AssetLoader(engine, UbershaderProvider(engine), EntityManager.get())
+        val asset = loader.createAssetFromBinary(ByteBuffer.wrap(buffer))
+        val resourceLoader = ResourceLoader(engine)
+        resourceLoader.loadResources(asset)
 
-    private var eyeLeftEntity = 0
-    private var eyeRightEntity = 0
-
-    fun init() {
-        surfaceView.holder.addCallback(object : android.view.SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: android.view.SurfaceHolder) {
-                setupFilament(holder.surface)
-            }
-
-            override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
-            override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {}
-        })
+        assets[obj.name] = asset
+        scene.addEntities(asset.entities)
     }
 
-    private fun setupFilament(surface: Surface) {
+    fun updateObjectTransform(obj: RenderableObject) {
+        assets[obj.name]?.let { asset ->
+            engine.transformManager.setTransform(
+                engine.transformManager.getInstance(asset.root),
+                obj.transform
+            )
+        }
+    }
+}
+
+// Singleton renderer that manages everything
+object OverlayRenderer {
+    private lateinit var engine: Engine
+    private lateinit var view: View
+    private lateinit var scene: Scene
+    private lateinit var camera: Camera
+    private lateinit var renderer: Renderer
+    private lateinit var swapChain: SwapChain
+    private lateinit var objectManager: ObjectManager
+    private val objects = mutableListOf<RenderableObject>()
+
+    fun init(context: Context, surface: Surface) {
         engine = Engine.create()
-        renderer = engine.createRenderer()
-        scene = engine.createScene()
         view = engine.createView()
-        camera = engine.createCamera(engine.entityManager.create())
-        swapChain = engine.createSwapChain(surface)
-
-        material = Material.Builder()
-            .payload(loadMaterialBuffer(), loadMaterialBuffer().remaining())
-            .build(engine)
-            .createInstance()
-
-        // Tạo hai vòng tròn (mắt kính)
-        eyeLeftEntity = createRingEntity()
-        eyeRightEntity = createRingEntity()
-        scene.addEntity(eyeLeftEntity)
-        scene.addEntity(eyeRightEntity)
-
+        scene = engine.createScene()
+        camera = engine.createCamera()
         view.scene = scene
         view.camera = camera
+        renderer = engine.createRenderer()
+        swapChain = engine.createSwapChain(surface)
+        objectManager = ObjectManager(context, engine, scene)
 
-        startRenderLoop()
-    }
-
-    private fun startRenderLoop() {
         Choreographer.getInstance().postFrameCallback(object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {
-                if (::renderer.isInitialized && ::swapChain.isInitialized && ::view.isInitialized) {
-                    if (renderer.beginFrame(swapChain, 1000000L)) {
-                        renderer.render(view)
-                        renderer.endFrame()
-                    }
+                if (renderer.beginFrame(swapChain)) {
+                    renderer.render(view)
+                    renderer.endFrame()
                 }
                 Choreographer.getInstance().postFrameCallback(this)
             }
         })
     }
 
-    fun updateLandmarks(leftX: Float, leftY: Float, rightX: Float, rightY: Float) {
-        val left = normalizeToWorld(leftX, leftY)
-        val right = normalizeToWorld(rightX, rightY)
-        updateEntityTransform(eyeLeftEntity, left[0], left[1], -2f)
-        updateEntityTransform(eyeRightEntity, right[0], right[1], -2f)
+    fun addObject(context: Context, obj: RenderableObject) {
+        objects.add(obj)
+        objectManager.loadObject(obj)
     }
 
-    private fun normalizeToWorld(x: Float, y: Float): FloatArray {
-        val nx = (x / previewWidth - 0.5f) * 2f
-        val ny = -(y / previewHeight - 0.5f) * 2f
-        return floatArrayOf(nx, ny)
-    }
-
-    private fun updateEntityTransform(entity: Int, x: Float, y: Float, z: Float) {
-        val tm = engine.transformManager
-        val transform = Matrix4f().apply {
-            translation(x, y, z)
+    fun updateTransforms(landmarks: List<PointF>) {
+        for (obj in objects) {
+            val points = obj.attachPoints.map { landmarks[it] }
+            val centerX = points.map { it.x }.average().toFloat()
+            val centerY = points.map { it.y }.average().toFloat()
+            obj.transform = TransformUtils.createTranslationMatrix(centerX, centerY)
+            objectManager.updateObjectTransform(obj)
         }
-        tm.setTransform(tm.getInstance(entity), transform.toFloatArray())
-    }
-
-    private fun createRingEntity(): Int {
-        val entity = EntityManager.get().create()
-        val (vb, ib) = createRingGeometry()
-
-        RenderableManager.Builder(1)
-            .geometry(0, RenderableManager.PrimitiveType.LINE_LOOP, vb, ib)
-            .material(0, material)
-            .build(engine, entity)
-
-        return entity
-    }
-
-    private fun createRingGeometry(radius: Float = 0.12f, segments: Int = 32): Pair<VertexBuffer, IndexBuffer> {
-        val vertexCount = segments
-        val indexCount = segments
-
-        val vb = VertexBuffer.Builder()
-            .bufferCount(1)
-            .vertexCount(vertexCount)
-            .attribute(VertexBuffer.VertexAttribute.POSITION, 0, VertexBuffer.AttributeType.FLOAT2, 0, 8)
-            .build(engine)
-
-        val vertexData = ByteBuffer.allocateDirect(vertexCount * 2 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
-        for (i in 0 until segments) {
-            val angle = (2.0 * Math.PI * i) / segments
-            vertexData.put((radius * Math.cos(angle)).toFloat())
-            vertexData.put((radius * Math.sin(angle)).toFloat())
-        }
-        vertexData.rewind()
-        vb.setBufferAt(engine, 0, vertexData)
-
-        val ib = IndexBuffer.Builder()
-            .indexCount(indexCount)
-            .bufferType(IndexBuffer.Builder.IndexType.USHORT)
-            .build(engine)
-
-        val indexData = ByteBuffer.allocateDirect(indexCount * 2).order(ByteOrder.nativeOrder()).asShortBuffer()
-        for (i in 0 until segments) indexData.put(i.toShort())
-        indexData.rewind()
-        ib.setBuffer(engine, indexData)
-
-        return Pair(vb, ib)
     }
 }
+
+// In your MainActivity, after setting up camera & MediaPipe:
+// Example usage:
+// val glasses = RenderableObject("glasses", "glasses_model.glb", listOf(33, 263))
+// val hat = RenderableObject("hat", "hat_model.glb", listOf(10))
+// OverlayRenderer.addObject(context, glasses)
+// OverlayRenderer.addObject(context, hat)
+//
+// Call updateTransforms(landmarks) every frame

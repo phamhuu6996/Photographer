@@ -62,7 +62,7 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.androidx.camera.extensions)
 
-// Compose
+    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -70,15 +70,19 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
-// Permissions
+    // Permissions
     implementation(libs.androidx.activity.compose)
     implementation (libs.androidx.lifecycle.viewmodel.compose)
 
-// Image
+    // Image
     implementation(libs.coil.compose)
 
-// Media Pipe
+    // Media Pipe
     implementation (libs.tasks.vision)
 
+    // Filament
+    implementation (libs.filament.android)
+    implementation (libs.filament.utils.android)
+    implementation (libs.gltfio.android)
 
 }
