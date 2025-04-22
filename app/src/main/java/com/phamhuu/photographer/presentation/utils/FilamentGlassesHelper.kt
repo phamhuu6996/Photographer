@@ -89,11 +89,12 @@ class FilamentHelper(
         view.camera = camera
 
         camera.setProjection(45.0, 1.0, 0.1, 100.0, Camera.Fov.VERTICAL) // aspect được cập nhật sau
-        camera.lookAt(0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+        camera.lookAt(0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
 
         view.viewport = Viewport(0, 0, surfaceView.width, surfaceView.height)
 
         makeTransparentBackground()
+        addDefaultLight()
 
         // Asset loader
         val materialProvider = UbershaderProvider(engine)
@@ -186,27 +187,13 @@ class FilamentHelper(
 
             val dx = right.x() - left.x()
             val dy = right.y() - left.y()
-            val scale = sqrt(dx * dx + dy * dy) * 4f
+            val scale = sqrt(dx * dx + dy * dy)
 
             return floatArrayOf(x, y, z) to scale
         }
 
         // Nếu không có đủ dữ liệu, trả về null
         return null
-    }
-
-    /**
-     * Cập nhật vị trí các model theo từng frame (ví dụ từ MediaPipe).
-     */
-    fun updateModelPositions(newPositions: List<FloatArray>) {
-        for ((index, model) in modelInstances.withIndex()) {
-            if (index >= newPositions.size) break
-            val position = newPositions[index]
-
-            val transformManager = engine.transformManager
-            val transformInstance = transformManager.getInstance(model.rootEntity)
-            transformManager.setTransform(transformInstance, createTranslationMatrix(position))
-        }
     }
 
     /**
@@ -253,10 +240,10 @@ class FilamentHelper(
     private fun addDefaultLight() {
         val light = EntityManager.get().create()
         LightManager.Builder(LightManager.Type.DIRECTIONAL)
-            .color(1.0f, 1.0f, 0.0f)
+            .color(1.0f, 1.0f, 1.0f)
             .intensity(100_000.0f)
-            .direction(0.0f, -1.0f, -1.0f)
-            .castShadows(true)
+            .direction(0.0f, -0.0f, -1.0f)
+            .castShadows(false)
             .build(engine, light)
         scene.addEntity(light)
     }

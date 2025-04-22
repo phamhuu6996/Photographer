@@ -166,7 +166,7 @@ fun FilamentSurfaceView(
     context: Context,
     lifecycle: Lifecycle,
     resultBundle: FaceLandmarkerHelper.ResultBundle?,
-    modelPath: String = "models/sunglasses.glb",
+    modelPath: String = "models/glasses.glb",
 ) {
     val surfaceView = remember { SurfaceView(context) }
     val filamentHelper = remember { FilamentHelper(context, surfaceView, lifecycle) }
