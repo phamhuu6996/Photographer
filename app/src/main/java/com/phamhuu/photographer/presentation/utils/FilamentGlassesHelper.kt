@@ -1,8 +1,11 @@
 import android.content.Context
+import android.graphics.Color
+import android.graphics.PixelFormat
 import android.opengl.Matrix
 import android.view.Choreographer
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import androidx.compose.runtime.clearCompositionErrors
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -86,20 +89,11 @@ class FilamentHelper(
         view.camera = camera
 
         camera.setProjection(45.0, 1.0, 0.1, 100.0, Camera.Fov.VERTICAL) // aspect được cập nhật sau
-        camera.lookAt(0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+        camera.lookAt(0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
 
         view.viewport = Viewport(0, 0, surfaceView.width, surfaceView.height)
 
-        // Light & skybox
-        view.blendMode = View.BlendMode.TRANSLUCENT
-        scene.skybox = null
-
-        renderer.clearOptions = renderer.clearOptions.apply {
-            clear = true
-        }
-//        scene.indirectLight = IndirectLight.Builder().build(engine)
-//        scene.skybox = Skybox.Builder().build(engine)
-//        addDefaultLight()
+        makeTransparentBackground()
 
         // Asset loader
         val materialProvider = UbershaderProvider(engine)
@@ -121,6 +115,19 @@ class FilamentHelper(
                 camera.setProjection(45.0, width.toDouble() / height, 0.1, 100.0, Camera.Fov.VERTICAL)
             }
         })
+    }
+
+    private fun makeTransparentBackground() {
+        surfaceView.setZOrderOnTop(true)
+        surfaceView.setBackgroundColor(Color.TRANSPARENT)
+        surfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT)
+
+        view.blendMode = View.BlendMode.TRANSLUCENT
+        scene.skybox = null
+
+        val options = renderer.clearOptions
+        options.clear = true
+        renderer.clearOptions = options
     }
 
     fun loadGlbAssetFromAssets(assetPath: String): ByteBuffer {

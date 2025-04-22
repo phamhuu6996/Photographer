@@ -166,7 +166,7 @@ fun FilamentSurfaceView(
     context: Context,
     lifecycle: Lifecycle,
     resultBundle: FaceLandmarkerHelper.ResultBundle?,
-    modelPath: String = "models/tutorial.glb",
+    modelPath: String = "models/sunglasses.glb",
 ) {
     val surfaceView = remember { SurfaceView(context) }
     val filamentHelper = remember { FilamentHelper(context, surfaceView, lifecycle) }
@@ -193,10 +193,6 @@ fun FilamentSurfaceView(
         filamentHelper.updateModelPositionsAndScales(listOf(transforms))
     }
 
-    AndroidView(factory = { surfaceView.apply {
-        setZOrderMediaOverlay(true)
-        holder.setFormat(PixelFormat.TRANSLUCENT)
-        setBackgroundColor(TRANSPARENT) // cũng có thể giữ .toArgb() nếu thích
-    } },modifier = Modifier.fillMaxSize())
+    AndroidView(factory = { surfaceView })
 }
 
