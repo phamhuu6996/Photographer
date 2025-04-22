@@ -4,8 +4,7 @@ agp = "8.5.0"
 cameraCore = "1.4.1"
 coilCompose = "2.5.0"
 composeBom = "2025.02.00"
-filamentAndroid = "1.59.2"
-filamentUtilsAndroid = "1.59.2"
+filamentAndroid = "1.36.0"
 kotlin = "1.9.0"
 coreKtx = "1.10.1"
 junit = "4.13.2"
@@ -40,9 +39,9 @@ androidx-ui = { module = "androidx.compose.ui:ui", version.ref = "ui" }
 androidx-ui-graphics = { module = "androidx.compose.ui:ui-graphics", version.ref = "ui" }
 androidx-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "uiToolingPreview" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
-filament-android = { module = "com.google.android.filament:filament-android", version = "1.57.1" }
-filament-utils-android = { module = "com.google.android.filament:filament-utils-android", version.ref = "filamentUtilsAndroid" }
-gltfio-android = { module = "com.google.android.filament:gltfio-android", version.ref = "filamentUtilsAndroid" }
+filament-android = { module = "com.google.android.filament:filament-android", version.ref = "filamentAndroid" }
+filament-utils-android = { module = "com.google.android.filament:filament-utils-android", version.ref = "filamentAndroid" }
+gltfio-android = { module = "com.google.android.filament:gltfio-android", version.ref = "filamentAndroid" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

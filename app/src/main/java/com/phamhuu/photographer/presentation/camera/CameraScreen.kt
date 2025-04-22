@@ -1,6 +1,12 @@
 package com.phamhuu.photographer.presentation.camera
 
+import FilamentHelper
 import LocalNavController
+import RenderableModel
+import android.content.Context
+import android.graphics.PixelFormat
+import android.view.Surface
+import android.view.SurfaceView
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -24,13 +30,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.filament.Engine
+import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
@@ -39,6 +49,7 @@ import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.ResolutionControl
 import com.phamhuu.photographer.presentation.common.SlideVertically
 import kotlin.math.min
+import android.graphics.Color.TRANSPARENT
 
 @Composable
 fun CameraScreen(
@@ -95,8 +106,15 @@ fun CameraScreen(
         contentAlignment = Alignment.TopStart // Align content to top start
 
     ) {
+        FilamentSurfaceView(
+            context = context,
+            lifecycle = lifecycleOwner.lifecycle,
+            resultBundle = cameraState.value.landmarkResult,
+        )
         AndroidView(
-            factory = { previewView },
+            factory = {
+
+                previewView },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -140,123 +158,45 @@ fun CameraScreen(
                 showSelectResolution = cameraState.value.showBottomSheetSelectResolution,
                 resolution = cameraState.value.captureResolution,
             )
-        FaceLandmarkOverlay(
-            modifier = Modifier.fillMaxSize(),
-            faceLandmarkerResult = cameraState.value.landmarkResult?.result,
-            imageWidth = cameraState.value.landmarkResult?.inputImageWidth ?: 1,
-            imageHeight = cameraState.value.landmarkResult?.inputImageHeight ?: 1,
-        )
     }
 }
 
 @Composable
-fun FaceLandmarkOverlay(
-    modifier: Modifier = Modifier,
-    faceLandmarkerResult: FaceLandmarkerResult?,
-    imageWidth: Int = 1,
-    imageHeight: Int = 1,
+fun FilamentSurfaceView(
+    context: Context,
+    lifecycle: Lifecycle,
+    resultBundle: FaceLandmarkerHelper.ResultBundle?,
+    modelPath: String = "models/tutorial.glb",
 ) {
-    // Khởi tạo các đối tượng Paint
-    val linePaint = remember { Paint() }
-    val pointPaint = remember { Paint() }
+    val surfaceView = remember { SurfaceView(context) }
+    val filamentHelper = remember { FilamentHelper(context, surfaceView, lifecycle) }
 
-    // Khởi tạo cấu hình cho Paint
-    LaunchedEffect(Unit) {
-        initPaints(linePaint, pointPaint)
+    // Load model kính chỉ 1 lần
+    val glassesBuffer = remember {
+        filamentHelper.loadGlbAssetFromAssets(modelPath)
     }
 
-    // Canvas composable để vẽ các landmark và connector
-    Canvas(modifier = modifier.fillMaxSize()) {
-        // Nếu không có kết quả hoặc danh sách landmarks rỗng thì không vẽ gì (tương đương với hàm clear)
-        if (faceLandmarkerResult?.faceLandmarks().isNullOrEmpty()) {
-            return@Canvas
-        }
+    // Load model khi khởi tạo
+    LaunchedEffect(glassesBuffer) {
+        glassesBuffer.let {
+            val initialTransform = floatArrayOf(0f, 0f, -3f)
 
-        // Tính toán scaleFactor dựa trên kích thước canvas và kích thước hình ảnh
-        val scaleFactor =
-            min(size.width * 1f / imageWidth.toFloat(), size.height * 1f / imageHeight.toFloat())
-
-        // Tính toán kích thước hình ảnh sau khi scale và tính toán offset để căn giữa
-        val scaledImageWidth = imageWidth * scaleFactor
-        val scaledImageHeight = imageHeight * scaleFactor
-        val offsetX = (size.width - scaledImageWidth) / 2f
-        val offsetY = (size.height - scaledImageHeight) / 2f
-
-        // Vẽ landmarks và connectors cho từng khuôn mặt
-        faceLandmarkerResult?.faceLandmarks()?.forEach { landmarks ->
-            drawFaceLandmarks(
-                faceLandmarks = landmarks,
-                offsetX = offsetX,
-                offsetY = offsetY,
-                scaleFactor = scaleFactor,
-                imageWidth = imageWidth,
-                imageHeight = imageHeight,
-                pointPaint = pointPaint
-            )
-            drawFaceConnectors(
-                faceLandmarks = landmarks,
-                offsetX = offsetX,
-                offsetY = offsetY,
-                scaleFactor = scaleFactor,
-                imageWidth = imageWidth,
-                imageHeight = imageHeight,
-                linePaint = linePaint
+            filamentHelper.loadModels(
+                listOf(RenderableModel(it, initialTransform))
             )
         }
     }
-}
 
-private fun initPaints(linePaint: Paint, pointPaint: Paint) {
-    // Bạn có thể thay đổi màu sắc theo ý thích
-    linePaint.color = Color.Blue
-    linePaint.strokeWidth = 8f
-    linePaint.style = PaintingStyle.Stroke
-
-    pointPaint.color = Color.Yellow
-    pointPaint.strokeWidth = 4f
-    pointPaint.style = PaintingStyle.Fill
-}
-
-private fun DrawScope.drawFaceLandmarks(
-    faceLandmarks: List<NormalizedLandmark>,
-    offsetX: Float,
-    offsetY: Float,
-    scaleFactor: Float,
-    imageWidth: Int,
-    imageHeight: Int,
-    pointPaint: Paint
-) {
-    faceLandmarks.forEach { landmark ->
-        val x = landmark.x() * imageWidth * scaleFactor + offsetX
-        val y = landmark.y() * imageHeight * scaleFactor + offsetY
-        drawCircle(color = pointPaint.color, center = Offset(x, y), radius = pointPaint.strokeWidth)
+    // Cập nhật transform mỗi lần nhận result mới
+    LaunchedEffect(resultBundle) {
+        val transforms = filamentHelper.extractGlassesTransform(resultBundle) ?: return@LaunchedEffect
+        filamentHelper.updateModelPositionsAndScales(listOf(transforms))
     }
+
+    AndroidView(factory = { surfaceView.apply {
+        setZOrderMediaOverlay(true)
+        holder.setFormat(PixelFormat.TRANSLUCENT)
+        setBackgroundColor(TRANSPARENT) // cũng có thể giữ .toArgb() nếu thích
+    } },modifier = Modifier.fillMaxSize())
 }
 
-private fun DrawScope.drawFaceConnectors(
-    faceLandmarks: List<NormalizedLandmark>,
-    offsetX: Float,
-    offsetY: Float,
-    scaleFactor: Float,
-    imageWidth: Int,
-    imageHeight: Int,
-    linePaint: Paint
-) {
-    FaceLandmarker.FACE_LANDMARKS_CONNECTORS.filterNotNull().forEach { connector ->
-        val startLandmark = faceLandmarks.getOrNull(connector.start())
-        val endLandmark = faceLandmarks.getOrNull(connector.end())
-        if (startLandmark != null && endLandmark != null) {
-            val startX = startLandmark.x() * imageWidth * scaleFactor + offsetX
-            val startY = startLandmark.y() * imageHeight * scaleFactor + offsetY
-            val endX = endLandmark.x() * imageWidth * scaleFactor + offsetX
-            val endY = endLandmark.y() * imageHeight * scaleFactor + offsetY
-
-            drawLine(
-                color = linePaint.color,
-                strokeWidth = linePaint.strokeWidth,
-                start = Offset(startX, startY),
-                end = Offset(endX, endY),
-            )
-        }
-    }
-}
