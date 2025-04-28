@@ -5,18 +5,16 @@ import android.opengl.Matrix
 import android.view.Choreographer
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import androidx.compose.runtime.clearCompositionErrors
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.filament.Camera
 import com.google.android.filament.Engine
 import com.google.android.filament.EntityManager
-import com.google.android.filament.IndirectLight
 import com.google.android.filament.LightManager
 import com.google.android.filament.Renderer
 import com.google.android.filament.Scene
-import com.google.android.filament.Skybox
 import com.google.android.filament.SwapChain
 import com.google.android.filament.View
 import com.google.android.filament.Viewport
@@ -24,10 +22,19 @@ import com.google.android.filament.gltfio.AssetLoader
 import com.google.android.filament.gltfio.FilamentAsset
 import com.google.android.filament.gltfio.ResourceLoader
 import com.google.android.filament.gltfio.UbershaderProvider
+import com.google.android.filament.utils.Float3
+import com.google.android.filament.utils.Mat4
+import com.google.android.filament.utils.Quaternion
+import com.google.android.filament.utils.cross
+import com.google.android.filament.utils.normalize
+import com.google.android.material.math.MathUtils
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.PI
+import kotlin.math.acos
+import kotlin.math.atan2
 import kotlin.math.sqrt
 
 
@@ -170,52 +177,144 @@ class FilamentHelper(
         }
     }
 
-    fun extractGlassesTransform(result: FaceLandmarkerHelper.ResultBundle?): Pair<FloatArray, Float>? {
-        val face = result?.result?.faceLandmarks()?.firstOrNull() ?: return null
-        val left = face.getOrNull(33)
-        val right = face.getOrNull(263)
+    fun computeRoll(leftEye: NormalizedLandmark, rightEye: NormalizedLandmark): Float {
+        val deltaY = rightEye.y() - leftEye.y()
+        val deltaX = rightEye.x() - leftEye.x()
+        val angleRad = atan2(deltaY, deltaX)
+        return Math.toDegrees(angleRad.toDouble()).toFloat()
+    }
+
+    fun computePitch(forehead: NormalizedLandmark, chin: NormalizedLandmark): Float {
+        // Tạo vector giữa trán và cằm
+        val vectorPitch = Float3(
+            (chin.x() - forehead.x() -0.5f) * 2,
+            (chin.y() - forehead.y() -0.5f) * 2,
+            (chin.y() - forehead.y() -0.5f) * 2,
+        )
+
+        // Trục Y chuẩn (chiều xuống là -1)
+        val up = Float3(0f, 1f, 0f)
+
+        // Tính cosTheta từ dot product và độ dài của các vector
+        val cosThetaPitch = (vectorPitch.x * up.x + vectorPitch.y * up.y + vectorPitch.z * up.z) /
+                (vectorPitch.length() * up.length())
+
+        // Tính góc Pitch (ngửa/cúi) theo radian và đổi ra độ
+        val pitchRadian = acos(cosThetaPitch.toDouble())
+        return Math.toDegrees(pitchRadian).toFloat()
+    }
+
+    fun computeYaw(nose: NormalizedLandmark, forehead: NormalizedLandmark): Float {
+        // Tạo vector giữa mũi và giữa 2 mắt
+        val vectorYaw = Float3(
+            (nose.x() - forehead.x() -0.5f) * 2,
+            (nose.y() - forehead.y() -0.5f) * 2,
+            (nose.z() - forehead.z() -0.5f) * 2,
+        )
+
+        // Trục Z chuẩn (chiều ra vào là -1)
+        val forward = Float3(0f, 0f, 1f)
+
+        // Tính cosTheta từ dot product và độ dài của các vector
+        val cosThetaYaw = (vectorYaw.x * forward.x + vectorYaw.y * forward.y + vectorYaw.z * forward.z) /
+                (vectorYaw.length() * forward.length())
+
+        // Tính góc Yaw (quay trái/phải) theo radian và đổi ra độ
+        val yawRadian = Math.acos(cosThetaYaw.toDouble())
+        return Math.toDegrees(yawRadian).toFloat()
+    }
+
+
+
+    fun extractGlassesTransform(result: FaceLandmarkerHelper.ResultBundle?) {
+        val face = result?.result?.faceLandmarks()?.firstOrNull() ?: return
+        val leftEye = face.getOrNull(33)        ?: return
+        val rightEye = face.getOrNull(263)        ?: return
+        val chin = face.getOrNull(152)        ?: return
+        val forehead = face.getOrNull(10)        ?: return
+        val nose = face.getOrNull(1)        ?: return
 
         // Kiểm tra nếu có đủ dữ liệu điểm landmarks
-        if (left != null && right != null) {
-            val centerX = (left.x() + right.x()) / 2f
-            val centerY = (left.y() + right.y()) / 2f
-            val centerZ = (left.z() + right.z()) / 2f
+        val centerX = (leftEye.x() + rightEye.x()) / 2f
+        val centerY = (leftEye.y() + rightEye.y()) / 2f
+        val centerZ = (leftEye.z() + rightEye.z()) / 2f
 
             val x = (centerX - 0.5f) * 2f
-            val y = -(centerY - 0.5f) * 2f
+            val y = (centerY - 0.5f) * 2f
             val z = -3f
 
-            val dx = right.x() - left.x()
-            val dy = right.y() - left.y()
+            val dx = rightEye.x() - leftEye.x()
+            val dy = rightEye.y() - leftEye.y()
             val scale = sqrt(dx * dx + dy * dy)
 
-            return floatArrayOf(x, y, z) to scale
-        }
+        // 2. Tính hướng nhìn (forward vector)
+        val forward = normalize(Float3(
+            chin.x() - forehead.x(),
+            chin.y() - forehead.y(),
+            chin.z() - forehead.z()
+        ))
 
-        // Nếu không có đủ dữ liệu, trả về null
-        return null
+
+        // 3. Trục ngang (right vector)
+        val horizontal = normalize(Float3(
+            rightEye.x() - leftEye.x(),
+            rightEye.y() - leftEye.y(),
+            rightEye.z() - leftEye.z()
+        ))
+
+
+        // 4. Trục lên (up vector) = right × forward
+        val up = normalize(cross(horizontal, forward))
+
+        // Tính góc quay X: Quay quanh trục X
+        val angleX = computeYaw(nose, forehead)
+
+        // Tính góc quay Y: Quay quanh trục Y
+        val angleY = computePitch(forehead, chin)
+
+        // Tính góc quay Z: Quay quanh trục Z
+        val angleZ = computeRoll(        leftEye, rightEye
+        )
+
+        for ((index, model) in modelInstances.withIndex()) {
+            val transformManager = engine.transformManager
+            val transformInstance = transformManager.getInstance(model.rootEntity)
+
+            println("llslsls$angleX")
+            println("llslsls$angleY")
+
+            val matrix = FloatArray(16)
+            Matrix.setIdentityM(matrix, 0)
+            Matrix.translateM(matrix, 0, x, y, z)
+            Matrix.rotateM(matrix, 0, 0f, 1f, 0f, 0f)
+            Matrix.rotateM(matrix, 0, angleY.toFloat(), 0f, 1f, 0f)
+            Matrix.rotateM(matrix, 0, -(angleZ), 0f, 0f, 1f)
+            Matrix.scaleM(matrix, 0, scale, scale, scale)
+            transformManager.setTransform(transformInstance, matrix)
+        }
     }
+
 
     /**
      * Cập nhật vị trí và tỷ lệ cho kính.
      */
-    fun updateModelPositionsAndScales(data: List<Pair<FloatArray, Float>>) {
-        val transformManager = engine.transformManager
-
-        for ((index, model) in modelInstances.withIndex()) {
-            if (index >= data.size) break
-
-            val (position, scale) = data[index]
-            val transformInstance = transformManager.getInstance(model.rootEntity)
-
-            val matrix = FloatArray(16)
-            Matrix.setIdentityM(matrix, 0)
-            Matrix.translateM(matrix, 0, position[0], position[1], position[2])
-            Matrix.scaleM(matrix, 0, scale, scale, scale)
-
-            transformManager.setTransform(transformInstance, matrix)
-        }
-    }
+//    fun updateModelPositionsAndScales(data: List<Pair<FloatArray, Float>>) {
+//        val transformManager = engine.transformManager
+//
+//        for ((index, model) in modelInstances.withIndex()) {
+//            if (index >= data.size) break
+//
+//            val (position, scale) = data[index]
+//            val transformInstance = transformManager.getInstance(model.rootEntity)
+//
+//            val matrix = FloatArray(16)
+//            Matrix.setIdentityM(matrix, 0)
+//            Matrix.translateM(matrix, 0, position[0], position[1], position[2])
+//            Matrix.scaleM(matrix, 0, scale, scale, scale)
+//
+//            transformManager.setTransform(transformInstance, matrix)
+//        }
+//    }
 
     fun destroy() {
         modelInstances.forEach { instance ->
@@ -253,6 +352,10 @@ class FilamentHelper(
             choreographer.postFrameCallback(this)
             renderFrame(frameTimeNanos)
         }
+    }
+
+    private fun Float3.length(): Float {
+        return Math.sqrt((x * x + y * y + z * z).toDouble()).toFloat()
     }
 }
 

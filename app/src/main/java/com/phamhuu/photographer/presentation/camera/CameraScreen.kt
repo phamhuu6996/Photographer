@@ -190,7 +190,7 @@ fun FilamentSurfaceView(
     // Cập nhật transform mỗi lần nhận result mới
     LaunchedEffect(resultBundle) {
         val transforms = filamentHelper.extractGlassesTransform(resultBundle) ?: return@LaunchedEffect
-        filamentHelper.updateModelPositionsAndScales(listOf(transforms))
+//        filamentHelper.updateModelPositionsAndScales(listOf(transforms))
     }
 
     AndroidView(factory = { surfaceView })
