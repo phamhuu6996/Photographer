@@ -184,47 +184,131 @@ class FilamentHelper(
         return Math.toDegrees(angleRad.toDouble()).toFloat()
     }
 
-    fun computePitch(forehead: NormalizedLandmark, chin: NormalizedLandmark): Float {
-        // Tạo vector giữa trán và cằm
-        val vectorPitch = Float3(
-            (chin.x() - forehead.x() -0.5f) * 2,
-            (chin.y() - forehead.y() -0.5f) * 2,
-            (chin.y() - forehead.y() -0.5f) * 2,
-        )
-
-        // Trục Y chuẩn (chiều xuống là -1)
-        val up = Float3(0f, 1f, 0f)
-
-        // Tính cosTheta từ dot product và độ dài của các vector
-        val cosThetaPitch = (vectorPitch.x * up.x + vectorPitch.y * up.y + vectorPitch.z * up.z) /
-                (vectorPitch.length() * up.length())
-
-        // Tính góc Pitch (ngửa/cúi) theo radian và đổi ra độ
-        val pitchRadian = acos(cosThetaPitch.toDouble())
-        return Math.toDegrees(pitchRadian).toFloat()
+    fun convertToFilamentCoordinates(landmark: NormalizedLandmark): FloatArray {
+        val x = (landmark.x() * 2) - 1
+        val y = (landmark.y() * 2) - 1
+        val z = (landmark.z() * 2) - 1
+        return floatArrayOf(x, y, z)
     }
 
-    fun computeYaw(nose: NormalizedLandmark, forehead: NormalizedLandmark): Float {
-        // Tạo vector giữa mũi và giữa 2 mắt
-        val vectorYaw = Float3(
-            (nose.x() - forehead.x() -0.5f) * 2,
-            (nose.y() - forehead.y() -0.5f) * 2,
-            (nose.z() - forehead.z() -0.5f) * 2,
-        )
+    /*
+    Tính góc giữa vector d và trục Y (j = (0, 1, 0)):
 
-        // Trục Z chuẩn (chiều ra vào là -1)
-        val forward = Float3(0f, 0f, 1f)
+    Cho hai điểm:
+        p1(x1, y1, z1)
+        p2(x2, y2, z2)
 
-        // Tính cosTheta từ dot product và độ dài của các vector
-        val cosThetaYaw = (vectorYaw.x * forward.x + vectorYaw.y * forward.y + vectorYaw.z * forward.z) /
-                (vectorYaw.length() * forward.length())
+    Vector d:
+        d = (dx, dy, dz) = (x2 - x1, y2 - y1, z2 - z1)
 
-        // Tính góc Yaw (quay trái/phải) theo radian và đổi ra độ
-        val yawRadian = Math.acos(cosThetaYaw.toDouble())
-        return Math.toDegrees(yawRadian).toFloat()
+    Trục Y:
+        j = (0, 1, 0)
+
+    Tích vô hướng giữa d và j:
+        d ⋅ j = dx * 0 + dy * 1 + dz * 0 = dy
+
+    Độ dài của vector d:
+        |d| = sqrt(dx² + dy² + dz²)
+
+    Độ dài của vector j:
+        |j| = 1
+
+    Công thức cos(θ):
+        cos(θ) = dy / |d|
+
+    Góc θ (đơn vị độ):
+        θ = arccos(dy / |d|) * (180 / π)
+    */
+    fun calculateAngleWithYAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
+        // Chuyển tọa độ từ [0, 1] sang [-1, 1]
+        val (x1, y1, z1) = convertToFilamentCoordinates(p1)
+        val (x2, y2, z2) = convertToFilamentCoordinates(p2)
+
+        // Tính vector hướng d = p2 - p1
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val dz = z2 - z1
+
+        // Độ dài vector d
+        val length = sqrt(dx * dx + dy * dy + dz * dz)
+
+        if (length == 0f) {
+            // Hai điểm trùng nhau => không xác định góc
+            return 0f
+        }
+
+        // cos(theta) = dy / |d|
+        val cosTheta = dy / length
+
+        // Giới hạn cosTheta trong [-1, 1] để tránh lỗi do sai số tính toán
+        val safeCosTheta = cosTheta.coerceIn(-1f, 1f)
+
+        // Tính góc (radian)
+        val thetaRadians = acos(safeCosTheta)
+
+        // Chuyển thành độ
+        val thetaDegrees = Math.toDegrees(thetaRadians.toDouble()).toFloat()
+
+        return thetaDegrees
     }
 
+    /*
+    Tính góc giữa vector d và trục X (i = (1, 0, 0)):
 
+    Cho hai điểm:
+        p1(x1, y1, z1)
+        p2(x2, y2, z2)
+
+    Vector d:
+        d = (dx, dy, dz) = (x2 - x1, y2 - y1, z2 - z1)
+
+    Tích vô hướng với trục X:
+        d ⋅ i = dx * 1 + dy * 0 + dz * 0 = dx
+
+    Độ dài của vector d:
+        |d| = sqrt(dx² + dy² + dz²)
+
+    Độ dài của vector i:
+        |i| = 1
+
+    Công thức cos(θ):
+        cos(θ) = dx / |d|
+
+    Góc θ (đơn vị độ):
+        θ = arccos(dx / |d|) * (180 / π)
+    */
+    fun calculateAngleWithXAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
+        // Chuyển tọa độ từ [0, 1] sang [-1, 1]
+        val (x1, y1, z1) = convertToFilamentCoordinates(p1)
+        val (x2, y2, z2) = convertToFilamentCoordinates(p2)
+
+        // Tính vector hướng d = p2 - p1
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val dz = z2 - z1
+
+        // Độ dài vector d
+        val length = sqrt(dx * dx + dy * dy + dz * dz)
+
+        if (length == 0f) {
+            // Hai điểm trùng nhau => không xác định góc
+            return 0f
+        }
+
+        // cos(theta) = dx / |d|
+        val cosTheta = dx / length
+
+        // Giới hạn cosTheta trong [-1, 1] để tránh lỗi do sai số tính toán
+        val safeCosTheta = cosTheta.coerceIn(-1f, 1f)
+
+        // Tính góc (radian)
+        val thetaRadians = acos(safeCosTheta)
+
+        // Chuyển thành độ
+        val thetaDegrees = Math.toDegrees(thetaRadians.toDouble()).toFloat()
+
+        return thetaDegrees
+    }
 
     fun extractGlassesTransform(result: FaceLandmarkerHelper.ResultBundle?) {
         val face = result?.result?.faceLandmarks()?.firstOrNull() ?: return
@@ -247,33 +331,15 @@ class FilamentHelper(
             val dy = rightEye.y() - leftEye.y()
             val scale = sqrt(dx * dx + dy * dy)
 
-        // 2. Tính hướng nhìn (forward vector)
-        val forward = normalize(Float3(
-            chin.x() - forehead.x(),
-            chin.y() - forehead.y(),
-            chin.z() - forehead.z()
-        ))
-
-
-        // 3. Trục ngang (right vector)
-        val horizontal = normalize(Float3(
-            rightEye.x() - leftEye.x(),
-            rightEye.y() - leftEye.y(),
-            rightEye.z() - leftEye.z()
-        ))
-
-
-        // 4. Trục lên (up vector) = right × forward
-        val up = normalize(cross(horizontal, forward))
-
         // Tính góc quay X: Quay quanh trục X
-        val angleX = computeYaw(nose, forehead)
+        val angleX = calculateAngleWithXAxis(nose, forehead)
 
         // Tính góc quay Y: Quay quanh trục Y
-        val angleY = computePitch(forehead, chin)
+        val angleY = calculateAngleWithYAxis(forehead, chin)
 
         // Tính góc quay Z: Quay quanh trục Z
-        val angleZ = computeRoll(        leftEye, rightEye
+        val angleZ = computeRoll(
+            leftEye, rightEye
         )
 
         for ((index, model) in modelInstances.withIndex()) {
