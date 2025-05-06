@@ -177,18 +177,42 @@ class FilamentHelper(
         }
     }
 
-    fun computeRoll(leftEye: NormalizedLandmark, rightEye: NormalizedLandmark): Float {
+    private fun computeRoll(leftEye: NormalizedLandmark, rightEye: NormalizedLandmark): Float {
         val deltaY = rightEye.y() - leftEye.y()
         val deltaX = rightEye.x() - leftEye.x()
         val angleRad = atan2(deltaY, deltaX)
         return Math.toDegrees(angleRad.toDouble()).toFloat()
     }
 
-    fun convertToFilamentCoordinates(landmark: NormalizedLandmark): FloatArray {
+    private fun convertToFilamentCoordinates(landmark: NormalizedLandmark): FloatArray {
         val x = (landmark.x() * 2) - 1
         val y = (landmark.y() * 2) - 1
         val z = (landmark.z() * 2) - 1
         return floatArrayOf(x, y, z)
+    }
+
+
+    private fun calculateAngleBetweenVectorAndAxis(
+        p1: NormalizedLandmark,
+        p2: NormalizedLandmark,
+        axis: (Float, Float, Float) -> Float
+    ): Float {
+        val (x1, y1, z1) = convertToFilamentCoordinates(p1)
+        val (x2, y2, z2) = convertToFilamentCoordinates(p2)
+
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val dz = z2 - z1
+
+        val length = sqrt(dx * dx + dy * dy + dz * dz)
+        if (length == 0f) return 0f
+
+        val dot = axis(dx, dy, dz)
+        val cosTheta = dot / length
+        val safeCosTheta = cosTheta.coerceIn(-1f, 1f)
+        val thetaRadians = acos(safeCosTheta)
+
+        return Math.toDegrees(thetaRadians.toDouble()).toFloat()
     }
 
     /*
@@ -219,41 +243,12 @@ class FilamentHelper(
     Góc θ (đơn vị độ):
         θ = arccos(dy / |d|) * (180 / π)
     */
-    fun calculateAngleWithYAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
-        // Chuyển tọa độ từ [0, 1] sang [-1, 1]
-        val (x1, y1, z1) = convertToFilamentCoordinates(p1)
-        val (x2, y2, z2) = convertToFilamentCoordinates(p2)
-
-        // Tính vector hướng d = p2 - p1
-        val dx = x2 - x1
-        val dy = y2 - y1
-        val dz = z2 - z1
-
-        // Độ dài vector d
-        val length = sqrt(dx * dx + dy * dy + dz * dz)
-
-        if (length == 0f) {
-            // Hai điểm trùng nhau => không xác định góc
-            return 0f
-        }
-
-        // cos(theta) = dy / |d|
-        val cosTheta = dy / length
-
-        // Giới hạn cosTheta trong [-1, 1] để tránh lỗi do sai số tính toán
-        val safeCosTheta = cosTheta.coerceIn(-1f, 1f)
-
-        // Tính góc (radian)
-        val thetaRadians = acos(safeCosTheta)
-
-        // Chuyển thành độ
-        val thetaDegrees = Math.toDegrees(thetaRadians.toDouble()).toFloat()
-
-        return thetaDegrees
+    private fun calculateAngleWithYAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
+        return calculateAngleBetweenVectorAndAxis(p1, p2) { dx, _, _ -> dx }
     }
 
     /*
-    Tính góc giữa vector d và trục X (i = (1, 0, 0)):
+    Tính góc giữa vector d và trục Y (i = (0, 1, 0)):
 
     Cho hai điểm:
         p1(x1, y1, z1)
@@ -263,7 +258,7 @@ class FilamentHelper(
         d = (dx, dy, dz) = (x2 - x1, y2 - y1, z2 - z1)
 
     Tích vô hướng với trục X:
-        d ⋅ i = dx * 1 + dy * 0 + dz * 0 = dx
+        d ⋅ i = dx * 0 + dy * 1 + dz * 0 = dx
 
     Độ dài của vector d:
         |d| = sqrt(dx² + dy² + dz²)
@@ -272,42 +267,13 @@ class FilamentHelper(
         |i| = 1
 
     Công thức cos(θ):
-        cos(θ) = dx / |d|
+        cos(θ) = dy / |d|
 
     Góc θ (đơn vị độ):
-        θ = arccos(dx / |d|) * (180 / π)
+        θ = arccos(dy / |d|) * (180 / π)
     */
-    fun calculateAngleWithXAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
-        // Chuyển tọa độ từ [0, 1] sang [-1, 1]
-        val (x1, y1, z1) = convertToFilamentCoordinates(p1)
-        val (x2, y2, z2) = convertToFilamentCoordinates(p2)
-
-        // Tính vector hướng d = p2 - p1
-        val dx = x2 - x1
-        val dy = y2 - y1
-        val dz = z2 - z1
-
-        // Độ dài vector d
-        val length = sqrt(dx * dx + dy * dy + dz * dz)
-
-        if (length == 0f) {
-            // Hai điểm trùng nhau => không xác định góc
-            return 0f
-        }
-
-        // cos(theta) = dx / |d|
-        val cosTheta = dx / length
-
-        // Giới hạn cosTheta trong [-1, 1] để tránh lỗi do sai số tính toán
-        val safeCosTheta = cosTheta.coerceIn(-1f, 1f)
-
-        // Tính góc (radian)
-        val thetaRadians = acos(safeCosTheta)
-
-        // Chuyển thành độ
-        val thetaDegrees = Math.toDegrees(thetaRadians.toDouble()).toFloat()
-
-        return thetaDegrees
+    private fun calculateAngleWithXAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
+        return calculateAngleBetweenVectorAndAxis(p1, p2) { _, dy, _ -> dy }
     }
 
     fun extractGlassesTransform(result: FaceLandmarkerHelper.ResultBundle?) {
