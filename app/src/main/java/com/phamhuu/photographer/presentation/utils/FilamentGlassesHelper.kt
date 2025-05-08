@@ -49,16 +49,13 @@ data class ModelInstance(
 )
 
 class FilamentHelper(
-    private val context: Context,
-    private val surfaceView: SurfaceView,
-    private val lifecycle: Lifecycle
 ) {
-    private val engine: Engine
-    private lateinit var swapChain: SwapChain
-    private val renderer: Renderer
-    private val scene: Scene
-    private val view: View
-    private val camera: Camera
+    private val engine: Engine = Engine.create()
+    private var swapChain: SwapChain ? = null
+    private val renderer: Renderer = engine.createRenderer()
+    private val scene: Scene = engine.createScene()
+    private val view: View = engine.createView()
+    private val camera: Camera = engine.createCamera(engine.entityManager.create())
     private val modelInstances = mutableListOf<ModelInstance>()
 
     private val choreographer = Choreographer.getInstance()
@@ -69,6 +66,9 @@ class FilamentHelper(
 
     private val lifecycleObserver = object : DefaultLifecycleObserver {
         override fun onResume(owner: LifecycleOwner) {
+            if (swapChain == null) {
+                return
+            }
             choreographer.postFrameCallback(frameScheduler)
         }
 
@@ -83,30 +83,35 @@ class FilamentHelper(
     }
 
     init {
-        lifecycle.addObserver(lifecycleObserver)
-
-        engine = Engine.create()
-        renderer = engine.createRenderer()
-        scene = engine.createScene()
-        view = engine.createView()
-        camera = engine.createCamera(engine.entityManager.create())
 
         // Set up view & camera
         view.scene = scene
         view.camera = camera
+        view.blendMode = View.BlendMode.TRANSLUCENT
+        scene.skybox = null
 
         camera.setProjection(45.0, 1.0, 0.1, 100.0, Camera.Fov.VERTICAL) // aspect được cập nhật sau
         camera.lookAt(0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-
-        view.viewport = Viewport(0, 0, surfaceView.width, surfaceView.height)
-
-        makeTransparentBackground()
         addDefaultLight()
+
+        val options = renderer.clearOptions
+        options.clear = true
+        renderer.clearOptions = options
 
         // Asset loader
         val materialProvider = UbershaderProvider(engine)
         assetLoader = AssetLoader(engine, materialProvider, EntityManager.get())
         resourceLoader = ResourceLoader(engine)
+    }
+
+    fun listenToLifecycle(lifecycle: Lifecycle) {
+        lifecycle.addObserver(lifecycleObserver)
+    }
+
+    fun setUpSurfaceView(surfaceView: SurfaceView) {
+        view.viewport = Viewport(0, 0, surfaceView.width, surfaceView.height)
+
+        makeTransparentBackground(surfaceView)
 
         // Wait for surface ready
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
@@ -125,20 +130,13 @@ class FilamentHelper(
         })
     }
 
-    private fun makeTransparentBackground() {
+    private fun makeTransparentBackground(surfaceView: SurfaceView) {
         surfaceView.setZOrderOnTop(true)
         surfaceView.setBackgroundColor(Color.TRANSPARENT)
         surfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT)
-
-        view.blendMode = View.BlendMode.TRANSLUCENT
-        scene.skybox = null
-
-        val options = renderer.clearOptions
-        options.clear = true
-        renderer.clearOptions = options
     }
 
-    fun loadGlbAssetFromAssets(assetPath: String): ByteBuffer {
+    fun loadGlbAssetFromAssets(assetPath: String, context: Context): ByteBuffer {
         val assetManager = context.assets
         assetManager.open(assetPath).use { input ->
             val bytes = ByteArray(input.available())
@@ -171,7 +169,10 @@ class FilamentHelper(
     }
 
     fun renderFrame(frameTimeNanos: Long) {
-        if (renderer.beginFrame(swapChain, frameTimeNanos)) {
+        if (swapChain == null) {
+            return
+        }
+        if (renderer.beginFrame(swapChain!!, frameTimeNanos)) {
             renderer.render(view)
             renderer.endFrame()
         }

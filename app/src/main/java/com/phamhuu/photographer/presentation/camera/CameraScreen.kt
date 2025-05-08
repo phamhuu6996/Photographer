@@ -50,10 +50,15 @@ import com.phamhuu.photographer.presentation.common.ResolutionControl
 import com.phamhuu.photographer.presentation.common.SlideVertically
 import kotlin.math.min
 import android.graphics.Color.TRANSPARENT
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.androidx.compose.get
+import org.koin.androidx.compose.getKoin
+import org.koin.androidx.compose.inject
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun CameraScreen(
-    viewModel: CameraViewModel = viewModel()
+    viewModel: CameraViewModel = koinViewModel<CameraViewModel>()
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -62,7 +67,7 @@ fun CameraScreen(
             scaleType = PreviewView.ScaleType.FIT_CENTER
         }
     }
-    val cameraState = viewModel.cameraState.collectAsState()
+    val cameraState = viewModel.cameraState.collectAsStateWithLifecycle()
     var offsetY = remember { 0f }
     val navController = LocalNavController.current
 
@@ -72,7 +77,7 @@ fun CameraScreen(
     }, context)
 
     DisposableEffect(Unit) {
-        viewModel.setupMediaPipe(context)
+        viewModel.setupMediaPipe()
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
@@ -169,11 +174,16 @@ fun FilamentSurfaceView(
     modelPath: String = "models/glasses.glb",
 ) {
     val surfaceView = remember { SurfaceView(context) }
-    val filamentHelper = remember { FilamentHelper(context, surfaceView, lifecycle) }
+    val data = get<FilamentHelper>()
+    val filamentHelper = remember {
+        data.listenToLifecycle(lifecycle)
+        data.setUpSurfaceView(surfaceView)
+        data
+    }
 
     // Load model kính chỉ 1 lần
     val glassesBuffer = remember {
-        filamentHelper.loadGlbAssetFromAssets(modelPath)
+        filamentHelper.loadGlbAssetFromAssets(modelPath, context)
     }
 
     // Load model khi khởi tạo
@@ -189,8 +199,7 @@ fun FilamentSurfaceView(
 
     // Cập nhật transform mỗi lần nhận result mới
     LaunchedEffect(resultBundle) {
-        val transforms = filamentHelper.extractGlassesTransform(resultBundle) ?: return@LaunchedEffect
-//        filamentHelper.updateModelPositionsAndScales(listOf(transforms))
+        filamentHelper.extractGlassesTransform(resultBundle)
     }
 
     AndroidView(factory = { surfaceView })

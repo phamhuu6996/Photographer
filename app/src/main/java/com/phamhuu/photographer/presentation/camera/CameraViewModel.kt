@@ -6,6 +6,7 @@ import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.net.Uri
+import android.util.Log
 import android.util.Size
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -43,13 +44,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
+class CameraViewModel(
+    val faceLandmarkerHelper: FaceLandmarkerHelper
+) : ViewModel(){
     private val _cameraState = MutableStateFlow(CameraState())
     val cameraState = _cameraState.asStateFlow()
     private var recording: Recording? = null
@@ -60,7 +66,9 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     private var camera: Camera? = null
     private var cameraControl: CameraControl? = null
 
-    private var faceLandmarkerHelper: FaceLandmarkerHelper? = null
+    init {
+        listenMediaPipe()
+    }
 
     @OptIn(ExperimentalCamera2Interop::class)
     fun getCameraId(): String? {
@@ -401,13 +409,9 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
         }
     }
 
-    fun setupMediaPipe(context: Context) {
-        val listener = this
+    fun setupMediaPipe() {
         viewModelScope.launch {
-            faceLandmarkerHelper = FaceLandmarkerHelper(
-                context = context,
-                faceLandmarkerHelperListener = listener
-            )
+            faceLandmarkerHelper.setupFaceLandmarker()
         }
     }
 
@@ -426,25 +430,16 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
         faceLandmarkerHelper?.clearFaceLandmarker()
     }
 
-    override fun onError(error: String, errorCode: Int) {
-        println("onError: $error")
-        _cameraState.value = _cameraState.value.copy(landmarkResult = null)
-//        viewModelScope.launch {
-//
-//            if (errorCode == FaceLandmarkerHelper.GPU_ERROR) {
-//                fragmentCameraBinding.bottomSheetLayout.spinnerDelegate.setSelection(
-//                    FaceLandmarkerHelper.DELEGATE_CPU, false
-//                )
-//            }
-//        }
-    }
-
-    override fun onResults(resultBundle: FaceLandmarkerHelper.ResultBundle) {
-        _cameraState.value = _cameraState.value.copy(landmarkResult = resultBundle)
-    }
-
-    override fun onEmpty() {
-        _cameraState.value = _cameraState.value.copy(landmarkResult = null)
+    private fun listenMediaPipe() {
+        viewModelScope.launch {
+            faceLandmarkerHelper.resultFlow.collect { state ->
+                if (state?.result == null) {
+                    _cameraState.value = _cameraState.value.copy(landmarkResult = null)
+                } else {
+                    _cameraState.value = _cameraState.value.copy(landmarkResult = state)
+                }
+            }
+        }
     }
 }
 
