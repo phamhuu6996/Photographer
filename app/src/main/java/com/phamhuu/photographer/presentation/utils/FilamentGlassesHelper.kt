@@ -45,7 +45,8 @@ data class RenderableModel(
 
 data class ModelInstance(
     val asset: FilamentAsset,
-    val rootEntity: Int
+    val rootEntity: Int,
+    val width: Float = 1f,
 )
 
 class FilamentHelper(
@@ -156,6 +157,9 @@ class FilamentHelper(
             val asset = assetLoader.createAsset(model.buffer) ?: continue
             resourceLoader.loadResources(asset)
 
+            // Giả sử `asset` là FilamentAsset bạn load từ gltf
+            val width = asset.boundingBox.halfExtent[0] * 2     // Float3
+
             val rootEntity = asset.root
             val position = model.initialPosition
 
@@ -164,7 +168,7 @@ class FilamentHelper(
             transformManager.setTransform(transformInstance, createTranslationMatrix(position))
 
             scene.addEntities(asset.entities)
-            modelInstances.add(ModelInstance(asset, rootEntity))
+            modelInstances.add(ModelInstance(asset, rootEntity, width))
         }
     }
 
@@ -187,8 +191,15 @@ class FilamentHelper(
 
     private fun convertToFilamentCoordinates(landmark: NormalizedLandmark): FloatArray {
         val x = (landmark.x() * 2) - 1
-        val y = (landmark.y() * 2) - 1
+        val y = ((1 - landmark.y()) * 2) - 1
         val z = (landmark.z() * 2) - 1
+        return floatArrayOf(x, y, z)
+    }
+
+    private fun convertToFilamentCoordinatesFloat3(landmark: Float3): FloatArray {
+        val x = (landmark[0] * 2) - 1
+        val y = ((1 - landmark[1]) * 2) - 1
+        val z = (landmark[2] * 2) - 1
         return floatArrayOf(x, y, z)
     }
 
@@ -289,20 +300,17 @@ class FilamentHelper(
         val centerX = (leftEye.x() + rightEye.x()) / 2f
         val centerY = (leftEye.y() + rightEye.y()) / 2f
         val centerZ = (leftEye.z() + rightEye.z()) / 2f
-
-            val x = (centerX - 0.5f) * 2f
-            val y = (centerY - 0.5f) * 2f
-            val z = -3f
+        val center = convertToFilamentCoordinatesFloat3(Float3(centerX, centerY, centerZ))
 
             val dx = rightEye.x() - leftEye.x()
             val dy = rightEye.y() - leftEye.y()
             val scale = sqrt(dx * dx + dy * dy)
 
         // Tính góc quay X: Quay quanh trục X
-        val angleX = calculateAngleWithXAxis(nose, forehead)
+        val angleX = calculateAngleWithXAxis(chin, forehead)
 
         // Tính góc quay Y: Quay quanh trục Y
-        val angleY = calculateAngleWithYAxis(forehead, chin)
+        val angleY = calculateAngleWithYAxis(leftEye, rightEye)
 
         // Tính góc quay Z: Quay quanh trục Z
         val angleZ = computeRoll(
@@ -313,14 +321,11 @@ class FilamentHelper(
             val transformManager = engine.transformManager
             val transformInstance = transformManager.getInstance(model.rootEntity)
 
-            println("llslsls$angleX")
-            println("llslsls$angleY")
-
             val matrix = FloatArray(16)
             Matrix.setIdentityM(matrix, 0)
-            Matrix.translateM(matrix, 0, x, y, z)
-            Matrix.rotateM(matrix, 0, 0f, 1f, 0f, 0f)
-            Matrix.rotateM(matrix, 0, angleY.toFloat(), 0f, 1f, 0f)
+            Matrix.translateM(matrix, 0, center[0], center[1], center[2])
+            Matrix.rotateM(matrix, 0, -angleX, 1f, 0f, 0f)
+//            Matrix.rotateM(matrix, 0, angleY.toFloat(), 0f, 1f, 0f)
             Matrix.rotateM(matrix, 0, -(angleZ), 0f, 0f, 1f)
             Matrix.scaleM(matrix, 0, scale, scale, scale)
             transformManager.setTransform(transformInstance, matrix)
