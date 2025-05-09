@@ -1,5 +1,6 @@
 package com.phamhuu.photographer.presentation.camera
 
+import FilamentHelper
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.ImageFormat
@@ -37,6 +38,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.filament.utils.Float3
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.contants.Contants
 import com.phamhuu.photographer.presentation.utils.Gallery
@@ -54,7 +56,8 @@ import java.util.Date
 import java.util.Locale
 
 class CameraViewModel(
-    val faceLandmarkerHelper: FaceLandmarkerHelper
+    val faceLandmarkerHelper: FaceLandmarkerHelper,
+    val filamentHelper: FilamentHelper
 ) : ViewModel(){
     private val _cameraState = MutableStateFlow(CameraState())
     val cameraState = _cameraState.asStateFlow()
@@ -440,6 +443,23 @@ class CameraViewModel(
                 }
             }
         }
+    }
+
+    private fun getMatrixGlass(): FloatArray? {
+        val face = cameraState.value.landmarkResult?.result?.faceLandmarks()?.firstOrNull() ?: return null;
+        val leftEye = face.getOrNull(33) ?: return null
+        val rightEye = face.getOrNull(263) ?: return null
+        return filamentHelper.createMatrixGlass(
+            Float3(leftEye.x(),leftEye.y(),leftEye.z()),
+            Float3(rightEye.x(),rightEye.y(),rightEye.z())
+        )
+    }
+
+    fun getMatrixList(): List<FloatArray>? {
+        val matrixGlass = getMatrixGlass() ?: return null
+        return listOf(
+            matrixGlass,
+        )
     }
 }
 
