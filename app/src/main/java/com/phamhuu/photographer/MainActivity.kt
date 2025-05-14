@@ -1,28 +1,29 @@
 package com.phamhuu.photographer
 
-import LocalNavController
-import RenderableModel
+import android.app.Application
 import android.os.Bundle
-import android.view.SurfaceView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.android.filament.utils.Utils
-import com.phamhuu.photographer.presentation.camera.CameraScreen
+import com.phamhuu.photographer.di.appModule
 import com.phamhuu.photographer.presentation.common.FullScreen
-import com.phamhuu.photographer.presentation.gallery.GalleryScreen
-import com.phamhuu.photographer.presentation.gallery.LargeImageScreen
+import com.phamhuu.photographer.routes.AppNavHost
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.GlobalContext.startKoin
+
+class Photographer : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        // Khởi tạo Koin ở đây
+        startKoin {
+            androidContext(this@Photographer)
+            modules(appModule)
+        }
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -40,20 +41,6 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     AppNavHost(navController)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun AppNavHost(navController: NavHostController) {
-    CompositionLocalProvider(LocalNavController provides navController) {
-        NavHost(navController = navController, startDestination = "camera") {
-            composable("camera") { CameraScreen() }
-            composable("gallery") { GalleryScreen() }
-            composable("largeImage/{imageUri}") { backStackEntry ->
-                val imageUri = backStackEntry.arguments?.getString("imageUri") ?: return@composable
-                LargeImageScreen(imageUri = imageUri)
             }
         }
     }

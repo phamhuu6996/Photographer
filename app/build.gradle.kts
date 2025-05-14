@@ -85,4 +85,6 @@ dependencies {
     implementation (libs.filament.utils.android)
     implementation (libs.gltfio.android)
 
+    implementation(libs.koin.android)
+    implementation (libs.koin.androidx.compose)
 }

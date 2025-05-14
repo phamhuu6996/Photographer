@@ -5,7 +5,6 @@ import android.opengl.Matrix
 import android.view.Choreographer
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import androidx.constraintlayout.widget.ConstraintSet
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -19,47 +18,26 @@ import com.google.android.filament.SwapChain
 import com.google.android.filament.View
 import com.google.android.filament.Viewport
 import com.google.android.filament.gltfio.AssetLoader
-import com.google.android.filament.gltfio.FilamentAsset
 import com.google.android.filament.gltfio.ResourceLoader
 import com.google.android.filament.gltfio.UbershaderProvider
 import com.google.android.filament.utils.Float3
-import com.google.android.filament.utils.Mat4
-import com.google.android.filament.utils.Quaternion
-import com.google.android.filament.utils.cross
-import com.google.android.filament.utils.normalize
-import com.google.android.material.math.MathUtils
-import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
-import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+import com.phamhuu.photographer.models.ar.FilamentModelManager
+import com.phamhuu.photographer.models.ar.ModelInstance
+import com.phamhuu.photographer.models.ar.RenderableModel
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.PI
 import kotlin.math.acos
 import kotlin.math.atan2
 import kotlin.math.sqrt
 
-
-data class RenderableModel(
-    val buffer: ByteBuffer,
-    val initialPosition: FloatArray
-)
-
-data class ModelInstance(
-    val asset: FilamentAsset,
-    val rootEntity: Int
-)
-
-class FilamentHelper(
-    private val context: Context,
-    private val surfaceView: SurfaceView,
-    private val lifecycle: Lifecycle
-) {
-    private val engine: Engine
-    private lateinit var swapChain: SwapChain
-    private val renderer: Renderer
-    private val scene: Scene
-    private val view: View
-    private val camera: Camera
-    private val modelInstances = mutableListOf<ModelInstance>()
+class FilamentHelper {
+    private val engine: Engine = Engine.create()
+    private var swapChain: SwapChain? = null
+    private val renderer: Renderer = engine.createRenderer()
+    private val scene: Scene = engine.createScene()
+    private val view: View = engine.createView()
+    private val camera: Camera = engine.createCamera(engine.entityManager.create())
+    private val models = mutableListOf<FilamentModelManager>()
 
     private val choreographer = Choreographer.getInstance()
     private val frameScheduler = FrameCallback()
@@ -68,14 +46,6 @@ class FilamentHelper(
     private val resourceLoader: ResourceLoader
 
     private val lifecycleObserver = object : DefaultLifecycleObserver {
-        override fun onResume(owner: LifecycleOwner) {
-            choreographer.postFrameCallback(frameScheduler)
-        }
-
-        override fun onPause(owner: LifecycleOwner) {
-            choreographer.removeFrameCallback(frameScheduler)
-        }
-
         override fun onDestroy(owner: LifecycleOwner) {
             choreographer.removeFrameCallback(frameScheduler)
             destroy()
@@ -83,62 +53,90 @@ class FilamentHelper(
     }
 
     init {
-        lifecycle.addObserver(lifecycleObserver)
-
-        engine = Engine.create()
-        renderer = engine.createRenderer()
-        scene = engine.createScene()
-        view = engine.createView()
-        camera = engine.createCamera(engine.entityManager.create())
 
         // Set up view & camera
         view.scene = scene
         view.camera = camera
+        view.blendMode = View.BlendMode.TRANSLUCENT
+        scene.skybox = null
 
         camera.setProjection(45.0, 1.0, 0.1, 100.0, Camera.Fov.VERTICAL) // aspect được cập nhật sau
         camera.lookAt(0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-
-        view.viewport = Viewport(0, 0, surfaceView.width, surfaceView.height)
-
-        makeTransparentBackground()
         addDefaultLight()
+
+        val options = renderer.clearOptions
+        options.clear = true
+        renderer.clearOptions = options
 
         // Asset loader
         val materialProvider = UbershaderProvider(engine)
         assetLoader = AssetLoader(engine, materialProvider, EntityManager.get())
         resourceLoader = ResourceLoader(engine)
+    }
+
+    fun initModels(
+        lifecycle: Lifecycle,
+        surfaceView: SurfaceView,
+    ) {
+        setUpSurfaceView(surfaceView)
+        listenToLifecycle(lifecycle)
+    }
+
+    fun addModel3D(path: String, context: Context): ModelInstance? {
+        val glassesBuffer = loadGlbAssetFromAssets(path, context)
+        glassesBuffer.let {
+            val initialTransform = Float3(0f, 0f, -3f)
+            return loadModels(
+                listOf(RenderableModel(it, initialTransform))
+            )
+        }
+    }
+
+    private fun listenToLifecycle(lifecycle: Lifecycle) {
+        lifecycle.addObserver(lifecycleObserver)
+    }
+
+    private fun setUpSurfaceView(surfaceView: SurfaceView) {
+        view.viewport = Viewport(0, 0, surfaceView.width, surfaceView.height)
+
+        makeTransparentBackground(surfaceView)
 
         // Wait for surface ready
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 swapChain = engine.createSwapChain(holder.surface)
+                choreographer.postFrameCallback(frameScheduler)
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
-                destroy()
+                choreographer.removeFrameCallback(frameScheduler)
             }
 
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+            override fun surfaceChanged(
+                holder: SurfaceHolder,
+                format: Int,
+                width: Int,
+                height: Int
+            ) {
                 view.viewport = Viewport(0, 0, width, height)
-                camera.setProjection(45.0, width.toDouble() / height, 0.1, 100.0, Camera.Fov.VERTICAL)
+                camera.setProjection(
+                    45.0,
+                    width.toDouble() / height,
+                    0.1,
+                    100.0,
+                    Camera.Fov.VERTICAL
+                )
             }
         })
     }
 
-    private fun makeTransparentBackground() {
+    private fun makeTransparentBackground(surfaceView: SurfaceView) {
         surfaceView.setZOrderOnTop(true)
         surfaceView.setBackgroundColor(Color.TRANSPARENT)
-        surfaceView.getHolder().setFormat(PixelFormat.TRANSLUCENT)
-
-        view.blendMode = View.BlendMode.TRANSLUCENT
-        scene.skybox = null
-
-        val options = renderer.clearOptions
-        options.clear = true
-        renderer.clearOptions = options
+        surfaceView.holder.setFormat(PixelFormat.TRANSLUCENT)
     }
 
-    fun loadGlbAssetFromAssets(assetPath: String): ByteBuffer {
+    private fun loadGlbAssetFromAssets(assetPath: String, context: Context): ByteBuffer {
         val assetManager = context.assets
         assetManager.open(assetPath).use { input ->
             val bytes = ByteArray(input.available())
@@ -151,12 +149,13 @@ class FilamentHelper(
         }
     }
 
-    fun loadModels(models: List<RenderableModel>) {
-        modelInstances.clear()
-
+    private fun loadModels(models: List<RenderableModel>): ModelInstance? {
         for (model in models) {
             val asset = assetLoader.createAsset(model.buffer) ?: continue
             resourceLoader.loadResources(asset)
+
+            // Giả sử `asset` là FilamentAsset bạn load từ gltf
+            val width = asset.boundingBox.halfExtent[0] * 2     // Float3
 
             val rootEntity = asset.root
             val position = model.initialPosition
@@ -166,48 +165,63 @@ class FilamentHelper(
             transformManager.setTransform(transformInstance, createTranslationMatrix(position))
 
             scene.addEntities(asset.entities)
-            modelInstances.add(ModelInstance(asset, rootEntity))
+            val instance = ModelInstance(asset, rootEntity, width)
+            return instance
         }
+        return null
     }
 
     fun renderFrame(frameTimeNanos: Long) {
-        if (renderer.beginFrame(swapChain, frameTimeNanos)) {
+        if (swapChain == null) {
+            return
+        }
+        if (renderer.beginFrame(swapChain!!, frameTimeNanos)) {
             renderer.render(view)
             renderer.endFrame()
         }
     }
 
-    private fun computeRoll(leftEye: NormalizedLandmark, rightEye: NormalizedLandmark): Float {
-        val deltaY = rightEye.y() - leftEye.y()
-        val deltaX = rightEye.x() - leftEye.x()
+    private fun computeRoll(leftEye: Float3, rightEye: Float3): Float {
+        val deltaY = rightEye.y - leftEye.y
+        val deltaX = rightEye.x - leftEye.x
         val angleRad = atan2(deltaY, deltaX)
         return Math.toDegrees(angleRad.toDouble()).toFloat()
     }
 
-    private fun convertToFilamentCoordinates(landmark: NormalizedLandmark): FloatArray {
-        val x = (landmark.x() * 2) - 1
-        val y = (landmark.y() * 2) - 1
-        val z = (landmark.z() * 2) - 1
-        return floatArrayOf(x, y, z)
+    fun convertToFilamentCoordinatesFloat3(landmark: Float3): Float3 {
+        val x = (landmark.x * 2) - 1
+        val y = ((1 - landmark.y) * 2) - 1
+        val z = (landmark.z * 2) - 1
+        return Float3(x, y, z)
+    }
+
+    private fun length(p1: Float3, p2: Float3): Float {
+        val dx = p2.x - p1.x
+        val dy = p2.y - p1.y
+        val dz = p2.z - p1.z
+        return sqrt(dx * dx + dy * dy + dz * dz)
+    }
+
+    private fun toVector(p1: Float3, p2: Float3): Float3 {
+        val dx = p2.x - p1.x
+        val dy = p2.y - p1.y
+        val dz = p2.z - p1.z
+        return Float3(dx, dy, dz)
     }
 
 
     private fun calculateAngleBetweenVectorAndAxis(
-        p1: NormalizedLandmark,
-        p2: NormalizedLandmark,
+        p1: Float3,
+        p2: Float3,
         axis: (Float, Float, Float) -> Float
     ): Float {
-        val (x1, y1, z1) = convertToFilamentCoordinates(p1)
-        val (x2, y2, z2) = convertToFilamentCoordinates(p2)
+        val first = convertToFilamentCoordinatesFloat3(p1)
+        val second = convertToFilamentCoordinatesFloat3(p2)
 
-        val dx = x2 - x1
-        val dy = y2 - y1
-        val dz = z2 - z1
-
-        val length = sqrt(dx * dx + dy * dy + dz * dz)
+        val length = length(first, second)
         if (length == 0f) return 0f
-
-        val dot = axis(dx, dy, dz)
+        val vector = toVector(first, second)
+        val dot = axis(vector.x, vector.y, vector.z)
         val cosTheta = dot / length
         val safeCosTheta = cosTheta.coerceIn(-1f, 1f)
         val thetaRadians = acos(safeCosTheta)
@@ -243,7 +257,7 @@ class FilamentHelper(
     Góc θ (đơn vị độ):
         θ = arccos(dy / |d|) * (180 / π)
     */
-    private fun calculateAngleWithYAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
+    private fun calculateAngleWithYAxis(p1: Float3, p2: Float3): Float {
         return calculateAngleBetweenVectorAndAxis(p1, p2) { dx, _, _ -> dx }
     }
 
@@ -272,87 +286,81 @@ class FilamentHelper(
     Góc θ (đơn vị độ):
         θ = arccos(dy / |d|) * (180 / π)
     */
-    private fun calculateAngleWithXAxis(p1: NormalizedLandmark, p2: NormalizedLandmark): Float {
+    private fun calculateAngleWithXAxis(p1: Float3, p2: Float3): Float {
         return calculateAngleBetweenVectorAndAxis(p1, p2) { _, dy, _ -> dy }
     }
 
-    fun extractGlassesTransform(result: FaceLandmarkerHelper.ResultBundle?) {
-        val face = result?.result?.faceLandmarks()?.firstOrNull() ?: return
-        val leftEye = face.getOrNull(33)        ?: return
-        val rightEye = face.getOrNull(263)        ?: return
-        val chin = face.getOrNull(152)        ?: return
-        val forehead = face.getOrNull(10)        ?: return
-        val nose = face.getOrNull(1)        ?: return
-
+    private fun centerPoint(first: Float3, second: Float3): Float3 {
         // Kiểm tra nếu có đủ dữ liệu điểm landmarks
-        val centerX = (leftEye.x() + rightEye.x()) / 2f
-        val centerY = (leftEye.y() + rightEye.y()) / 2f
-        val centerZ = (leftEye.z() + rightEye.z()) / 2f
+        val centerX = (first.x + second.x) / 2f
+        val centerY = (first.y + second.y) / 2f
+        val centerZ = (first.z + second.z) / 2f
+        val center = Float3(centerX, centerY, centerZ)
+        return center
+    }
 
-            val x = (centerX - 0.5f) * 2f
-            val y = (centerY - 0.5f) * 2f
-            val z = -3f
+    private fun createMatrixCompute(translateM: Float3, angleZ: Float, scale: Float): FloatArray {
+        val matrix = FloatArray(16)
+        Matrix.setIdentityM(matrix, 0)
+        Matrix.translateM(matrix, 0, translateM.x, translateM.y, translateM.z)
+        //Matrix.rotateM(matrix, 0, -angleX, 1f, 0f, 0f)
+        //Matrix.rotateM(matrix, 0, ang
+        // leY, 0f, 1f, 0f)
+        Matrix.rotateM(matrix, 0, (angleZ), 0f, 0f, 1f)
+        Matrix.scaleM(matrix, 0, scale, scale, scale)
+        return matrix
+    }
 
-            val dx = rightEye.x() - leftEye.x()
-            val dy = rightEye.y() - leftEye.y()
-            val scale = sqrt(dx * dx + dy * dy)
-
-        // Tính góc quay X: Quay quanh trục X
-        val angleX = calculateAngleWithXAxis(nose, forehead)
-
-        // Tính góc quay Y: Quay quanh trục Y
-        val angleY = calculateAngleWithYAxis(forehead, chin)
-
-        // Tính góc quay Z: Quay quanh trục Z
-        val angleZ = computeRoll(
-            leftEye, rightEye
+    private fun createMatrix(first: Float3, second: Float3, scale: Float): FloatArray {
+        return createMatrixCompute(
+            translateM = centerPoint(first, second),
+            angleZ = computeRoll(first, second),
+            scale = scale
         )
+    }
 
-        for ((index, model) in modelInstances.withIndex()) {
+    fun extractGlassesTransform() {
+        if (models.isEmpty()) {
+            return
+        }
+
+        for (model in models) {
             val transformManager = engine.transformManager
-            val transformInstance = transformManager.getInstance(model.rootEntity)
-
-            println("llslsls$angleX")
-            println("llslsls$angleY")
-
-            val matrix = FloatArray(16)
-            Matrix.setIdentityM(matrix, 0)
-            Matrix.translateM(matrix, 0, x, y, z)
-            Matrix.rotateM(matrix, 0, 0f, 1f, 0f, 0f)
-            Matrix.rotateM(matrix, 0, angleY.toFloat(), 0f, 1f, 0f)
-            Matrix.rotateM(matrix, 0, -(angleZ), 0f, 0f, 1f)
-            Matrix.scaleM(matrix, 0, scale, scale, scale)
+            val modelInstance = model.modelInstance ?: continue
+            val first = model.first ?: continue
+            val second = model.second ?: continue
+            val transformInstance = transformManager.getInstance(modelInstance.rootEntity)
+            val matrix = createMatrix(
+                first = first,
+                second = second,
+                scale = length(first, second) / modelInstance.width * 1.2f
+            )
             transformManager.setTransform(transformInstance, matrix)
         }
     }
 
 
-    /**
-     * Cập nhật vị trí và tỷ lệ cho kính.
-     */
-//    fun updateModelPositionsAndScales(data: List<Pair<FloatArray, Float>>) {
-//        val transformManager = engine.transformManager
-//
-//        for ((index, model) in modelInstances.withIndex()) {
-//            if (index >= data.size) break
-//
-//            val (position, scale) = data[index]
-//            val transformInstance = transformManager.getInstance(model.rootEntity)
-//
-//            val matrix = FloatArray(16)
-//            Matrix.setIdentityM(matrix, 0)
-//            Matrix.translateM(matrix, 0, position[0], position[1], position[2])
-//            Matrix.scaleM(matrix, 0, scale, scale, scale)
-//
-//            transformManager.setTransform(transformInstance, matrix)
-//        }
-//    }
+    fun removeEntities() {
+        models.forEach { instance ->
+            if (instance.modelInstance != null) {
+                scene.removeEntity(instance.modelInstance!!.rootEntity)
+                assetLoader.destroyAsset(instance.modelInstance!!.asset)
+            }
+        }
+        models.clear()
+    }
+
+    fun addModel(model: FilamentModelManager) {
+        models.add(model)
+    }
+
+    fun setVisibility(model: FilamentModelManager, visible: Boolean) {
+        val modelInstance = model.modelInstance ?: return
+        view.setVisibleLayers(modelInstance.rootEntity, if (visible) 1 else 0)
+    }
+
 
     fun destroy() {
-        modelInstances.forEach { instance ->
-            assetLoader.destroyAsset(instance.asset)
-        }
-        modelInstances.clear()
 
         engine.destroyRenderer(renderer)
         engine.destroyView(view)
@@ -361,10 +369,10 @@ class FilamentHelper(
         engine.destroy()
     }
 
-    private fun createTranslationMatrix(position: FloatArray): FloatArray {
+    private fun createTranslationMatrix(position: Float3): FloatArray {
         val matrix = FloatArray(16)
         Matrix.setIdentityM(matrix, 0)
-        Matrix.translateM(matrix, 0, position[0], position[1], position[2])
+        Matrix.translateM(matrix, 0, position.x, position.y, position.z)
         return matrix
     }
 
@@ -384,10 +392,6 @@ class FilamentHelper(
             choreographer.postFrameCallback(this)
             renderFrame(frameTimeNanos)
         }
-    }
-
-    private fun Float3.length(): Float {
-        return Math.sqrt((x * x + y * y + z * z).toDouble()).toFloat()
     }
 }
 

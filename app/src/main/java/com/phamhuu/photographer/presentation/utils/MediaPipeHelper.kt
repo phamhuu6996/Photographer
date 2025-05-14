@@ -21,7 +21,6 @@ import android.graphics.Matrix
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.SystemClock
-import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
@@ -31,26 +30,26 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class FaceLandmarkerHelper(
-    var minFaceDetectionConfidence: Float = DEFAULT_FACE_DETECTION_CONFIDENCE,
-    var minFaceTrackingConfidence: Float = DEFAULT_FACE_TRACKING_CONFIDENCE,
-    var minFacePresenceConfidence: Float = DEFAULT_FACE_PRESENCE_CONFIDENCE,
-    var maxNumFaces: Int = DEFAULT_NUM_FACES,
-    var currentDelegate: Int = DELEGATE_CPU,
-    var runningMode: RunningMode = RunningMode.LIVE_STREAM,
+    private var minFaceDetectionConfidence: Float = DEFAULT_FACE_DETECTION_CONFIDENCE,
+    private var minFaceTrackingConfidence: Float = DEFAULT_FACE_TRACKING_CONFIDENCE,
+    private var minFacePresenceConfidence: Float = DEFAULT_FACE_PRESENCE_CONFIDENCE,
+    private var maxNumFaces: Int = DEFAULT_NUM_FACES,
+    private var currentDelegate: Int = DELEGATE_CPU,
+    private var runningMode: RunningMode = RunningMode.LIVE_STREAM,
     val context: Context,
-    // this listener is only used when running in RunningMode.LIVE_STREAM
-    val faceLandmarkerHelperListener: LandmarkerListener? = null
+    val resultFlow: MutableStateFlow<ResultBundle?>,
 ) {
+
+    private fun sendEvent(event: ResultBundle?) {
+        resultFlow.value = event
+    }
 
     // For this example this needs to be a var so it can be reset on changes.
     // If the Face Landmarker will not change, a lazy val would be preferable.
     private var faceLandmarker: FaceLandmarker? = null
-
-    init {
-        setupFaceLandmarker()
-    }
 
     fun clearFaceLandmarker() {
         faceLandmarker?.close()
@@ -87,11 +86,6 @@ class FaceLandmarkerHelper(
         // Check if runningMode is consistent with faceLandmarkerHelperListener
         when (runningMode) {
             RunningMode.LIVE_STREAM -> {
-                if (faceLandmarkerHelperListener == null) {
-                    throw IllegalStateException(
-                        "faceLandmarkerHelperListener must be set when runningMode is LIVE_STREAM."
-                    )
-                }
             }
 
             else -> {
@@ -124,24 +118,15 @@ class FaceLandmarkerHelper(
             faceLandmarker =
                 FaceLandmarker.createFromOptions(context, options)
         } catch (e: IllegalStateException) {
-            faceLandmarkerHelperListener?.onError(
-                "Face Landmarker failed to initialize. See error logs for " +
-                        "details"
-            )
-            Log.e(
-                TAG, "MediaPipe failed to load the task with error: " + e
-                    .message
+            sendEvent(
+                ResultBundle(
+                    error = "MediaPipe failed to load the task with error: " + e
+                        .message
+                )
             )
         } catch (e: RuntimeException) {
             // This occurs if the model being used does not support GPU
-            faceLandmarkerHelperListener?.onError(
-                "Face Landmarker failed to initialize. See error logs for " +
-                        "details", GPU_ERROR
-            )
-            Log.e(
-                TAG,
-                "Face Landmarker failed to load model with error: " + e.message
-            )
+            sendEvent(ResultBundle(error = "Face Landmarker failed to load model with error: " + e.message))
         }
     }
 
@@ -266,17 +251,19 @@ class FaceLandmarkerHelper(
                             resultList.add(detectionResult)
                         } ?: {
                         didErrorOccurred = true
-                        faceLandmarkerHelperListener?.onError(
-                            "ResultBundle could not be returned" +
-                                    " in detectVideoFile"
+                        sendEvent(
+                            ResultBundle(
+                                error = "ResultBundle could not be returned in detectVideoFile"
+                            )
                         )
                     }
                 }
                 ?: run {
                     didErrorOccurred = true
-                    faceLandmarkerHelperListener?.onError(
-                        "Frame at specified time could not be" +
-                                " retrieved when detecting in video."
+                    sendEvent(
+                        ResultBundle(
+                            error = "Frame at specified time could not be retrieved when detecting in video."
+                        )
                     )
                 }
         }
@@ -324,8 +311,10 @@ class FaceLandmarkerHelper(
 
         // If faceLandmarker?.detect() returns null, this is likely an error. Returning null
         // to indicate this.
-        faceLandmarkerHelperListener?.onError(
-            "Face Landmarker failed to detect."
+        sendEvent(
+            ResultBundle(
+                error = "Face Landmarker failed to detect."
+            )
         )
         return null
     }
@@ -338,8 +327,10 @@ class FaceLandmarkerHelper(
         if (result.faceLandmarks().size > 0) {
             val finishTimeMs = SystemClock.uptimeMillis()
             val inferenceTime = finishTimeMs - result.timestampMs()
-
-            faceLandmarkerHelperListener?.onResults(
+            println(
+                "FaceLandmarkerHelper: Inference time: $inferenceTime ms"
+            )
+            sendEvent(
                 ResultBundle(
                     result,
                     inferenceTime,
@@ -348,15 +339,17 @@ class FaceLandmarkerHelper(
                 )
             )
         } else {
-            faceLandmarkerHelperListener?.onEmpty()
+            sendEvent(null)
         }
     }
 
     // Return errors thrown during detection to this FaceLandmarkerHelper's
     // caller
     private fun returnLivestreamError(error: RuntimeException) {
-        faceLandmarkerHelperListener?.onError(
-            error.message ?: "An unknown error has occurred"
+        sendEvent(
+            ResultBundle(
+                error = error.message ?: "An unknown error has occurred",
+            )
         )
     }
 
@@ -366,19 +359,20 @@ class FaceLandmarkerHelper(
 
         const val DELEGATE_CPU = 0
         const val DELEGATE_GPU = 1
-        const val DEFAULT_FACE_DETECTION_CONFIDENCE = 0.5F
-        const val DEFAULT_FACE_TRACKING_CONFIDENCE = 0.5F
-        const val DEFAULT_FACE_PRESENCE_CONFIDENCE = 0.5F
+        const val DEFAULT_FACE_DETECTION_CONFIDENCE = 0.8F
+        const val DEFAULT_FACE_TRACKING_CONFIDENCE = 0.8F
+        const val DEFAULT_FACE_PRESENCE_CONFIDENCE = 0.8F
         const val DEFAULT_NUM_FACES = 1
         const val OTHER_ERROR = 0
         const val GPU_ERROR = 1
     }
 
     data class ResultBundle(
-        val result: FaceLandmarkerResult,
-        val inferenceTime: Long,
-        val inputImageHeight: Int,
-        val inputImageWidth: Int,
+        val result: FaceLandmarkerResult? = null,
+        val inferenceTime: Long? = null,
+        val inputImageHeight: Int? = null,
+        val inputImageWidth: Int? = null,
+        val error: String? = null,
     )
 
     data class VideoResultBundle(

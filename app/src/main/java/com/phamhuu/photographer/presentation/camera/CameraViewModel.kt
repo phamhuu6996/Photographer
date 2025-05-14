@@ -1,5 +1,7 @@
 package com.phamhuu.photographer.presentation.camera
 
+import Manager3DHelper
+import TypeModel3D
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.ImageFormat
@@ -49,7 +51,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
+class CameraViewModel(
+    private val faceLandmarkerHelper: FaceLandmarkerHelper,
+    private val manager3DHelper: Manager3DHelper
+) : ViewModel() {
     private val _cameraState = MutableStateFlow(CameraState())
     val cameraState = _cameraState.asStateFlow()
     private var recording: Recording? = null
@@ -60,7 +65,9 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     private var camera: Camera? = null
     private var cameraControl: CameraControl? = null
 
-    private var faceLandmarkerHelper: FaceLandmarkerHelper? = null
+    init {
+        listenMediaPipe()
+    }
 
     @OptIn(ExperimentalCamera2Interop::class)
     fun getCameraId(): String? {
@@ -202,6 +209,8 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
                 ).show()
             }
         }, ContextCompat.getMainExecutor(context))
+
+        selectModel3D(context, "models/glasses.glb")
 
     }
 
@@ -388,26 +397,21 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
     }
 
     private fun detectFace(imageProxy: ImageProxy) {
-        if (faceLandmarkerHelper?.isClose() == true) {
+        if (faceLandmarkerHelper.isClose()) {
             return
         }
         try {
-            faceLandmarkerHelper?.detectLiveStream(
+            faceLandmarkerHelper.detectLiveStream(
                 imageProxy = imageProxy,
                 isFrontCamera = cameraState.value.lensFacing == CameraSelector.LENS_FACING_FRONT
             )
         } catch (e: Exception) {
-            println("Error: ${e.message}")
         }
     }
 
-    fun setupMediaPipe(context: Context) {
-        val listener = this
+    fun setupMediaPipe() {
         viewModelScope.launch {
-            faceLandmarkerHelper = FaceLandmarkerHelper(
-                context = context,
-                faceLandmarkerHelperListener = listener
-            )
+            faceLandmarkerHelper.setupFaceLandmarker()
         }
     }
 
@@ -416,35 +420,36 @@ class CameraViewModel : ViewModel(), FaceLandmarkerHelper.LandmarkerListener {
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView,
     ) {
-        if (faceLandmarkerHelper?.isClose() == true) {
+        if (faceLandmarkerHelper.isClose()) {
             startCamera(context, lifecycleOwner, previewView)
-            faceLandmarkerHelper?.setupFaceLandmarker()
+            faceLandmarkerHelper.setupFaceLandmarker()
         }
     }
 
     fun onPause() {
-        faceLandmarkerHelper?.clearFaceLandmarker()
+        faceLandmarkerHelper.clearFaceLandmarker()
     }
 
-    override fun onError(error: String, errorCode: Int) {
-        println("onError: $error")
-        _cameraState.value = _cameraState.value.copy(landmarkResult = null)
-//        viewModelScope.launch {
-//
-//            if (errorCode == FaceLandmarkerHelper.GPU_ERROR) {
-//                fragmentCameraBinding.bottomSheetLayout.spinnerDelegate.setSelection(
-//                    FaceLandmarkerHelper.DELEGATE_CPU, false
-//                )
-//            }
-//        }
+    private fun listenMediaPipe() {
+        viewModelScope.launch {
+            faceLandmarkerHelper.resultFlow.collect { state ->
+                if (state?.result == null) {
+                    manager3DHelper.updateModelWithLandmark(null)
+                    _cameraState.value = _cameraState.value.copy(landmarkResult = null)
+                } else {
+                    manager3DHelper.updateModelWithLandmark(state.result)
+                    _cameraState.value = _cameraState.value.copy(landmarkResult = state)
+                }
+            }
+        }
     }
 
-    override fun onResults(resultBundle: FaceLandmarkerHelper.ResultBundle) {
-        _cameraState.value = _cameraState.value.copy(landmarkResult = resultBundle)
-    }
-
-    override fun onEmpty() {
-        _cameraState.value = _cameraState.value.copy(landmarkResult = null)
+    private fun selectModel3D(
+        context: Context,
+        path: String,
+        typeModel3D: TypeModel3D = TypeModel3D.GLASSES
+    ) {
+        manager3DHelper.selectModel3D(path, context, typeModel3D)
     }
 }
 
@@ -464,5 +469,5 @@ data class CameraState(
     val showBottomSheetSelectResolution: Boolean = false,
     val captureResolution: Size? = null,
     val enableSelectResolution: Boolean = true,
-    val landmarkResult: FaceLandmarkerHelper.ResultBundle? = null
+    val landmarkResult: FaceLandmarkerHelper.ResultBundle? = null,
 )
