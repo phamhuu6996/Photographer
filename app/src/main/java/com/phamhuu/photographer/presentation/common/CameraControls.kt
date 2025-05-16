@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,14 +46,67 @@ fun CameraControls(
     fileUri: Uri? = null,
     isCapture: Boolean = true,
     flashMode: Int,
+    timeDelay: Int,
+    onChangeTimeDelay: (Int) -> Unit,
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
+    val showTimerOptions = remember { mutableStateOf(false) }
+    val currentAspectRatio = remember { mutableStateOf("4:3") }
 
     Box(
         modifier = modifier
             .fillMaxSize()
     ) {
+        // Top control row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.5F))
+                .padding(top = 50.dp, start = 16.dp, end = 16.dp, bottom = 30.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Flash button
+            ImageCustom(
+                id = flashModeToIcon(flashMode),
+                imageMode = ImageMode.MEDIUM,
+                color = Color.White,
+                modifier = Modifier.clickable { onChangeFlashMode() }
+            )
+            
+            // Timer button
+            Text(
+                text = timeDelay.toString(),
+                color = Color.White,
+                modifier = Modifier.clickable { onChangeTimeDelay(timeDelay) }
+            )
+            ImageCustom(
+                id = R.drawable.auto_flash, // Using available icon as placeholder for timer
+                imageMode = ImageMode.MEDIUM,
+                color = Color.White,
+                modifier = Modifier.clickable { showTimerOptions.value = !showTimerOptions.value }
+            )
+            
+            // Aspect ratio button
+            ImageCustom(
+                id = R.drawable.flash_off, // Using available icon as placeholder for aspect ratio
+                imageMode = ImageMode.MEDIUM,
+                color = Color.White,
+                modifier = Modifier.clickable { 
+                    currentAspectRatio.value = if (currentAspectRatio.value == "4:3") "16:9" else "4:3"
+                }
+            )
+            
+            // Camera switch button
+            ImageCustom(
+                id = R.drawable.change_camera,
+                imageMode = ImageMode.MEDIUM,
+                color = Color.White,
+                modifier = Modifier.clickable { onChangeCamera() }
+            )
+        }
+
         if (isRecording) {
             Text(
                 text = timerViewModel.timeDisplayRecord(state.value),
@@ -61,16 +116,6 @@ fun CameraControls(
                     .padding(16.dp)
             )
         }
-
-        ImageCustom(
-            id = flashModeToIcon(flashMode),
-            imageMode = ImageMode.MEDIUM,
-            color = Color.White,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
-                .clickable { onChangeFlashMode() }
-        )
 
         Column(
             modifier = Modifier

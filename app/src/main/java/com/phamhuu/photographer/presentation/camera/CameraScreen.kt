@@ -87,10 +87,10 @@ fun CameraScreen(
 
     ) {
 
-        FilamentSurfaceView(
-            context = context,
-            lifecycle = lifecycleOwner.lifecycle,
-        )
+//        FilamentSurfaceView(
+//            context = context,
+//            lifecycle = lifecycleOwner.lifecycle,
+//        )
         AndroidView(
             factory = {
                 previewView
