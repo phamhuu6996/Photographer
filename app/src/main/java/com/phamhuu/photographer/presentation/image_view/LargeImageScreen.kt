@@ -17,9 +17,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.R
+import com.phamhuu.photographer.enums.ImageMode
 import com.phamhuu.photographer.presentation.common.AsyncImageCustom
 import com.phamhuu.photographer.presentation.common.ImageCustom
-import com.phamhuu.photographer.presentation.common.ImageMode
 import com.phamhuu.photographer.presentation.image_view.LargeImageViewModel
 
 @Composable

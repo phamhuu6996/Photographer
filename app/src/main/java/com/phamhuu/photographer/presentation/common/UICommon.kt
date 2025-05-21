@@ -147,8 +147,3 @@ fun CustomPaintSlider(
         )
     }
 }
-
-
-enum class ImageMode(val size: Int) {
-    SMALL(20), MEDIUM(30), LARGE(40)
-}

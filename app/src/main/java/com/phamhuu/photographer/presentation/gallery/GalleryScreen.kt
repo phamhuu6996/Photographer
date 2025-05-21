@@ -18,9 +18,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.phamhuu.photographer.R
+import com.phamhuu.photographer.enums.ImageMode
 import com.phamhuu.photographer.presentation.common.AsyncImageCustom
 import com.phamhuu.photographer.presentation.common.ImageCustom
-import com.phamhuu.photographer.presentation.common.ImageMode
 import com.phamhuu.photographer.presentation.utils.Gallery
 import com.phamhuu.photographer.presentation.utils.Gallery.getAllImagesAndVideosFromGallery
 

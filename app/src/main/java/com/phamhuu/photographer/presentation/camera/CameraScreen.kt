@@ -26,9 +26,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
-import com.phamhuu.photographer.presentation.common.ResolutionControl
 import com.phamhuu.photographer.presentation.common.SlideVertically
-import com.phamhuu.photographer.presentation.filament.FilamentSurfaceView
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -118,6 +116,10 @@ fun CameraScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
             fileUri = cameraState.value.fileUri,
             flashMode = cameraState.value.flashMode,
+            timeDelay = cameraState.value.timerDelay,
+            resolution = cameraState.value.ratioCamera,
+            onChangeTimeDelay = { viewModel.setTimerDelay(it) },
+            onChangeResolution = { viewModel.setRatioCamera(it,context, lifecycleOwner, previewView) },
         )
 
         // Hiệu ứng hiện slider khi vuốt lên
@@ -129,15 +131,6 @@ fun CameraScreen(
             SlideVertically(cameraState.value.brightness,
                 { brightness -> viewModel.setBrightness(brightness) })
         }
-        if (cameraState.value.enableSelectResolution)
-            ResolutionControl(
-                viewModel = viewModel,
-                context = context,
-                lifecycleOwner = lifecycleOwner,
-                previewView = previewView,
-                showSelectResolution = cameraState.value.showBottomSheetSelectResolution,
-                resolution = cameraState.value.captureResolution,
-            )
     }
 }
 

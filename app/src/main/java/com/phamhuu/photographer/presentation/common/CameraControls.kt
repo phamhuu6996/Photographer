@@ -28,6 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.R
+import com.phamhuu.photographer.enums.ImageMode
+import com.phamhuu.photographer.enums.RatioCamera
+import com.phamhuu.photographer.enums.TimerDelay
 import com.phamhuu.photographer.presentation.timer.TimerViewModel
 import com.phamhuu.photographer.presentation.utils.Gallery
 
@@ -46,8 +49,10 @@ fun CameraControls(
     fileUri: Uri? = null,
     isCapture: Boolean = true,
     flashMode: Int,
-    timeDelay: Int,
-    onChangeTimeDelay: (Int) -> Unit,
+    timeDelay: TimerDelay = TimerDelay.OFF,
+    resolution: RatioCamera = RatioCamera.RATIO_3_4,
+    onChangeTimeDelay: (TimerDelay) -> Unit,
+    onChangeResolution: (RatioCamera) -> Unit,
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
@@ -74,27 +79,24 @@ fun CameraControls(
                 color = Color.White,
                 modifier = Modifier.clickable { onChangeFlashMode() }
             )
-            
+
             // Timer button
-            Text(
-                text = timeDelay.toString(),
-                color = Color.White,
-                modifier = Modifier.clickable { onChangeTimeDelay(timeDelay) }
-            )
             ImageCustom(
-                id = R.drawable.auto_flash, // Using available icon as placeholder for timer
+                id = timeDelay.toIcon(),
                 imageMode = ImageMode.MEDIUM,
                 color = Color.White,
-                modifier = Modifier.clickable { showTimerOptions.value = !showTimerOptions.value }
+                modifier = Modifier.clickable {
+                    onChangeTimeDelay(timeDelay.next())
+                }
             )
             
             // Aspect ratio button
             ImageCustom(
-                id = R.drawable.flash_off, // Using available icon as placeholder for aspect ratio
+                id = resolution.toIcon(),
                 imageMode = ImageMode.MEDIUM,
                 color = Color.White,
-                modifier = Modifier.clickable { 
-                    currentAspectRatio.value = if (currentAspectRatio.value == "4:3") "16:9" else "4:3"
+                modifier = Modifier.clickable {
+                    onChangeResolution(resolution.next())
                 }
             )
             

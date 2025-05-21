@@ -1,7 +1,6 @@
 package com.phamhuu.photographer.presentation.camera
 
 import Manager3DHelper
-import TypeModel3D
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.ImageFormat
@@ -40,6 +39,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.contants.Contants
+import com.phamhuu.photographer.enums.RatioCamera
+import com.phamhuu.photographer.enums.TimerDelay
+import com.phamhuu.photographer.enums.TypeModel3D
 import com.phamhuu.photographer.presentation.utils.Gallery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
@@ -76,59 +78,10 @@ class CameraViewModel(
         return camera2Info.cameraId
     }
 
-    @OptIn(ExperimentalCamera2Interop::class)
-    fun getSupportedResolutions(
-        context: Context,
-        oldsMap: Map<String, Array<Size>>?
-    ): Map<String, Array<Size>>? {
-        val cameraId = getCameraId()
-        if ((cameraId == null) || oldsMap?.get(cameraId) != null) {
-            return null
-        }
-        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId)
-        val streamConfigurationMap =
-            cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-        val sizes = streamConfigurationMap?.getOutputSizes(ImageFormat.JPEG)
-
-        // Filter 16:9 or 4:3 sizes
-        val filteredSizes = sizes?.filter { size ->
-            size.width * 9 == size.height * 16 || size.width * 3 == size.height * 4
-        }?.toTypedArray()
-        if (!filteredSizes.isNullOrEmpty()) {
-            return mapOf(cameraId to filteredSizes)
-        }
-        return null
-    }
-
-    fun getResolutionsWithCameraCurrent(): Array<Size>? {
-        val cameraId = getCameraId()
-        val sizesMap = cameraState.value.captureResolutionsMap
-        if ((cameraId == null) || sizesMap?.get(cameraId) == null) {
-            return null
-        }
-        val sizes = sizesMap[cameraId]
-        return sizes
-    }
-
-    private fun resolutionStrategy(size: Size?): ResolutionStrategy {
-        if (size == null)
-            return ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY
-        return ResolutionStrategy(
-            size,
-            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-        )
-    }
-
-    private fun resolutionSelector(size: Size?): ResolutionSelector {
-        val ratio = size?.width?.toFloat()?.div(size.height.toFloat()) ?: 0f
-        val aspectRatio = when {
-            ratio >= 1.77 -> AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
-            else -> AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
-        }
+    private fun resolutionSelector(ratio: RatioCamera): ResolutionSelector {
         return ResolutionSelector.Builder()
             .setAspectRatioStrategy(
-                aspectRatio
+                ratio.ratio
             ).build()
     }
 
@@ -136,7 +89,6 @@ class CameraViewModel(
         context: Context,
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView,
-        size: Size? = null
     ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
@@ -148,11 +100,10 @@ class CameraViewModel(
             val imageCaptureBuilder = ImageCapture.Builder()
             val imageAnalyzerBuilder = ImageAnalysis.Builder()
             if (cameraState.value.setupCapture) {
-                val resolutionSelect = resolutionSelector(size)
+                val resolutionSelect = resolutionSelector(cameraState.value.ratioCamera)
                 previewBuilder.setResolutionSelector(resolutionSelect)
                 imageCaptureBuilder.setResolutionSelector(resolutionSelect)
                 imageAnalyzerBuilder.setResolutionSelector(resolutionSelect)
-                setResolution(size)
             }
 
             val preview =
@@ -194,13 +145,6 @@ class CameraViewModel(
                 )
                 cameraControl = camera?.cameraControl
 
-                val resolutionsMap =
-                    getSupportedResolutions(context, _cameraState.value.captureResolutionsMap)
-                if (resolutionsMap != null) {
-                    _cameraState.value =
-                        _cameraState.value.copy(captureResolutionsMap = resolutionsMap)
-                }
-
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
@@ -223,6 +167,17 @@ class CameraViewModel(
         _cameraState.value = _cameraState.value.copy(flashMode = newFlashMode)
         imageCapture?.flashMode = newFlashMode
         cameraControl?.enableTorch(newFlashMode == ImageCapture.FLASH_MODE_ON)
+    }
+
+    fun setRatioCamera(ratioCamera: RatioCamera, context: Context,
+                       lifecycleOwner: LifecycleOwner,
+                       previewView: PreviewView,) {
+        _cameraState.value = _cameraState.value.copy(ratioCamera = ratioCamera)
+        startCamera(context, lifecycleOwner, previewView)
+    }
+
+    fun setTimerDelay(timerDelay: TimerDelay) {
+        _cameraState.value = _cameraState.value.copy(timerDelay = timerDelay)
     }
 
     fun setBrightness(brightness: Float) {
@@ -347,14 +302,6 @@ class CameraViewModel(
         }
     }
 
-    fun changeShowSelectResolution(value: Boolean) {
-        _cameraState.value = _cameraState.value.copy(showBottomSheetSelectResolution = value)
-    }
-
-    fun setResolution(size: Size?) {
-        _cameraState.value = _cameraState.value.copy(captureResolution = size)
-    }
-
     fun changeCaptureOrVideo(
         value: Boolean,
         context: Context,
@@ -362,14 +309,7 @@ class CameraViewModel(
         previewView: PreviewView
     ) {
         _cameraState.value = _cameraState.value.copy(setupCapture = value)
-        changeEnableSelectResolution(_cameraState.value.setupCapture)
         startCamera(context, lifecycleOwner, previewView)
-    }
-
-    private fun changeEnableSelectResolution(
-        value: Boolean,
-    ) {
-        _cameraState.value = _cameraState.value.copy(enableSelectResolution = value)
     }
 
     private fun changePan(
@@ -465,9 +405,7 @@ data class CameraState(
     val zoomState: Float = 1f,
     val lensFacing: Int = CameraSelector.LENS_FACING_FRONT,
     val fileUri: Uri? = null,
-    val captureResolutionsMap: Map<String, Array<Size>>? = null,
-    val showBottomSheetSelectResolution: Boolean = false,
-    val captureResolution: Size? = null,
-    val enableSelectResolution: Boolean = true,
+    val ratioCamera: RatioCamera = RatioCamera.RATIO_3_4,
+    val timerDelay: TimerDelay = TimerDelay.OFF,
     val landmarkResult: FaceLandmarkerHelper.ResultBundle? = null,
 )

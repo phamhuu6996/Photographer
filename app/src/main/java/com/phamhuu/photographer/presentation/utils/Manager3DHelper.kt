@@ -1,12 +1,9 @@
 import android.content.Context
 import com.google.android.filament.utils.Float3
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import com.phamhuu.photographer.enums.TypeModel3D
 import com.phamhuu.photographer.models.ar.FilamentModelManager
 import com.phamhuu.photographer.models.ar.ModelInstance
-
-enum class TypeModel3D {
-    GLASSES,
-}
 
 class Manager3DHelper(
     val filamentHelper: FilamentHelper,
