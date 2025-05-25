@@ -5,13 +5,51 @@ import com.phamhuu.photographer.R
 import com.phamhuu.photographer.enums.TimerDelay.OFF
 import com.phamhuu.photographer.enums.TimerDelay.TEN
 import com.phamhuu.photographer.enums.TimerDelay.THREE
+import com.phamhuu.photographer.presentation.common.PopupItemData
 
 enum class ImageMode(val size: Int) {
     SMALL(20), MEDIUM(30), LARGE(40)
 }
 
-enum class TypeModel3D {
-    GLASSES,
+enum class TypeModel3D(val displayName: String, val iconRes: Int) {
+    GLASSES("Kính", R.drawable.ic_glasses),
+    HAT("Mũ", R.drawable.ic_hat);
+    
+    fun toPopupItemData(): PopupItemData {
+        return PopupItemData(
+            id = ordinal,
+            title = displayName,
+            iconRes = iconRes
+        )
+    }
+}
+
+enum class BeautyEffect(val displayName: String, val iconRes: Int) {
+    WHITENING("Làm trắng", R.drawable.ic_beauty_whitening),
+    SLIM_FACE("Làm nhỏ mặt", R.drawable.ic_beauty_slim);
+    
+    fun toPopupItemData(): PopupItemData {
+        return PopupItemData(
+            id = ordinal,
+            title = displayName,
+            iconRes = iconRes
+        )
+    }
+}
+
+enum class ImageFilter(val displayName: String, val iconRes: Int) {
+    VINTAGE("Vintage", R.drawable.ic_filter_vintage),
+    BLACK_WHITE("Đen trắng", R.drawable.ic_filter_bw),
+    SEPIA("Sepia", R.drawable.ic_effects),
+    COOL("Lạnh", R.drawable.ic_filter);
+    
+    fun toPopupItemData(): PopupItemData {
+        return PopupItemData(
+            id = ordinal,
+            title = displayName,
+            iconRes = iconRes
+        )
+    }
 }
 
 enum class TimerDelay {

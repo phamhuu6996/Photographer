@@ -24,6 +24,11 @@ class Manager3DHelper(
                 model = glassModel
                 model.modelUrl = path
             }
+            TypeModel3D.HAT -> {
+                // Add other models here if needed
+                model = glassModel
+                model.modelUrl = path
+            }
         }
         val result = filamentHelper.addModel3D(
             model.modelUrl,

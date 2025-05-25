@@ -28,9 +28,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.R
+import com.phamhuu.photographer.enums.BeautyEffect
+import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.ImageMode
 import com.phamhuu.photographer.enums.RatioCamera
 import com.phamhuu.photographer.enums.TimerDelay
+import com.phamhuu.photographer.enums.TypeModel3D
 import com.phamhuu.photographer.presentation.timer.TimerViewModel
 import com.phamhuu.photographer.presentation.utils.Gallery
 
@@ -53,11 +56,22 @@ fun CameraControls(
     resolution: RatioCamera = RatioCamera.RATIO_3_4,
     onChangeTimeDelay: (TimerDelay) -> Unit,
     onChangeResolution: (RatioCamera) -> Unit,
+    onFilterClick: () -> Unit = {},
+    on3DClick: () -> Unit = {},
+    onEffectsClick: () -> Unit = {},
+    onBeautyEffectSelected: (BeautyEffect) -> Unit = {},
+    on3DModelSelected: (TypeModel3D) -> Unit = {},
+    onImageFilterSelected: (ImageFilter) -> Unit = {},
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
     val showTimerOptions = remember { mutableStateOf(false) }
     val currentAspectRatio = remember { mutableStateOf("4:3") }
+    
+    // Popup states
+    val showBeautyPopup = remember { mutableStateOf(false) }
+    val show3DPopup = remember { mutableStateOf(false) }
+    val showFilterPopup = remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -157,14 +171,25 @@ fun CameraControls(
                                 onShowGallery()
                             }
                         },
-                        size = 48.dp,
+                        size = 40.dp,
                     )
                 else
-                    Spacer(
-                        modifier = Modifier
-                            .height(48.dp)
-                            .width(48.dp)
+                    ImageCustom(
+                        id = R.drawable.ic_album,
+                        imageMode = ImageMode.MEDIUM,
+                        color = Color.White,
                     )
+
+                // Filter button
+                ImageCustom(
+                    id = R.drawable.ic_filter,
+                    imageMode = ImageMode.MEDIUM,
+                    color = Color.White,
+                    modifier = Modifier.clickable { 
+                        showBeautyPopup.value = true
+                        onFilterClick()
+                    }
+                )
 
                 if (isCapture)
                     ImageCustom(
@@ -189,13 +214,70 @@ fun CameraControls(
                         }
                     )
 
+                // 3D button
                 ImageCustom(
-                    id = R.drawable.change_camera,
-                    imageMode = ImageMode.LARGE,
+                    id = R.drawable.ic_3d,
+                    imageMode = ImageMode.MEDIUM,
                     color = Color.White,
-                    modifier = Modifier.clickable { onChangeCamera() }
+                    modifier = Modifier.clickable { 
+                        show3DPopup.value = true
+                        on3DClick()
+                    }
+                )
+
+                // Effects/Filter button
+                ImageCustom(
+                    id = R.drawable.ic_effects,
+                    imageMode = ImageMode.MEDIUM,
+                    color = Color.White,
+                    modifier = Modifier.clickable { 
+                        showFilterPopup.value = true
+                        onEffectsClick()
+                    }
                 )
             }
+        }
+        
+        // Beauty Effects Popup
+        if (showBeautyPopup.value) {
+            HorizontalScrollablePopup(
+                items = BeautyEffect.values().map { it.toPopupItemData() },
+                onItemClick = { item ->
+                    val beautyEffect = BeautyEffect.values()[item.id]
+                    onBeautyEffectSelected(beautyEffect)
+                    showBeautyPopup.value = false
+                },
+                onDismiss = { showBeautyPopup.value = false },
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        
+        // 3D Models Popup
+        if (show3DPopup.value) {
+            HorizontalScrollablePopup(
+                items = TypeModel3D.values().map { it.toPopupItemData() },
+                onItemClick = { item ->
+                    val model3D = TypeModel3D.values()[item.id]
+                    on3DModelSelected(model3D)
+                    show3DPopup.value = false
+                },
+                onDismiss = { show3DPopup.value = false },
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+        
+        // Image Filters Popup
+        if (showFilterPopup.value) {
+            HorizontalScrollablePopup(
+                items = ImageFilter.values().map { it.toPopupItemData() },
+                onItemClick = { item ->
+                    val imageFilter = ImageFilter.values()[item.id]
+                    onImageFilterSelected(imageFilter)
+                    showFilterPopup.value = false
+                },
+                onDismiss = { showFilterPopup.value = false },
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
     }
 }

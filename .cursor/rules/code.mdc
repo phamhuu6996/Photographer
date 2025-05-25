@@ -1,0 +1,6 @@
+---
+description: 
+globs: *.kt
+alwaysApply: false
+---
+Ui Write from jetpack compose

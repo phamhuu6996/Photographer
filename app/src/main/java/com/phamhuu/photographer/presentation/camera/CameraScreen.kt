@@ -120,6 +120,19 @@ fun CameraScreen(
             resolution = cameraState.value.ratioCamera,
             onChangeTimeDelay = { viewModel.setTimerDelay(it) },
             onChangeResolution = { viewModel.setRatioCamera(it,context, lifecycleOwner, previewView) },
+            // Bottom navigation callbacks
+            onFilterClick = { /* TODO: Implement filter functionality */ },
+            on3DClick = { /* TODO: Implement 3D functionality */ },
+            onEffectsClick = { /* TODO: Implement effects functionality */ },
+            onBeautyEffectSelected = { beautyEffect ->
+                // TODO: Apply beauty effect
+            },
+            on3DModelSelected = { model3D ->
+                // TODO: Load 3D model
+            },
+            onImageFilterSelected = { imageFilter ->
+                // TODO: Apply image filter
+            },
         )
 
         // Hiệu ứng hiện slider khi vuốt lên
