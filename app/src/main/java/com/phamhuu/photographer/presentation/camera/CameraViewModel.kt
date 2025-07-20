@@ -3,6 +3,7 @@ package com.phamhuu.photographer.presentation.camera
 import Manager3DHelper
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
@@ -41,15 +42,21 @@ import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
 import com.phamhuu.photographer.domain.usecase.SavePhotoUseCase
 import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
+import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.RatioCamera
 import com.phamhuu.photographer.enums.TimerDelay
 import com.phamhuu.photographer.enums.TypeModel3D
+import com.phamhuu.photographer.presentation.utils.CameraGLSurfaceView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 
 class CameraViewModel(
     private val faceLandmarkerHelper: FaceLandmarkerHelper,
@@ -70,6 +77,11 @@ class CameraViewModel(
     private var camera: Camera? = null
     private var cameraControl: CameraControl? = null
 
+    // ✅ CameraGLSurfaceView reference for OpenGL filtering
+    private var glSurfaceView: CameraGLSurfaceView? = null
+
+    private val isProcessingImage = AtomicBoolean(false)
+
     init {
         listenMediaPipe()
     }
@@ -86,6 +98,33 @@ class CameraViewModel(
             .setAspectRatioStrategy(ratio.ratio).build()
     }
 
+    fun  setGLView(glSurfaceView: CameraGLSurfaceView) {
+        this.glSurfaceView = glSurfaceView
+    }
+
+    // ✅ Thread-safe ImageProxy processing
+    private fun handleImageAnalyzerFrame(imageProxy: ImageProxy) {
+        try {
+//            if(!isProcessingImage.compareAndSet(false, true)) {
+//                // If already processing, close the ImageProxy to prevent memory leaks
+//                return
+//            }
+            // ✅ Feed to filter system only if filter is active
+            val currentFilter = uiState.value.currentFilter
+            if (currentFilter != ImageFilter.NONE && glSurfaceView != null) {
+                // Don't close ImageProxy here - let GLSurfaceView handle it
+                glSurfaceView?.updateImage(imageProxy)
+            }
+            // Always feed to MediaPipe for face detection (create copy if needed)
+            detectFace(imageProxy)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        isProcessingImage.set(false)
+    }
+
+    // Legacy method cho normal PreviewView (backward compatibility)
     fun startCamera(
         context: Context,
         lifecycleOwner: LifecycleOwner,
@@ -119,7 +158,8 @@ class CameraViewModel(
                 .build()
                 .also {
                     it.setAnalyzer(Dispatchers.Default.asExecutor()) { image ->
-                        detectFace(image)
+                        handleImageAnalyzerFrame(image)
+                        image.close()
                     }
                 }
 
@@ -146,6 +186,136 @@ class CameraViewModel(
         }, ContextCompat.getMainExecutor(context))
     }
 
+    // ================ FILTER MANAGEMENT ================
+    
+    fun setImageFilter(filter: ImageFilter) {
+        viewModelScope.launch {
+            try {
+                // ✅ Immediate UI feedback with loading state
+                _uiState.value = _uiState.value.copy(
+                    currentFilter = filter,
+                    isLoading = true
+                )
+                
+                println("🔥 CameraViewModel: Setting filter to ${filter.displayName}")
+                
+                // ✅ Apply filter to GLSurfaceView if available
+                glSurfaceView?.setImageFilter(filter)
+                
+                // ✅ Shorter processing delay for better UX
+                delay(300)
+                
+                // ✅ Update loading state
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                
+                println("🔥 CameraViewModel: Filter ${filter.displayName} applied successfully")
+                
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    currentFilter = ImageFilter.NONE // Fallback to no filter on error
+                )
+                updateError("Failed to apply filter: ${e.message}")
+                println("❌ CameraViewModel: Filter application failed: ${e.message}")
+            }
+        }
+    }
+
+    // ================ PHOTO CAPTURE ================
+    
+    fun takePhoto(context: Context) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            try {
+                if (uiState.value.currentFilter != ImageFilter.NONE && glSurfaceView != null) {
+                    // Capture filtered image từ GLSurfaceView
+                    captureFilteredPhoto(context)
+                } else {
+                    // Use normal camera capture
+                    val photoFileResult = takePhotoUseCase()
+                    if (photoFileResult.isSuccess) {
+                        val photoFile = photoFileResult.getOrThrow()
+                        captureImageToFile(context, photoFile)
+                    } else {
+                        updateError("Failed to create photo file")
+                    }
+                }
+            } catch (e: Exception) {
+                updateError("Photo capture failed: ${e.message}")
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+    
+    private suspend fun captureFilteredPhoto(context: Context) {
+        val photoFileResult = takePhotoUseCase()
+        if (photoFileResult.isFailure) {
+            updateError("Failed to create photo file")
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            return
+        }
+        
+        val photoFile = photoFileResult.getOrThrow()
+        
+        // Capture filtered frame từ GLSurfaceView
+        glSurfaceView?.captureFilteredImage { bitmap ->
+            viewModelScope.launch {
+                try {
+                    // Save filtered bitmap to file
+                    saveBitmapToFile(bitmap, photoFile)
+                    
+                    // Save to gallery
+                    val saveResult = savePhotoUseCase(photoFile)
+                    if (saveResult.isSuccess) {
+                        val uri = saveResult.getOrThrow()
+                        _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
+                    } else {
+                        updateError("Failed to save photo to gallery")
+                    }
+                } catch (e: Exception) {
+                    updateError("Failed to save filtered photo: ${e.message}")
+                } finally {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+            }
+        }
+    }
+    
+    private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        bitmap.recycle()
+    }
+
+    private fun captureImageToFile(context: Context, photoFile: File) {
+        val imageCapture = imageCapture ?: return
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(context),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    viewModelScope.launch {
+                        val saveResult = savePhotoUseCase(photoFile)
+                        if (saveResult.isSuccess) {
+                            val uri = saveResult.getOrThrow()
+                            _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
+                        }
+                    }
+                }
+
+                override fun onError(exc: ImageCaptureException) {
+                    updateError("Photo capture failed: ${exc.message}")
+                }
+            }
+        )
+    }
+
+    // ================ OTHER CAMERA FUNCTIONS ================
+
     fun setFlashMode() {
         val newFlashMode = when (uiState.value.flashMode) {
             ImageCapture.FLASH_MODE_OFF -> ImageCapture.FLASH_MODE_ON
@@ -157,7 +327,7 @@ class CameraViewModel(
         cameraControl?.enableTorch(newFlashMode == ImageCapture.FLASH_MODE_ON)
     }
 
-    fun setRatioCamera(ratioCamera: RatioCamera, context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+    fun setRatioCamera(ratioCamera: RatioCamera, context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
         _uiState.value = _uiState.value.copy(ratioCamera = ratioCamera)
         startCamera(context, lifecycleOwner, previewView)
     }
@@ -179,51 +349,6 @@ class CameraViewModel(
         _uiState.value = _uiState.value.copy(isBrightnessVisible = isBrightnessVisible)
     }
 
-    fun takePhoto(context: Context) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            
-            try {
-                val photoFileResult = takePhotoUseCase()
-                if (photoFileResult.isSuccess) {
-                    val photoFile = photoFileResult.getOrThrow()
-                    captureImageToFile(context, photoFile)
-                } else {
-                    updateError("Failed to create photo file")
-                }
-            } catch (e: Exception) {
-                updateError("Photo capture failed: ${e.message}")
-            } finally {
-                _uiState.value = _uiState.value.copy(isLoading = false)
-            }
-        }
-    }
-
-    private fun captureImageToFile(context: Context, photoFile: File) {
-        val imageCapture = imageCapture ?: return
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-        imageCapture.takePicture(
-            outputOptions,
-            ContextCompat.getMainExecutor(context),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    viewModelScope.launch {
-                        val saveResult = savePhotoUseCase(photoFile)
-                        if (saveResult.isSuccess) {
-                            val uri = saveResult.getOrThrow()
-                            _uiState.value = _uiState.value.copy(fileUri = uri)
-                        }
-                    }
-                }
-
-                override fun onError(exc: ImageCaptureException) {
-                    updateError("Photo capture failed: ${exc.message}")
-                }
-            }
-        )
-    }
-
     fun checkGalleryContent() {
         viewModelScope.launch {
             val result = getFirstGalleryItemUseCase()
@@ -234,7 +359,7 @@ class CameraViewModel(
         }
     }
 
-    fun changeCaptureOrVideo(value: Boolean, context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+    fun changeCaptureOrVideo(value: Boolean, context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
         _uiState.value = _uiState.value.copy(setupCapture = value)
         startCamera(context, lifecycleOwner, previewView)
     }
@@ -252,7 +377,7 @@ class CameraViewModel(
         cameraControl?.setZoomRatio(zoomDetector)
     }
 
-    fun changeCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+    fun changeCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
         val lensFacing = if (uiState.value.lensFacing == CameraSelector.LENS_FACING_BACK) {
             CameraSelector.LENS_FACING_FRONT
         } else {
@@ -301,7 +426,7 @@ class CameraViewModel(
         }
     }
 
-    fun onResume(context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+    fun onResume(context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
         if (faceLandmarkerHelper.isClose()) {
             startCamera(context, lifecycleOwner, previewView)
             faceLandmarkerHelper.setupFaceLandmarker()
@@ -310,6 +435,12 @@ class CameraViewModel(
 
     fun onPause() {
         faceLandmarkerHelper.clearFaceLandmarker()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        glSurfaceView?.release()
+        glSurfaceView = null
     }
 
     private fun listenMediaPipe() {

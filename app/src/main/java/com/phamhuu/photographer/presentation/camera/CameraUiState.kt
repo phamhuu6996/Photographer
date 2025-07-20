@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.CameraSelector
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
+import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.RatioCamera
 import com.phamhuu.photographer.enums.TimerDelay
 
@@ -23,5 +24,6 @@ data class CameraUiState(
     val timerDelay: TimerDelay = TimerDelay.OFF,
     val landmarkResult: FaceLandmarkerHelper.ResultBundle? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val currentFilter: ImageFilter = ImageFilter.NONE
 ) 

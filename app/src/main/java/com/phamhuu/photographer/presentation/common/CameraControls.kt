@@ -59,6 +59,7 @@ fun CameraControls(
     onBeautyEffectSelected: (BeautyEffect) -> Unit = {},
     on3DModelSelected: (TypeModel3D) -> Unit = {},
     onImageFilterSelected: (ImageFilter) -> Unit = {},
+    currentFilter: ImageFilter = ImageFilter.NONE
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
@@ -177,9 +178,9 @@ fun CameraControls(
                         color = Color.White,
                     )
 
-                // Filter button
+                // Beauty Effects button
                 ImageCustom(
-                    id = R.drawable.ic_filter,
+                    id = R.drawable.ic_beauty_whitening,
                     imageMode = ImageMode.MEDIUM,
                     color = Color.White,
                     modifier = Modifier.clickable { 
@@ -220,11 +221,11 @@ fun CameraControls(
                     }
                 )
 
-                // Effects/Filter button
+                // Image Filters button với status indicator
                 ImageCustom(
                     id = R.drawable.ic_effects,
                     imageMode = ImageMode.MEDIUM,
-                    color = Color.White,
+                    color = if (currentFilter != ImageFilter.NONE) Color.Yellow else Color.White,
                     modifier = Modifier.clickable { 
                         showFilterPopup.value = true
                     }
@@ -235,9 +236,9 @@ fun CameraControls(
         // Beauty Effects Popup
         if (showBeautyPopup.value) {
             HorizontalScrollablePopup(
-                items = BeautyEffect.values().map { it.toPopupItemData() },
+                items = BeautyEffect.entries.map { it.toPopupItemData() },
                 onItemClick = { item ->
-                    val beautyEffect = BeautyEffect.values()[item.id]
+                    val beautyEffect = BeautyEffect.entries[item.id]
                     onBeautyEffectSelected(beautyEffect)
                     showBeautyPopup.value = false
                 },
@@ -260,12 +261,13 @@ fun CameraControls(
             )
         }
         
-        // Image Filters Popup
+        // Image Filters Popup - ✅ REAL OpenGL ES Filters!
         if (showFilterPopup.value) {
             HorizontalScrollablePopup(
-                items = ImageFilter.values().map { it.toPopupItemData() },
+                items = ImageFilter.entries.map { it.toPopupItemData() },
+                selectedItemId = currentFilter.ordinal,
                 onItemClick = { item ->
-                    val imageFilter = ImageFilter.values()[item.id]
+                    val imageFilter = ImageFilter.entries[item.id]
                     onImageFilterSelected(imageFilter)
                     showFilterPopup.value = false
                 },
