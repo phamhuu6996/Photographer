@@ -12,8 +12,11 @@ class Manager3DHelper(
         modelUrl = "models/glasses.glb",
     )
 
+    private val hatModel: FilamentModelManager = FilamentModelManager(
+        modelUrl = "models/gun.glb",
+    )
+
     fun selectModel3D(
-        path: String,
         context: Context,
         typeModel3D: TypeModel3D
     ) {
@@ -22,12 +25,10 @@ class Manager3DHelper(
         when (typeModel3D) {
             TypeModel3D.GLASSES -> {
                 model = glassModel
-                model.modelUrl = path
             }
             TypeModel3D.HAT -> {
                 // Add other models here if needed
-                model = glassModel
-                model.modelUrl = path
+                model = hatModel
             }
         }
         val result = filamentHelper.addModel3D(

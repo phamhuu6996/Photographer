@@ -56,9 +56,6 @@ fun CameraControls(
     resolution: RatioCamera = RatioCamera.RATIO_3_4,
     onChangeTimeDelay: (TimerDelay) -> Unit,
     onChangeResolution: (RatioCamera) -> Unit,
-    onFilterClick: () -> Unit = {},
-    on3DClick: () -> Unit = {},
-    onEffectsClick: () -> Unit = {},
     onBeautyEffectSelected: (BeautyEffect) -> Unit = {},
     on3DModelSelected: (TypeModel3D) -> Unit = {},
     onImageFilterSelected: (ImageFilter) -> Unit = {},
@@ -187,7 +184,6 @@ fun CameraControls(
                     color = Color.White,
                     modifier = Modifier.clickable { 
                         showBeautyPopup.value = true
-                        onFilterClick()
                     }
                 )
 
@@ -221,7 +217,6 @@ fun CameraControls(
                     color = Color.White,
                     modifier = Modifier.clickable { 
                         show3DPopup.value = true
-                        on3DClick()
                     }
                 )
 
@@ -232,7 +227,6 @@ fun CameraControls(
                     color = Color.White,
                     modifier = Modifier.clickable { 
                         showFilterPopup.value = true
-                        onEffectsClick()
                     }
                 )
             }
@@ -255,9 +249,9 @@ fun CameraControls(
         // 3D Models Popup
         if (show3DPopup.value) {
             HorizontalScrollablePopup(
-                items = TypeModel3D.values().map { it.toPopupItemData() },
+                items = TypeModel3D.entries.map { it.toPopupItemData() },
                 onItemClick = { item ->
-                    val model3D = TypeModel3D.values()[item.id]
+                    val model3D = TypeModel3D.entries[item.id]
                     on3DModelSelected(model3D)
                     show3DPopup.value = false
                 },

@@ -11,8 +11,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.SlideVertically
+import com.phamhuu.photographer.presentation.filament.FilamentSurfaceView
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -40,13 +43,12 @@ fun CameraScreen(
             scaleType = PreviewView.ScaleType.FIT_CENTER
         }
     }
-    val cameraState = viewModel.cameraState.collectAsStateWithLifecycle()
-    val models3D = remember { listOf("models/glasses.glb") }
+    val uiState = viewModel.uiState.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
 
     InitCameraPermission({
         viewModel.startCamera(context, lifecycleOwner, previewView)
-        viewModel.checkGalleryContent(context)
+        viewModel.checkGalleryContent()
     }, context)
 
     DisposableEffect(Unit) {
@@ -54,7 +56,7 @@ fun CameraScreen(
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
-                    viewModel.onresume(context, lifecycleOwner, previewView)
+                    viewModel.onResume(context, lifecycleOwner, previewView)
                 }
 
                 Lifecycle.Event.ON_PAUSE -> {
@@ -64,11 +66,19 @@ fun CameraScreen(
                 else -> {}
             }
         }
-        // Add the observer
         lifecycleOwner.lifecycle.addObserver(observer)
 
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Show error message if present
+    uiState.value.error?.let { error ->
+        LaunchedEffect(error) {
+            // You can show toast or snackbar here
+            // For now, just clear the error after showing
+            viewModel.clearError()
         }
     }
 
@@ -79,22 +89,27 @@ fun CameraScreen(
                 detectTransformGestures(panZoomLock = true) { centroid, pan, zoomChange, rotation ->
                     viewModel.getCameraPointerInput(centroid, pan, zoomChange, rotation)
                 }
-
             },
-        contentAlignment = Alignment.TopStart // Align content to top start
-
+        contentAlignment = Alignment.TopStart
     ) {
 
-//        FilamentSurfaceView(
-//            context = context,
-//            lifecycle = lifecycleOwner.lifecycle,
-//        )
+        FilamentSurfaceView(
+            context = context,
+            lifecycle = lifecycleOwner.lifecycle,
+        )
         AndroidView(
-            factory = {
-                previewView
-            },
+            factory = { previewView },
             modifier = Modifier.fillMaxSize()
         )
+
+        // Error display
+        uiState.value.error?.let { error ->
+            Text(
+                text = error,
+                color = Color.Red,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+        }
 
         CameraControls(
             onCaptureClick = { viewModel.takePhoto(context) },
@@ -102,47 +117,41 @@ fun CameraScreen(
             onStopRecord = { viewModel.stopRecording() },
             onChangeCamera = { viewModel.changeCamera(context, lifecycleOwner, previewView) },
             onChangeCaptureOrVideo = { value ->
-                viewModel.changeCaptureOrVideo(
-                    value,
-                    context,
-                    lifecycleOwner,
-                    previewView
-                )
+                viewModel.changeCaptureOrVideo(value, context, lifecycleOwner, previewView)
             },
             onChangeFlashMode = { viewModel.setFlashMode() },
             onShowGallery = { navController.navigate("gallery") },
-            isCapture = cameraState.value.setupCapture,
-            isRecording = cameraState.value.isRecording,
+            isCapture = uiState.value.setupCapture,
+            isRecording = uiState.value.isRecording,
             modifier = Modifier.align(Alignment.BottomCenter),
-            fileUri = cameraState.value.fileUri,
-            flashMode = cameraState.value.flashMode,
-            timeDelay = cameraState.value.timerDelay,
-            resolution = cameraState.value.ratioCamera,
+            fileUri = uiState.value.fileUri,
+            flashMode = uiState.value.flashMode,
+            timeDelay = uiState.value.timerDelay,
+            resolution = uiState.value.ratioCamera,
             onChangeTimeDelay = { viewModel.setTimerDelay(it) },
-            onChangeResolution = { viewModel.setRatioCamera(it,context, lifecycleOwner, previewView) },
+            onChangeResolution = { viewModel.setRatioCamera(it, context, lifecycleOwner, previewView) },
             // Bottom navigation callbacks
-            onFilterClick = { /* TODO: Implement filter functionality */ },
-            on3DClick = { /* TODO: Implement 3D functionality */ },
-            onEffectsClick = { /* TODO: Implement effects functionality */ },
             onBeautyEffectSelected = { beautyEffect ->
                 // TODO: Apply beauty effect
             },
             on3DModelSelected = { model3D ->
-                // TODO: Load 3D model
+                viewModel.selectModel3D(context, model3D)
             },
             onImageFilterSelected = { imageFilter ->
                 // TODO: Apply image filter
             },
         )
 
-        // Hiệu ứng hiện slider khi vuốt lên
+        // Brightness slider with animation
         AnimatedVisibility(
-            visible = cameraState.value.isBrightnessVisible,
+            visible = uiState.value.isBrightnessVisible,
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
         ) {
-            SlideVertically(cameraState.value.brightness,
-                { brightness -> viewModel.setBrightness(brightness) })
+            SlideVertically(
+                uiState.value.brightness,
+                { brightness -> viewModel.setBrightness(brightness) }
+            )
         }
     }
 }
