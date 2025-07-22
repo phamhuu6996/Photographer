@@ -16,7 +16,17 @@ import java.util.concurrent.atomic.AtomicReference
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-class FilterRenderer : GLSurfaceView.Renderer {
+// ===================== KIẾN THỨC TỔNG KẾT =====================
+// Khi render ảnh camera lên OpenGL:
+// 1. Xoay (rotation):
+//    - Đổi vị trí các đỉnh (hoặc U/V) để ảnh xoay đúng góc (0, 90, 180, 270)
+// 2. Flip (mirror):
+//    - Camera trước cần mirror ngang (đảo U)
+//    - Camera sau không cần mirror
+//    - Lật dọc (đảo V) nếu muốn flip dọc
+// =============================================================
+class FilterRenderer() : GLSurfaceView.Renderer {
+    private  var isFrontCamera = true // Mặc định là camera trước
     private var program = 0
     private var textureId = 0
     private var vertexBuffer: FloatBuffer? = null
@@ -38,8 +48,7 @@ class FilterRenderer : GLSurfaceView.Renderer {
     
     // ✅ Rotation handling
     private val currentRotation = AtomicReference(0)
-    private val needsVertexUpdate = AtomicBoolean(false)
-    
+
     // ✅ Initialization state
     private val isRendererReady = AtomicBoolean(false)
     
@@ -69,7 +78,7 @@ class FilterRenderer : GLSurfaceView.Renderer {
         }
     """
     
-    // ✅ Base vertex data cho full screen quad (sẽ được rotate dynamically)
+    // Đây là ma trận mặc định đặt điểm u v (mỗi đỉnh ảnh) của ảnh vào x y trong màn hình
     private val baseQuadVertices = floatArrayOf(
         // positions    // texture coords
         -1.0f, -1.0f,   0.0f, 1.0f,  // Bottom-left
@@ -79,6 +88,10 @@ class FilterRenderer : GLSurfaceView.Renderer {
     )
     
     private val indices = shortArrayOf(0, 1, 2, 0, 2, 3)
+
+    fun changeCamera(isFront: Boolean) {
+        isFrontCamera = isFront
+    }
     
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         println("🔥 FilterRenderer onSurfaceCreated")
@@ -146,12 +159,10 @@ class FilterRenderer : GLSurfaceView.Renderer {
         }
         
         // ✅ Handle rotation changes by updating vertex buffer
-        if (needsVertexUpdate.compareAndSet(true, false)) {
-            val rotation = currentRotation.get()
-            val rotatedVertices = getRotatedVertices(rotation)
-            updateVertexBuffer(rotatedVertices)
-            println("🔥 Vertex buffer updated for rotation: ${rotation}°")
-        }
+        val rotation = currentRotation.get()
+        val rotatedVertices = getRotatedVertices(rotation)
+        updateVertexBuffer(rotatedVertices)
+        println("🔥 Vertex buffer updated for rotation: ${rotation}°")
         
         // ✅ Update texture với real camera data
         if (hasNewImageData.compareAndSet(true, false)) {
@@ -255,34 +266,67 @@ class FilterRenderer : GLSurfaceView.Renderer {
         println("🔥 Placeholder texture created: ${width}x${height}")
     }
     
-    // ✅ Rotation-aware vertex coordinates
+    /**
+     * Trả về mảng vertex (X, Y, U, V) đã xử lý xoay và mirror ngang (nếu là camera trước)
+     *
+     * rotationDegrees: Góc xoay của buffer camera (0, 90, 180, 270)
+     * Mặc định U0 = 0f, U1 = 1f, U2 = 0f, U3 = 1f, V0 = 0f, V1 = 1f, V2 = 0f, V3 = 1f, tương ứng mép trái, trên (0, 0), mép phải, trên (1, 0) 
+     * Nếu bạn xoay 90 độ thì U0 -> U1, U1 -> U2, U2 -> U3, U3 -> U0, V0 -> V1, V1 -> V2, V2 -> V3, V3 -> V0
+     * Nếu bạn xoay 180 độ thì U0 -> U2, U1 -> U3, U2 -> U0, U3 -> U1, V0 -> V2, V1 -> V3, V2 -> V0, V3 -> V1
+     * Nếu bạn xoay 270 độ thì U0 -> U3, U1 -> U0, U2 -> U1, U3 -> U2, V0 -> V3, V1 -> V0, V2 -> V1, V3 -> V2
+     * isFrontCamera: true nếu là camera sau (mirror ngang)
+     *
+     * Chú thích từng ma trận:
+     * - U: 0 = trái, 1 = phải
+     * - V: 0 = trên, 1 = dưới
+     *
+     * - Camera sau: chỉ xoay
+     * - Camera trước: xoay + mirror ngang (đảo V)
+     */
     private fun getRotatedVertices(rotationDegrees: Int): FloatArray {
+        // Hiểu rằng u0 đại diện 0f, u1 đại diện 1f, nếu camera trước đảo ngược đề lật
+        // Nếu camera trước, mirror ngang (đảo U)
+        val v0 = if (!isFrontCamera) 1.0f else 0.0f
+        val v1 = if (!isFrontCamera) 0.0f else 1.0f
+        // Các ma trận dưới đây đều theo thứ tự: Bottom-left, Bottom-right, Top-right, Top-left
         return when (rotationDegrees) {
+            // Góc 90°: Xoay 90 độ
+            // Camera sau: U=1 dưới, U=1 trên | Camera trước: U=0 dưới, U=0 trên (mirror ngang)
             90 -> floatArrayOf(
-                // positions    // texture coords (rotated 90° CW)
-                -1.0f, -1.0f,   1.0f, 1.0f,  // Bottom-left
-                 1.0f, -1.0f,   1.0f, 0.0f,  // Bottom-right  
-                 1.0f,  1.0f,   0.0f, 0.0f,  // Top-right
-                -1.0f,  1.0f,   0.0f, 1.0f   // Top-left
+                -1.0f, -1.0f, 1f, v0,  // Bottom-left
+                1.0f, -1.0f, 1f, v1,  // Bottom-right
+                1.0f,  1.0f, 0f, v1,  // Top-right
+                -1.0f,  1.0f, 0f, v0   // Top-left
             )
+            // Góc 180°: Xoay 180 độ (đảo cả U và V)
+            // Camera sau: U=1 trái, U=0 phải | Camera trước: U=0 trái, U=1 phải (mirror ngang)
             180 -> floatArrayOf(
-                // positions    // texture coords (rotated 180°)
-                -1.0f, -1.0f,   1.0f, 0.0f,  // Bottom-left
-                 1.0f, -1.0f,   0.0f, 0.0f,  // Bottom-right  
-                 1.0f,  1.0f,   0.0f, 1.0f,  // Top-right
-                -1.0f,  1.0f,   1.0f, 1.0f   // Top-left
+                -1.0f, -1.0f, 1f, v1,  // Bottom-left
+                1.0f, -1.0f, 0f, v1,  // Bottom-right
+                1.0f,  1.0f, 0f, v0,  // Top-right
+                -1.0f,  1.0f, 1f, v0   // Top-left
             )
+            // Góc 270°: Xoay 270 độ
+            // Camera sau: U=0 dưới, U=0 trên | Camera trước: U=1 dưới, U=1 trên (mirror ngang)
             270 -> floatArrayOf(
-                // positions    // texture coords (rotated 270° CW)
-                -1.0f, -1.0f,   0.0f, 0.0f,  // Bottom-left
-                 1.0f, -1.0f,   0.0f, 1.0f,  // Bottom-right  
-                 1.0f,  1.0f,   1.0f, 1.0f,  // Top-right
-                -1.0f,  1.0f,   1.0f, 0.0f   // Top-left
+                -1.0f, -1.0f, 0f, v1,  // Bottom-left
+                1.0f, -1.0f, 0f, v0,  // Bottom-right
+                1.0f,  1.0f, 1f, v0,  // Top-right
+                -1.0f,  1.0f, 1f, v1   // Top-left
             )
-            else -> baseQuadVertices // 0° or default
+            // Góc 0°: Không xoay
+            // Camera sau: U=0 trái, U=1 phải | Camera trước: U=1 trái, U=0 phải (mirror ngang)
+            else -> floatArrayOf(
+                -1.0f, -1.0f, 0f, v0,  // Bottom-left
+                1.0f, -1.0f, 1f, v0,  // Bottom-right
+                1.0f,  1.0f, 1f, v1,  // Top-right
+                -1.0f,  1.0f, 0f, v1   // Top-left
+            )
         }
     }
-    
+
+
+
     // ✅ Update vertex buffer with new coordinates
     private fun updateVertexBuffer(vertices: FloatArray) {
         val bb = ByteBuffer.allocateDirect(vertices.size * 4)
@@ -303,7 +347,6 @@ class FilterRenderer : GLSurfaceView.Renderer {
             // ✅ Update rotation if changed
             if (currentRotation.get() != rotationDegrees) {
                 currentRotation.set(rotationDegrees)
-                needsVertexUpdate.set(true)
                 println("🔥 Rotation changed to: ${rotationDegrees}°")
             }
             

@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -122,9 +123,10 @@ fun CameraScreen(
         when {
             uiState.value.currentFilter != ImageFilter.NONE -> {
                 // Filtered camera preview với ImageAnalyzer data
+                val ratio = uiState.value.ratioCamera.toRatio()// Default ratio if not set
                 AndroidView(
                     factory = { filterGLSurfaceView },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
                 )
                 
                 // ✅ Show loading indicator during filter transition

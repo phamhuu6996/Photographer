@@ -262,5 +262,13 @@ enum class RatioCamera(val ratio: AspectRatioStrategy) {
             RATIO_3_4 -> R.drawable.resolution34
         }
     }
+
+    fun toRatio() : Float {
+        return when (this) {
+            RATIO_1_1 -> 1f
+            RATIO_9_16 -> 9f / 16f
+            RATIO_3_4 -> 3f / 4f
+        }
+    }
 }
 

@@ -105,10 +105,10 @@ class CameraViewModel(
     // ✅ Thread-safe ImageProxy processing
     private fun handleImageAnalyzerFrame(imageProxy: ImageProxy) {
         try {
-//            if(!isProcessingImage.compareAndSet(false, true)) {
-//                // If already processing, close the ImageProxy to prevent memory leaks
-//                return
-//            }
+            if(!isProcessingImage.compareAndSet(false, true)) {
+                // If already processing, close the ImageProxy to prevent memory leaks
+                return
+            }
             // ✅ Feed to filter system only if filter is active
             val currentFilter = uiState.value.currentFilter
             if (currentFilter != ImageFilter.NONE && glSurfaceView != null) {
@@ -384,6 +384,7 @@ class CameraViewModel(
             CameraSelector.LENS_FACING_BACK
         }
         _uiState.value = _uiState.value.copy(lensFacing = lensFacing)
+        glSurfaceView?.changeCamera(lensFacing == CameraSelector.LENS_FACING_FRONT)
         startCamera(context, lifecycleOwner, previewView)
     }
 

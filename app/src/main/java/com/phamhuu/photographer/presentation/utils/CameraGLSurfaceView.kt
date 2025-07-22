@@ -23,9 +23,8 @@ class CameraGLSurfaceView (
         println("🔥 CameraGLSurfaceView initialized")
     }
 
-    // ✅ Check if renderer is ready for operations
-    fun isRendererReady(): Boolean {
-        return filterRenderer.isReady()
+    fun changeCamera(isFrontCamera: Boolean) {
+        filterRenderer.changeCamera(isFrontCamera)
     }
     
     // ✅ Simplified image update - FilterRenderer handles ImageProxy closing
