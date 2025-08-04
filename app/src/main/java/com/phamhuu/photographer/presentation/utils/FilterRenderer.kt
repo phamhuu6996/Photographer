@@ -268,59 +268,67 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     
     /**
      * Trả về mảng vertex (X, Y, U, V) đã xử lý xoay và mirror ngang (nếu là camera trước)
-     *
-     * rotationDegrees: Góc xoay của buffer camera (0, 90, 180, 270)
-     * Mặc định U0 = 0f, U1 = 1f, U2 = 0f, U3 = 1f, V0 = 0f, V1 = 1f, V2 = 0f, V3 = 1f, tương ứng mép trái, trên (0, 0), mép phải, trên (1, 0) 
-     * Nếu bạn xoay 90 độ thì U0 -> U1, U1 -> U2, U2 -> U3, U3 -> U0, V0 -> V1, V1 -> V2, V2 -> V3, V3 -> V0
-     * Nếu bạn xoay 180 độ thì U0 -> U2, U1 -> U3, U2 -> U0, U3 -> U1, V0 -> V2, V1 -> V3, V2 -> V0, V3 -> V1
-     * Nếu bạn xoay 270 độ thì U0 -> U3, U1 -> U0, U2 -> U1, U3 -> U2, V0 -> V3, V1 -> V0, V2 -> V1, V3 -> V2
-     * isFrontCamera: true nếu là camera sau (mirror ngang)
-     *
-     * Chú thích từng ma trận:
-     * - U: 0 = trái, 1 = phải
-     * - V: 0 = trên, 1 = dưới
-     *
-     * - Camera sau: chỉ xoay
-     * - Camera trước: xoay + mirror ngang (đảo V)
+     * 
+     * Cấu trúc vertex: [X, Y, U, V]
+     * - X, Y: Tọa độ vị trí trên màn hình (không đổi)
+     * - U: Tọa độ texture theo chiều ngang (0.0f = trái, 1.0f = phải)
+     * - V: Tọa độ texture theo chiều dọc (0.0f = trên, 1.0f = dưới)
+     * 
+     * Logic xoay:
+     * - 0°: Không xoay, chỉ mirror nếu camera trước
+     * - 90°: Xoay 90° ngược kim đồng hồ (CCW), U và V hoán đổi
+     * - 180°: Xoay 180°, U và V đảo ngược
+     * - 270°: Xoay 270° ngược kim đồng hồ (CCW), U và V hoán đổi + đảo ngược
+     * 
+     * Logic mirror cho camera trước:
+     * - v0 = 1.0f (camera trước), 0.0f (camera sau)
+     * - v1 = 0.0f (camera trước), 1.0f (camera sau)
+     * 
+     * @param rotationDegrees Góc xoay của buffer camera (0, 90, 180, 270)
+     * @return FloatArray chứa 16 giá trị (4 vertices × 4 coordinates)
      */
     private fun getRotatedVertices(rotationDegrees: Int): FloatArray {
-        // Hiểu rằng u0 đại diện 0f, u1 đại diện 1f, nếu camera trước đảo ngược đề lật
-        // Nếu camera trước, mirror ngang (đảo U)
-        val v0 = if (!isFrontCamera) 1.0f else 0.0f
-        val v1 = if (!isFrontCamera) 0.0f else 1.0f
-        // Các ma trận dưới đây đều theo thứ tự: Bottom-left, Bottom-right, Top-right, Top-left
+        // Mirror cho camera trước: đảo ngược tọa độ V
+        val v0 = if (isFrontCamera) 1.0f else 0.0f  // Vị trí trên (0.0f)
+        val v1 = if (isFrontCamera) 0.0f else 1.0f  // Vị trí dưới (1.0f)
+
+        println("🔥 getRotatedVertices: rotationDegrees=$rotationDegrees, isFrontCamera=$isFrontCamera, v0=$v0, v1=$v1")
+        
         return when (rotationDegrees) {
-            // Góc 90°: Xoay 90 độ
-            // Camera sau: U=1 dưới, U=1 trên | Camera trước: U=0 dưới, U=0 trên (mirror ngang)
+            // Xoay 90° ngược kim đồng hồ (CCW)
+            // U và V hoán đổi: U nhận giá trị cố định, V nhận giá trị động
             90 -> floatArrayOf(
-                -1.0f, -1.0f, 1f, v0,  // Bottom-left
-                1.0f, -1.0f, 1f, v1,  // Bottom-right
-                1.0f,  1.0f, 0f, v1,  // Top-right
-                -1.0f,  1.0f, 0f, v0   // Top-left
+                -1.0f, -1.0f, 1.0f, v1,  // Bottom-left: U=1.0f (phải), V=v1 (dưới)
+                1.0f, -1.0f, 1.0f, v0,  // Bottom-right: U=1.0f (phải), V=v0 (trên)
+                1.0f,  1.0f, 0.0f, v0,  // Top-right: U=0.0f (trái), V=v0 (trên)
+                -1.0f,  1.0f, 0.0f, v1   // Top-left: U=0.0f (trái), V=v1 (dưới)
             )
-            // Góc 180°: Xoay 180 độ (đảo cả U và V)
-            // Camera sau: U=1 trái, U=0 phải | Camera trước: U=0 trái, U=1 phải (mirror ngang)
+            
+            // Xoay 180°
+            // U và V đảo ngược: U nhận giá trị động, V nhận giá trị cố định
             180 -> floatArrayOf(
-                -1.0f, -1.0f, 1f, v1,  // Bottom-left
-                1.0f, -1.0f, 0f, v1,  // Bottom-right
-                1.0f,  1.0f, 0f, v0,  // Top-right
-                -1.0f,  1.0f, 1f, v0   // Top-left
+                -1.0f, -1.0f, v0, 1.0f,  // Bottom-left: U=v0 (trên), V=1.0f (dưới)
+                1.0f, -1.0f, v1, 1.0f,  // Bottom-right: U=v1 (dưới), V=1.0f (dưới)
+                1.0f,  1.0f, v1, 0.0f,  // Top-right: U=v1 (dưới), V=0.0f (trên)
+                -1.0f,  1.0f, v0, 0.0f   // Top-left: U=v0 (trên), V=0.0f (trên)
             )
-            // Góc 270°: Xoay 270 độ
-            // Camera sau: U=0 dưới, U=0 trên | Camera trước: U=1 dưới, U=1 trên (mirror ngang)
+            
+            // Xoay 270° ngược kim đồng hồ (CCW)
+            // U và V hoán đổi + đảo ngược: U nhận giá trị cố định, V nhận giá trị động
             270 -> floatArrayOf(
-                -1.0f, -1.0f, 0f, v1,  // Bottom-left
-                1.0f, -1.0f, 0f, v0,  // Bottom-right
-                1.0f,  1.0f, 1f, v0,  // Top-right
-                -1.0f,  1.0f, 1f, v1   // Top-left
+                -1.0f, -1.0f, 0.0f, v0,  // Bottom-left: U=0.0f (trái), V=v0 (trên)
+                1.0f, -1.0f, 0.0f, v1,  // Bottom-right: U=0.0f (trái), V=v1 (dưới)
+                1.0f,  1.0f, 1.0f, v1,  // Top-right: U=1.0f (phải), V=v1 (dưới)
+                -1.0f,  1.0f, 1.0f, v0   // Top-left: U=1.0f (phải), V=v0 (trên)
             )
-            // Góc 0°: Không xoay
-            // Camera sau: U=0 trái, U=1 phải | Camera trước: U=1 trái, U=0 phải (mirror ngang)
+            
+            // Không xoay (0°)
+            // Chỉ mirror nếu camera trước: U nhận giá trị động, V nhận giá trị cố định
             else -> floatArrayOf(
-                -1.0f, -1.0f, 0f, v0,  // Bottom-left
-                1.0f, -1.0f, 1f, v0,  // Bottom-right
-                1.0f,  1.0f, 1f, v1,  // Top-right
-                -1.0f,  1.0f, 0f, v1   // Top-left
+                -1.0f, -1.0f, v0, 1.0f,  // Bottom-left: U=v0 (trên), V=1.0f (dưới)
+                1.0f, -1.0f, v1, 1.0f,  // Bottom-right: U=v1 (dưới), V=1.0f (dưới)
+                1.0f,  1.0f, v1, 0.0f,  // Top-right: U=v1 (dưới), V=0.0f (trên)
+                -1.0f,  1.0f, v0, 0.0f   // Top-left: U=v0 (trên), V=0.0f (trên)
             )
         }
     }
