@@ -78,27 +78,40 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         }
     """
     
-    // Đây là ma trận mặc định đặt điểm u v (mỗi đỉnh ảnh) của ảnh vào x y trong màn hình
-    private val baseQuadVertices = floatArrayOf(
-        // positions    // texture coords
-        -1.0f, -1.0f,   0.0f, 1.0f,  // Bottom-left
-         1.0f, -1.0f,   1.0f, 1.0f,  // Bottom-right  
-         1.0f,  1.0f,   1.0f, 0.0f,  // Top-right
-        -1.0f,  1.0f,   0.0f, 0.0f   // Top-left
-    )
-    
     private val indices = shortArrayOf(0, 1, 2, 0, 2, 3)
 
+    /**
+     * Thay đổi loại camera (trước/sau) để xử lý mirror đúng cách
+     * 
+     * Camera trước cần mirror ngang để hiển thị như gương
+     * Camera sau không cần mirror
+     * 
+     * @param isFront true nếu là camera trước, false nếu là camera sau
+     */
     fun changeCamera(isFront: Boolean) {
         isFrontCamera = isFront
     }
     
+    /**
+     * Khởi tạo OpenGL surface và các resources cần thiết
+     * 
+     * Được gọi khi OpenGL surface được tạo lần đầu
+     * Thiết lập:
+     * - Clear color (background)
+     * - Vertex buffer với rotation hiện tại
+     * - Index buffer cho rendering
+     * - Texture object và parameters
+     * - Shader program ban đầu
+     * 
+     * @param gl OpenGL context (không sử dụng trong ES 2.0)
+     * @param config EGL configuration
+     */
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         println("🔥 FilterRenderer onSurfaceCreated")
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
         
         // Initialize buffers với base vertices
-        updateVertexBuffer(baseQuadVertices)
+        updateVertexBuffer(getRotatedVertices(currentRotation.get()))
         
         val ib = ByteBuffer.allocateDirect(indices.size * 2)
         ib.order(ByteOrder.nativeOrder())
@@ -130,6 +143,19 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         println("🔥 FilterRenderer initialization complete")
     }
     
+    /**
+     * Xử lý khi kích thước surface thay đổi
+     * 
+     * Thiết lập viewport và lưu kích thước mới
+     * Được gọi khi:
+     * - Surface được tạo lần đầu
+     * - Orientation thay đổi
+     * - Kích thước surface thay đổi
+     * 
+     * @param gl OpenGL context
+     * @param width Chiều rộng surface mới
+     * @param height Chiều cao surface mới
+     */
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         println("🔥 FilterRenderer onSurfaceChanged: ${width}x${height}")
         GLES20.glViewport(0, 0, width, height)
@@ -137,6 +163,19 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         surfaceHeight = height
     }
 
+    /**
+     * Hàm render chính - được gọi mỗi frame
+     * 
+     * Quy trình xử lý:
+     * 1. Clear screen
+     * 2. Handle pending filter changes
+     * 3. Update vertex buffer theo rotation
+     * 4. Update texture với camera data mới
+     * 5. Render frame
+     * 6. Handle capture request
+     * 
+     * @param gl OpenGL context
+     */
     override fun onDrawFrame(gl: GL10?) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         
@@ -249,7 +288,14 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         }
     }
     
-    // ✅ Create placeholder texture to avoid black screen
+    /**
+     * Tạo placeholder texture để tránh màn hình đen
+     * 
+     * Tạo một texture với pattern đơn giản để test
+     * Được sử dụng khi chưa có camera data
+     * 
+     * Pattern: Checkerboard với màu trắng và xám
+     */
     private fun createPlaceholderTexture() {
         val width = 640
         val height = 480
@@ -333,9 +379,14 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         }
     }
 
-
-
-    // ✅ Update vertex buffer with new coordinates
+    /**
+     * Cập nhật vertex buffer với tọa độ mới
+     * 
+     * Tạo FloatBuffer từ mảng vertices và cập nhật vertexBuffer
+     * Sử dụng direct buffer để tối ưu performance
+     * 
+     * @param vertices Mảng float chứa tọa độ vertices (X, Y, U, V)
+     */
     private fun updateVertexBuffer(vertices: FloatArray) {
         val bb = ByteBuffer.allocateDirect(vertices.size * 4)
         bb.order(ByteOrder.nativeOrder())
@@ -344,7 +395,19 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         vertexBuffer?.position(0)
     }
 
-    // ✅ Fixed ImageProxy processing với rotation handling
+    /**
+     * Xử lý dữ liệu ảnh từ CameraX ImageProxy
+     * 
+     * Quy trình:
+     * 1. Extract thông tin từ ImageProxy (width, height, rotation)
+     * 2. Update rotation nếu thay đổi
+     * 3. Extract image data từ buffer
+     * 4. Store data atomically để thread-safe
+     * 
+     * Được gọi từ camera thread, data sẽ được xử lý trên GL thread
+     * 
+     * @param imageProxy ImageProxy chứa dữ liệu ảnh từ camera
+     */
     fun updateImage(imageProxy: ImageProxy) {
             val width = imageProxy.width
             val height = imageProxy.height
@@ -375,7 +438,16 @@ class FilterRenderer() : GLSurfaceView.Renderer {
             println("🔥 Image data stored: ${width}x${height}, buffer size: ${rgbaBuffer.remaining()}, rotation: ${rotationDegrees}°")
     }
     
-    // ✅ Create simple test pattern for debugging
+    /**
+     * Tạo test pattern để debug
+     * 
+     * Tạo checkerboard pattern với màu trắng và xám
+     * Sử dụng để test khi không có camera data
+     * 
+     * @param width Chiều rộng pattern
+     * @param height Chiều cao pattern
+     * @return ByteBuffer chứa RGBA data
+     */
     private fun createTestPattern(width: Int, height: Int): ByteBuffer {
         val rgbaData = ByteArray(width * height * 4)
         
@@ -408,7 +480,14 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         return buffer
     }
     
-    // ✅ Thread-safe filter setting
+    /**
+     * Thiết lập filter mới (thread-safe)
+     * 
+     * Filter sẽ được áp dụng trên GL thread trong onDrawFrame()
+     * Sử dụng AtomicReference để tránh race condition
+     * 
+     * @param filter ImageFilter mới cần áp dụng
+     */
     fun setFilter(filter: ImageFilter) {
         println("🔥 Setting filter: ${filter.displayName}")
         if (currentFilter.get() != filter) {
@@ -417,16 +496,37 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         }
     }
     
-    // ✅ Check if renderer is ready for operations
+    /**
+     * Kiểm tra xem renderer đã sẵn sàng chưa
+     * 
+     * @return true nếu renderer đã được khởi tạo hoàn toàn
+     */
     fun isReady(): Boolean {
         return isRendererReady.get()
     }
     
+    /**
+     * Yêu cầu capture ảnh đã được filter
+     * 
+     * Ảnh sẽ được capture trong onDrawFrame() và gọi callback
+     * 
+     * @param callback Callback function nhận Bitmap đã capture
+     */
     fun captureFilteredImage(callback: (Bitmap) -> Unit) {
         captureCallback = callback
     }
     
-    // ✅ Cleanup OpenGL resources
+    /**
+     * Giải phóng tất cả OpenGL resources
+     * 
+     * Xóa:
+     * - Shader program
+     * - Texture
+     * - Buffers
+     * - References
+     * 
+     * Được gọi khi destroy renderer
+     */
     fun release() {
         try {
             if (program != 0) {
@@ -449,6 +549,17 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         }
     }
 
+    /**
+     * Capture frame hiện tại từ OpenGL framebuffer
+     * 
+     * Quy trình:
+     * 1. Đọc pixels từ framebuffer
+     * 2. Flip vertically (OpenGL origin khác với Android)
+     * 3. Tạo Bitmap từ pixels
+     * 4. Gọi callback với Bitmap
+     * 
+     * @param callback Callback function nhận Bitmap đã capture
+     */
     private fun captureCurrentFrameSafe(callback: (Bitmap) -> Unit) {
         try {
             val pixels = IntArray(surfaceWidth * surfaceHeight)
@@ -479,6 +590,19 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         }
     }
     
+    /**
+     * Tạo shader program an toàn với error handling
+     * 
+     * Quy trình:
+     * 1. Xóa program cũ nếu có
+     * 2. Lấy fragment shader code từ filter
+     * 3. Compile vertex và fragment shader
+     * 4. Tạo và link program
+     * 5. Kiểm tra link status
+     * 6. Cleanup shaders
+     * 
+     * @param filter ImageFilter chứa fragment shader code
+     */
     private fun createShaderProgramSafe(filter: ImageFilter) {
         try {
             println("🔥 Creating shader program for filter: ${filter.displayName}")
@@ -544,6 +668,20 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         }
     }
     
+    /**
+     * Compile shader an toàn với error handling
+     * 
+     * Quy trình:
+     * 1. Tạo shader object
+     * 2. Set source code
+     * 3. Compile shader
+     * 4. Kiểm tra compilation status
+     * 5. Return shader ID hoặc 0 nếu fail
+     * 
+     * @param type Loại shader (GL_VERTEX_SHADER hoặc GL_FRAGMENT_SHADER)
+     * @param shaderCode Source code của shader
+     * @return Shader ID nếu thành công, 0 nếu thất bại
+     */
     private fun loadShaderSafe(type: Int, shaderCode: String): Int {
         return try {
             val shader = GLES20.glCreateShader(type)
