@@ -52,9 +52,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     // ✅ Initialization state
     private val isRendererReady = AtomicBoolean(false)
     
-    // Capture callback
-    private var captureCallback: ((Bitmap) -> Unit)? = null
-    
     // Vertex shader
     private val vertexShaderCode = """
         attribute vec4 aPosition;
@@ -107,7 +104,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
      * @param config EGL configuration
      */
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        println("🔥 FilterRenderer onSurfaceCreated")
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
         
         // Initialize buffers với base vertices
@@ -124,8 +120,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         GLES20.glGenTextures(1, textures, 0)
         textureId = textures[0]
         
-        println("🔥 Created texture ID: $textureId")
-        
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
@@ -140,7 +134,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         
         // ✅ Mark renderer as ready
         isRendererReady.set(true)
-        println("🔥 FilterRenderer initialization complete")
     }
     
     /**
@@ -157,7 +150,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
      * @param height Chiều cao surface mới
      */
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        println("🔥 FilterRenderer onSurfaceChanged: ${width}x${height}")
         GLES20.glViewport(0, 0, width, height)
         surfaceWidth = width
         surfaceHeight = height
@@ -185,10 +177,8 @@ class FilterRenderer() : GLSurfaceView.Renderer {
                 try {
                     createShaderProgramSafe(newFilter)
                     currentFilter.set(newFilter)
-                    println("🔥 Filter updated to: ${newFilter.displayName}")
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    println("❌ Filter update failed: ${e.message}")
                     // Fallback to default shader if filter fails
                     createShaderProgramSafe(ImageFilter.NONE)
                     currentFilter.set(ImageFilter.NONE)
@@ -201,7 +191,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         val rotation = currentRotation.get()
         val rotatedVertices = getRotatedVertices(rotation)
         updateVertexBuffer(rotatedVertices)
-        println("🔥 Vertex buffer updated for rotation: ${rotation}°")
         
         // ✅ Update texture với real camera data
         if (hasNewImageData.compareAndSet(true, false)) {
@@ -217,23 +206,14 @@ class FilterRenderer() : GLSurfaceView.Renderer {
                         buffer
                     )
                     
-                    val error = GLES20.glGetError()
-                    if (error != GLES20.GL_NO_ERROR) {
-                        println("❌ GL Error during texture update: $error")
-                    } else {
-                        println("🔥 Texture updated with camera data: ${imageWidth.get()}x${imageHeight.get()}")
-                    }
-                    
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    println("❌ Texture update failed: ${e.message}")
                 }
             }
         }
         
         // Skip rendering if no program or texture
         if (program == 0 || textureId == 0) {
-            println("❌ Cannot render: program=$program, textureId=$textureId")
             return
         }
         
@@ -249,7 +229,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         
         // Skip if handles are invalid
         if (positionHandle < 0 || textureCoordHandle < 0 || textureUniformHandle < 0) {
-            println("❌ Invalid handles: pos=$positionHandle, tex=$textureCoordHandle, uniform=$textureUniformHandle")
             return
         }
         
@@ -275,12 +254,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         // Cleanup
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(textureCoordHandle)
-        
-        // Handle capture request
-        captureCallback?.let { callback ->
-            captureCurrentFrameSafe(callback)
-            captureCallback = null
-        }
         
         val error = GLES20.glGetError()
         if (error != GLES20.GL_NO_ERROR) {
@@ -309,7 +282,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
             placeholderBuffer
         )
         
-        println("🔥 Placeholder texture created: ${width}x${height}")
     }
     
     /**
@@ -338,8 +310,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         val v0 = if (isFrontCamera) 1.0f else 0.0f  // Vị trí trên (0.0f)
         val v1 = if (isFrontCamera) 0.0f else 1.0f  // Vị trí dưới (1.0f)
 
-        println("🔥 getRotatedVertices: rotationDegrees=$rotationDegrees, isFrontCamera=$isFrontCamera, v0=$v0, v1=$v1")
-        
         return when (rotationDegrees) {
             // Xoay 90° ngược kim đồng hồ (CCW)
             // U và V hoán đổi: U nhận giá trị cố định, V nhận giá trị động
@@ -418,24 +388,19 @@ class FilterRenderer() : GLSurfaceView.Renderer {
             // ✅ Update rotation if changed
             if (currentRotation.get() != rotationDegrees) {
                 currentRotation.set(rotationDegrees)
-                println("🔥 Rotation changed to: ${rotationDegrees}°")
             }
             
-            println("🔥 Available planes: ${imageProxy.planes.size}")
-
             val buffer = imageProxy.planes[0].buffer
             val rgbaBytes = ByteArray(buffer.remaining())
             
             // ✅ Try to process real camera data, fallback to test pattern
-            val rgbaBuffer = buffer.get(rgbaBytes)
+            buffer.get(rgbaBytes)
             
             // Store data atomically
-            currentImageBuffer.set(rgbaBuffer)
+            currentImageBuffer.set(ByteBuffer.wrap(rgbaBytes))
             imageWidth.set(width)
             imageHeight.set(height)
             hasNewImageData.set(true)
-            
-            println("🔥 Image data stored: ${width}x${height}, buffer size: ${rgbaBuffer.remaining()}, rotation: ${rotationDegrees}°")
     }
     
     /**
@@ -476,7 +441,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         buffer.put(rgbaData)
         buffer.position(0)
         
-        println("🔥 Created test pattern: ${width}x${height}")
         return buffer
     }
     
@@ -489,7 +453,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
      * @param filter ImageFilter mới cần áp dụng
      */
     fun setFilter(filter: ImageFilter) {
-        println("🔥 Setting filter: ${filter.displayName}")
         if (currentFilter.get() != filter) {
             pendingFilter.set(filter)
             needsShaderUpdate.set(true)
@@ -513,7 +476,8 @@ class FilterRenderer() : GLSurfaceView.Renderer {
      * @param callback Callback function nhận Bitmap đã capture
      */
     fun captureFilteredImage(callback: (Bitmap) -> Unit) {
-        captureCallback = callback
+        // Use ByteBuffer method for correct pixel format
+        captureWithByteBuffer(callback)
     }
     
     /**
@@ -540,12 +504,9 @@ class FilterRenderer() : GLSurfaceView.Renderer {
             
             // Clear all references
             currentImageBuffer.set(null)
-            captureCallback = null
-            
-            println("🔥 FilterRenderer resources released")
+
         } catch (e: Exception) {
             e.printStackTrace()
-            println("❌ Error releasing FilterRenderer resources: ${e.message}")
         }
     }
 
@@ -553,10 +514,11 @@ class FilterRenderer() : GLSurfaceView.Renderer {
      * Capture frame hiện tại từ OpenGL framebuffer
      * 
      * Quy trình:
-     * 1. Đọc pixels từ framebuffer
-     * 2. Flip vertically (OpenGL origin khác với Android)
-     * 3. Tạo Bitmap từ pixels
-     * 4. Gọi callback với Bitmap
+     * 1. Đọc pixels từ framebuffer (RGBA format)
+     * 2. Convert RGBA → ARGB (Android Bitmap format)
+     * 3. Flip vertically (OpenGL origin khác với Android)
+     * 4. Tạo Bitmap từ pixels
+     * 5. Gọi callback với Bitmap
      * 
      * @param callback Callback function nhận Bitmap đã capture
      */
@@ -570,7 +532,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
                 GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buffer
             )
             
-            // Create bitmap and flip vertically
             val bitmap = Bitmap.createBitmap(surfaceWidth, surfaceHeight, Bitmap.Config.ARGB_8888)
             val flippedPixels = IntArray(pixels.size)
             
@@ -578,7 +539,8 @@ class FilterRenderer() : GLSurfaceView.Renderer {
                 for (x in 0 until surfaceWidth) {
                     val srcIndex = y * surfaceWidth + x
                     val dstIndex = (surfaceHeight - 1 - y) * surfaceWidth + x
-                    flippedPixels[dstIndex] = pixels[srcIndex]
+                    val rgbaPixel = pixels[srcIndex]
+                    flippedPixels[dstIndex] = rgbaPixel
                 }
             }
             
@@ -588,6 +550,75 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+    
+    /**
+     * Capture frame sử dụng ByteBuffer để xử lý pixel format chính xác
+     * 
+     * @param callback Callback function nhận Bitmap đã capture
+     */
+    private fun captureWithByteBuffer(callback: (Bitmap) -> Unit) {
+        try {
+            val byteBuffer = ByteBuffer.allocateDirect(surfaceWidth * surfaceHeight * 4)
+            byteBuffer.order(ByteOrder.nativeOrder())
+            
+            GLES20.glReadPixels(
+                0, 0, surfaceWidth, surfaceHeight,
+                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, byteBuffer
+            )
+            
+            val bitmap = Bitmap.createBitmap(surfaceWidth, surfaceHeight, Bitmap.Config.ARGB_8888)
+            val pixels = IntArray(surfaceWidth * surfaceHeight)
+            
+            byteBuffer.position(0)
+            
+            for (y in 0 until surfaceHeight) {
+                for (x in 0 until surfaceWidth) {
+                    val srcIndex = y * surfaceWidth + x
+                    val dstIndex = (surfaceHeight - 1 - y) * surfaceWidth + x
+                    val r = byteBuffer.get().toInt() and 0xFF
+                    val g = byteBuffer.get().toInt() and 0xFF
+                    val b = byteBuffer.get().toInt() and 0xFF
+                    val a = byteBuffer.get().toInt() and 0xFF
+                    val argbPixel = (a shl 24) or (r shl 16) or (g shl 8) or b
+                    pixels[dstIndex] = argbPixel
+                }
+            }
+            
+            bitmap.setPixels(pixels, 0, surfaceWidth, 0, 0, surfaceWidth, surfaceHeight)
+            callback(bitmap)
+            
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    /**
+     * Convert RGBA pixel format to ARGB pixel format
+     * 
+     * OpenGL returns RGBA (Red, Green, Blue, Alpha)
+     * Android Bitmap expects ARGB (Alpha, Red, Green, Blue)
+     * 
+     * @param rgbaPixel RGBA pixel value
+     * @return ARGB pixel value
+     */
+    private fun convertRGBAtoARGB(rgbaPixel: Int): Int {
+        val r = (rgbaPixel shr 16) and 0xFF
+        val g = (rgbaPixel shr 8) and 0xFF
+        val b = rgbaPixel and 0xFF
+        val a = (rgbaPixel shr 24) and 0xFF
+        return (a shl 24) or (r shl 16) or (g shl 8) or b
+    }
+    
+    /**
+     * Test pixel format conversion
+     * 
+     * @param testPixel RGBA test pixel
+     * @return ARGB converted pixel
+     */
+    private fun testPixelConversion(testPixel: Int): Int {
+        val converted = convertRGBAtoARGB(testPixel)
+        return converted
     }
     
     /**
@@ -605,7 +636,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
      */
     private fun createShaderProgramSafe(filter: ImageFilter) {
         try {
-            println("🔥 Creating shader program for filter: ${filter.displayName}")
             
             // Delete old program safely
             if (program != 0) {
@@ -656,11 +686,8 @@ class FilterRenderer() : GLSurfaceView.Renderer {
             GLES20.glDeleteShader(vertexShader)
             GLES20.glDeleteShader(fragmentShaderCompiled)
             
-            println("🔥 Shader program created successfully for filter: ${filter.displayName}, program ID: $program")
-            
         } catch (e: Exception) {
             e.printStackTrace()
-            println("❌ Shader creation failed: ${e.message}")
             // Fallback to default if anything fails
             if (filter != ImageFilter.NONE) {
                 createShaderProgramSafe(ImageFilter.NONE)
@@ -686,7 +713,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
         return try {
             val shader = GLES20.glCreateShader(type)
             if (shader == 0) {
-                println("❌ Failed to create shader of type: $type")
                 return 0
             }
             
@@ -698,16 +724,13 @@ class FilterRenderer() : GLSurfaceView.Renderer {
             GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
             if (compileStatus[0] == 0) {
                 val error = GLES20.glGetShaderInfoLog(shader)
-                println("❌ Shader compilation failed: $error")
                 GLES20.glDeleteShader(shader)
                 return 0
             }
             
-            println("🔥 Shader compiled successfully: type=$type, id=$shader")
             shader
         } catch (e: Exception) {
             e.printStackTrace()
-            println("❌ Shader loading exception: ${e.message}")
             0
         }
     }
