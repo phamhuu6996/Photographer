@@ -12,7 +12,7 @@ class CameraGLSurfaceView (
     context: Context,
 ) : GLSurfaceView(context) {
 
-    private val filterRenderer: FilterRenderer
+    val filterRenderer: FilterRenderer
 
     init {
         setEGLContextClientVersion(2)
@@ -23,57 +23,36 @@ class CameraGLSurfaceView (
         println("🔥 CameraGLSurfaceView initialized")
     }
 
-    fun changeCamera(isFrontCamera: Boolean) {
-        filterRenderer.changeCamera(isFrontCamera)
-    }
     
-    // ✅ Simplified image update - FilterRenderer handles ImageProxy closing
-    fun updateImage(imageProxy: ImageProxy) {
-        filterRenderer.updateImage(imageProxy)
-        requestRender()
-    }
+
+//    fun captureFilteredImage(callback: (Bitmap) -> Unit) {
+//        queueEvent {
+//            try {
+//                filterRenderer.captureFilteredImage { bitmap ->
+//                    // Post callback to main thread
+//                    post {
+//                        try {
+//                            callback(bitmap)
+//                        } catch (e: Exception) {
+//                            e.printStackTrace()
+//                        }
+//                    }
+//                }
+//                requestRender()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            }
+//        }
+//    }
     
-    fun setImageFilter(filter: ImageFilter) {
-        queueEvent {
-            try {
-                println("🔥 Setting filter: ${filter.displayName}")
-                filterRenderer.setFilter(filter)
-                requestRender()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                println("❌ Error setting filter: ${e.message}")
-            }
-        }
-    }
-    
-    fun captureFilteredImage(callback: (Bitmap) -> Unit) {
-        queueEvent {
-            try {
-                filterRenderer.captureFilteredImage { bitmap ->
-                    // Post callback to main thread
-                    post { 
-                        try {
-                            callback(bitmap)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                }
-                requestRender()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-    
-    fun release() {
-        queueEvent {
-            try {
-                filterRenderer.release()
-                println("🔥 FilterRenderer released")
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
+//    fun release() {
+//        queueEvent {
+//            try {
+//                filterRenderer.release()
+//                println("🔥 FilterRenderer released")
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            }
+//        }
+//    }
 } 

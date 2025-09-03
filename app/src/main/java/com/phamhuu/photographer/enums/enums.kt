@@ -201,15 +201,8 @@ enum class ImageFilter(
     val iconRes: Int,
     val fragmentShader: String = ""
 ) {
-    NONE("Không filter", R.drawable.ic_filter, ""),
-    VINTAGE("Vintage", R.drawable.ic_filter_vintage, VINTAGE_SHADER),
-    BLACK_WHITE("Đen trắng", R.drawable.ic_filter_bw, BLACK_WHITE_SHADER),
-    SEPIA("Sepia", R.drawable.ic_effects, SEPIA_SHADER),
-    COOL("Lạnh", R.drawable.ic_filter, COOL_SHADER),
-    WARM("Ấm", R.drawable.ic_filter, WARM_SHADER),
-    BRIGHT("Sáng", R.drawable.ic_filter, BRIGHT_SHADER),
-    SMOOTH("Làm mịn", R.drawable.ic_beauty_whitening, SMOOTH_SHADER),
-    WHITENING("Làm trắng", R.drawable.ic_beauty_slim, WHITENING_SHADER);
+    NONE("Không", R.drawable.ic_filter, ""),
+    BEAUTY("Beauty", R.drawable.ic_beauty_whitening, WHITENING_SHADER);
     
     fun toPopupItemData(): PopupItemData {
         return PopupItemData(

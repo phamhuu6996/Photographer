@@ -66,7 +66,7 @@ fun CameraScreen(
     val navController = LocalNavController.current
 
     InitCameraPermission({
-        viewModel.setGLView(filterGLSurfaceView)
+        viewModel.setFilterHelper(filterGLSurfaceView, context)
         viewModel.startCamera(context, lifecycleOwner, previewView)
         viewModel.checkGalleryContent()
     }, context)

@@ -1,15 +1,10 @@
 package com.phamhuu.photographer.presentation.camera
 
 import Manager3DHelper
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.ImageFormat
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
-import android.net.Uri
-import android.util.Size
-import android.widget.Toast
+import android.opengl.GLSurfaceView
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
@@ -21,17 +16,13 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
-import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
@@ -47,6 +38,8 @@ import com.phamhuu.photographer.enums.RatioCamera
 import com.phamhuu.photographer.enums.TimerDelay
 import com.phamhuu.photographer.enums.TypeModel3D
 import com.phamhuu.photographer.presentation.utils.CameraGLSurfaceView
+import com.phamhuu.photographer.presentation.utils.FilterRenderer
+import com.phamhuu.photographer.presentation.utils.GPUPixelHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
@@ -76,9 +69,7 @@ class CameraViewModel(
     private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
     private var cameraControl: CameraControl? = null
-
-    // ✅ CameraGLSurfaceView reference for OpenGL filtering
-    private var glSurfaceView: CameraGLSurfaceView? = null
+    private var gPUPixelHelper: GPUPixelHelper? = null
 
     private val isProcessingImage = AtomicBoolean(false)
 
@@ -98,8 +89,11 @@ class CameraViewModel(
             .setAspectRatioStrategy(ratio.ratio).build()
     }
 
-    fun  setGLView(glSurfaceView: CameraGLSurfaceView) {
-        this.glSurfaceView = glSurfaceView
+    fun  setFilterHelper(glSurfaceView: CameraGLSurfaceView, context: Context) {
+        Log.d("CameraViewModel", "Setting up FilterHelper with GLSurfaceView and FilterRenderer")
+        this.gPUPixelHelper = GPUPixelHelper().apply {
+            initGpuPixel(context, glSurfaceView)
+        }
     }
 
     // ✅ Thread-safe ImageProxy processing
@@ -109,14 +103,12 @@ class CameraViewModel(
                 // If already processing, close the ImageProxy to prevent memory leaks
                 return
             }
-            // ✅ Feed to filter system only if filter is active
-            val currentFilter = uiState.value.currentFilter
-            if (currentFilter != ImageFilter.NONE && glSurfaceView != null) {
-                // Don't close ImageProxy here - let GLSurfaceView handle it
-                glSurfaceView?.updateImage(imageProxy)
+            if (uiState.value.currentFilter != ImageFilter.NONE) {
+                gPUPixelHelper?.handleImageAnalytic(
+                    imageProxy,
+                    uiState.value.lensFacing == CameraSelector.LENS_FACING_FRONT,
+                )
             }
-            // Always feed to MediaPipe for face detection (create copy if needed)
-            detectFace(imageProxy)
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -196,20 +188,20 @@ class CameraViewModel(
                     currentFilter = filter,
                     isLoading = true
                 )
-                
+
                 println("🔥 CameraViewModel: Setting filter to ${filter.displayName}")
-                
+
                 // ✅ Apply filter to GLSurfaceView if available
-                glSurfaceView?.setImageFilter(filter)
-                
+//                glSurfaceView?.setImageFilter(filter)
+
                 // ✅ Shorter processing delay for better UX
                 delay(300)
-                
+
                 // ✅ Update loading state
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                
+
                 println("🔥 CameraViewModel: Filter ${filter.displayName} applied successfully")
-                
+
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -228,7 +220,7 @@ class CameraViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                if (uiState.value.currentFilter != ImageFilter.NONE && glSurfaceView != null) {
+                if (uiState.value.currentFilter != ImageFilter.NONE) {
                     // Capture filtered image từ GLSurfaceView
                     captureFilteredPhoto(context)
                 } else {
@@ -259,27 +251,27 @@ class CameraViewModel(
         val photoFile = photoFileResult.getOrThrow()
         
         // Capture filtered frame từ GLSurfaceView
-        glSurfaceView?.captureFilteredImage { bitmap ->
-            viewModelScope.launch {
-                try {
-                    // Save filtered bitmap to file
-                    saveBitmapToFile(bitmap, photoFile)
-                    
-                    // Save to gallery
-                    val saveResult = savePhotoUseCase(photoFile)
-                    if (saveResult.isSuccess) {
-                        val uri = saveResult.getOrThrow()
-                        _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
-                    } else {
-                        updateError("Failed to save photo to gallery")
-                    }
-                } catch (e: Exception) {
-                    updateError("Failed to save filtered photo: ${e.message}")
-                } finally {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                }
-            }
-        }
+//        glSurfaceView?.captureFilteredImage { bitmap ->
+//            viewModelScope.launch {
+//                try {
+//                    // Save filtered bitmap to file
+//                    saveBitmapToFile(bitmap, photoFile)
+//
+//                    // Save to gallery
+//                    val saveResult = savePhotoUseCase(photoFile)
+//                    if (saveResult.isSuccess) {
+//                        val uri = saveResult.getOrThrow()
+//                        _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
+//                    } else {
+//                        updateError("Failed to save photo to gallery")
+//                    }
+//                } catch (e: Exception) {
+//                    updateError("Failed to save filtered photo: ${e.message}")
+//                } finally {
+//                    _uiState.value = _uiState.value.copy(isLoading = false)
+//                }
+//            }
+//        }
     }
     
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
@@ -384,7 +376,7 @@ class CameraViewModel(
             CameraSelector.LENS_FACING_BACK
         }
         _uiState.value = _uiState.value.copy(lensFacing = lensFacing)
-        glSurfaceView?.changeCamera(lensFacing == CameraSelector.LENS_FACING_FRONT)
+//        glSurfaceView?.changeCamera(lensFacing == CameraSelector.LENS_FACING_FRONT)
         startCamera(context, lifecycleOwner, previewView)
     }
 
@@ -440,8 +432,9 @@ class CameraViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        glSurfaceView?.release()
-        glSurfaceView = null
+//        glSurfaceView?.release()
+//        glSurfaceView = null
+        gPUPixelHelper?.onDestroy();
     }
 
     private fun listenMediaPipe() {
