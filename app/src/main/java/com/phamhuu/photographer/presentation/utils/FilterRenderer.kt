@@ -1,9 +1,12 @@
 package com.phamhuu.photographer.presentation.utils
 
+import android.graphics.Bitmap
 import android.hardware.camera2.CameraCharacteristics
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.util.Log
+import com.pixpark.gpupixel.GPUPixel
+import com.pixpark.gpupixel.GPUPixelFilter
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -346,5 +349,48 @@ void main() {
         }
 
         return shader
+    }
+
+    /**
+     * Yêu cầu capture ảnh đã được filter
+     *
+     * Ảnh sẽ được capture trong onDrawFrame() và gọi callback
+     *
+     * @param callback Callback function nhận Bitmap đã capture
+     */
+    fun captureFilteredImage(callback: (Bitmap) -> Unit) {
+        // Use ByteBuffer method for correct pixel format
+        captureFast(callback)
+    }
+
+    /**
+     * Capture frame sử dụng ByteBuffer để xử lý pixel format chính xác
+     *
+     * @param callback Callback function nhận Bitmap đã capture
+     */
+    private fun captureFast(callback: (Bitmap) -> Unit) {
+        val bufferSize = mViewWidth * mViewHeight * 4
+        val byteBuffer = ByteBuffer.allocateDirect(bufferSize).order(ByteOrder.nativeOrder())
+
+        GLES20.glReadPixels(
+            0, 0, mViewWidth, mViewHeight,
+            GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, byteBuffer
+        )
+
+        val bitmap = Bitmap.createBitmap(mViewWidth, mViewHeight, Bitmap.Config.ARGB_8888)
+        byteBuffer.position(0)
+
+        // Copy buffer sang bitmap trực tiếp
+        bitmap.copyPixelsFromBuffer(byteBuffer)
+
+        // OpenGL lưu top–bottom → cần lật dọc
+        val flipped = flipVertical(bitmap)
+
+        callback(flipped)
+    }
+
+    private fun flipVertical(src: Bitmap): Bitmap {
+        val matrix = android.graphics.Matrix().apply { preScale(1f, -1f) }
+        return Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, false)
     }
 } 

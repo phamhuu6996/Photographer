@@ -251,27 +251,27 @@ class CameraViewModel(
         val photoFile = photoFileResult.getOrThrow()
         
         // Capture filtered frame từ GLSurfaceView
-//        glSurfaceView?.captureFilteredImage { bitmap ->
-//            viewModelScope.launch {
-//                try {
-//                    // Save filtered bitmap to file
-//                    saveBitmapToFile(bitmap, photoFile)
-//
-//                    // Save to gallery
-//                    val saveResult = savePhotoUseCase(photoFile)
-//                    if (saveResult.isSuccess) {
-//                        val uri = saveResult.getOrThrow()
-//                        _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
-//                    } else {
-//                        updateError("Failed to save photo to gallery")
-//                    }
-//                } catch (e: Exception) {
-//                    updateError("Failed to save filtered photo: ${e.message}")
-//                } finally {
-//                    _uiState.value = _uiState.value.copy(isLoading = false)
-//                }
-//            }
-//        }
+        gPUPixelHelper?.glSurfaceView?.captureFilteredImage { bitmap ->
+            viewModelScope.launch {
+                try {
+                    // Save filtered bitmap to file
+                    saveBitmapToFile(bitmap, photoFile)
+
+                    // Save to gallery
+                    val saveResult = savePhotoUseCase(photoFile)
+                    if (saveResult.isSuccess) {
+                        val uri = saveResult.getOrThrow()
+                        _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
+                    } else {
+                        updateError("Failed to save photo to gallery")
+                    }
+                } catch (e: Exception) {
+                    updateError("Failed to save filtered photo: ${e.message}")
+                } finally {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+            }
+        }
     }
     
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {

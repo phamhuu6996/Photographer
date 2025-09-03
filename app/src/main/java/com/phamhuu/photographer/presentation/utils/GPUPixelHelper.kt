@@ -12,6 +12,8 @@ import com.pixpark.gpupixel.GPUPixel
 import com.pixpark.gpupixel.GPUPixelFilter
 import com.pixpark.gpupixel.GPUPixelSinkRawData
 import com.pixpark.gpupixel.GPUPixelSourceRawData
+import com.pixpark.gpupixel.GPUPixelSourceImage
+
 
 
 class GPUPixelHelper {
