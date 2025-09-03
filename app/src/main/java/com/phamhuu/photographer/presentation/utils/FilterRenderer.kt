@@ -355,20 +355,8 @@ void main() {
      * Yêu cầu capture ảnh đã được filter
      *
      * Ảnh sẽ được capture trong onDrawFrame() và gọi callback
-     *
-     * @param callback Callback function nhận Bitmap đã capture
      */
-    fun captureFilteredImage(callback: (Bitmap) -> Unit) {
-        // Use ByteBuffer method for correct pixel format
-        captureFast(callback)
-    }
-
-    /**
-     * Capture frame sử dụng ByteBuffer để xử lý pixel format chính xác
-     *
-     * @param callback Callback function nhận Bitmap đã capture
-     */
-    private fun captureFast(callback: (Bitmap) -> Unit) {
+    fun captureFilteredImage() : Bitmap {
         val bufferSize = mViewWidth * mViewHeight * 4
         val byteBuffer = ByteBuffer.allocateDirect(bufferSize).order(ByteOrder.nativeOrder())
 
@@ -379,18 +367,29 @@ void main() {
 
         val bitmap = Bitmap.createBitmap(mViewWidth, mViewHeight, Bitmap.Config.ARGB_8888)
         byteBuffer.position(0)
-
-        // Copy buffer sang bitmap trực tiếp
         bitmap.copyPixelsFromBuffer(byteBuffer)
 
         // OpenGL lưu top–bottom → cần lật dọc
-        val flipped = flipVertical(bitmap)
-
-        callback(flipped)
+        return flipVertical(bitmap)
     }
 
     private fun flipVertical(src: Bitmap): Bitmap {
         val matrix = android.graphics.Matrix().apply { preScale(1f, -1f) }
         return Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, false)
+    }
+
+    fun release() {
+        try {
+            if (mProgramHandle != 0) {
+                GLES20.glDeleteProgram(mProgramHandle)
+                mProgramHandle = 0
+            }
+            if (mTextureID != 0) {
+                GLES20.glDeleteTextures(1, intArrayOf(mTextureID), 0)
+                mTextureID = -1
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 } 

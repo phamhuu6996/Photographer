@@ -4,6 +4,7 @@ import android.R.attr.height
 import android.R.attr.width
 import android.app.Activity
 import android.content.Context
+import android.graphics.Bitmap
 import android.opengl.GLSurfaceView
 import android.util.Log
 import androidx.camera.core.ImageProxy
@@ -13,6 +14,9 @@ import com.pixpark.gpupixel.GPUPixelFilter
 import com.pixpark.gpupixel.GPUPixelSinkRawData
 import com.pixpark.gpupixel.GPUPixelSourceRawData
 import com.pixpark.gpupixel.GPUPixelSourceImage
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 
 
@@ -112,7 +116,20 @@ class GPUPixelHelper {
         }
     }
 
-
+    /**
+     * ✅ Thread-safe capture using queueEvent
+     */
+    suspend fun captureFilteredBitmap(): Bitmap? = suspendCancellableCoroutine { continuation ->
+        // ✅ CRITICAL: Must run on GL thread
+        glSurfaceView?.queueEvent {
+            try {
+                val bitmap = glSurfaceView?.filterRenderer?.captureFilteredImage()
+                glSurfaceView?.post { continuation.resume(bitmap) }
+            } catch (e: Exception) {
+                glSurfaceView?.post { continuation.resumeWithException(e) }
+            }
+        }
+    }
 
     fun onDestroy() {
 
@@ -147,5 +164,7 @@ class GPUPixelHelper {
             mSinkRawData!!.Destroy()
             mSinkRawData = null
         }
+
+        glSurfaceView?.release()
     }
 }

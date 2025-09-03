@@ -220,58 +220,49 @@ class CameraViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                if (uiState.value.currentFilter != ImageFilter.NONE) {
-                    // Capture filtered image từ GLSurfaceView
-                    captureFilteredPhoto(context)
-                } else {
-                    // Use normal camera capture
-                    val photoFileResult = takePhotoUseCase()
-                    if (photoFileResult.isSuccess) {
-                        val photoFile = photoFileResult.getOrThrow()
-                        captureImageToFile(context, photoFile)
-                    } else {
-                        updateError("Failed to create photo file")
-                    }
-                }
+                val hasFilter = uiState.value.currentFilter != ImageFilter.NONE
+                capturePhoto(context, hasFilter)
             } catch (e: Exception) {
                 updateError("Photo capture failed: ${e.message}")
+            } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
     
-    private suspend fun captureFilteredPhoto(context: Context) {
+    /**
+     * ✅ Unified photo capture method
+     */
+    private suspend fun capturePhoto(context: Context, useFilter: Boolean) {
         val photoFileResult = takePhotoUseCase()
         if (photoFileResult.isFailure) {
             updateError("Failed to create photo file")
-            _uiState.value = _uiState.value.copy(isLoading = false)
             return
         }
         
         val photoFile = photoFileResult.getOrThrow()
         
-        // Capture filtered frame từ GLSurfaceView
-        gPUPixelHelper?.glSurfaceView?.captureFilteredImage { bitmap ->
-            viewModelScope.launch {
-                try {
-                    // Save filtered bitmap to file
-                    saveBitmapToFile(bitmap, photoFile)
-
-                    // Save to gallery
-                    val saveResult = savePhotoUseCase(photoFile)
-                    if (saveResult.isSuccess) {
-                        val uri = saveResult.getOrThrow()
-                        _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
-                    } else {
-                        updateError("Failed to save photo to gallery")
-                    }
-                } catch (e: Exception) {
-                    updateError("Failed to save filtered photo: ${e.message}")
-                } finally {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                }
-            }
+        if (useFilter) {
+            // Suspend function for filtered capture
+            captureFromGLSurface(photoFile)
+        } else {
+            // Callback-based for normal capture (CameraX API)
+            captureFromCamera(photoFile, context)
         }
+    }
+    
+    /**
+     * ✅ Simplified filtered capture with proper error handling
+     */
+    private suspend fun captureFromGLSurface(photoFile: File) {
+        val bitmap = gPUPixelHelper?.captureFilteredBitmap() 
+            ?: run {
+                updateError("Failed to capture filtered bitmap")
+                return
+            }
+            
+        saveBitmapToFile(bitmap, photoFile)
+        saveToGallery(photoFile)
     }
     
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
@@ -281,7 +272,10 @@ class CameraViewModel(
         bitmap.recycle()
     }
 
-    private fun captureImageToFile(context: Context, photoFile: File) {
+    /**
+     * ✅ Normal camera capture - keep original callback style
+     */
+    private fun captureFromCamera(photoFile: File, context: Context) {
         val imageCapture = imageCapture ?: return
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
@@ -291,11 +285,7 @@ class CameraViewModel(
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     viewModelScope.launch {
-                        val saveResult = savePhotoUseCase(photoFile)
-                        if (saveResult.isSuccess) {
-                            val uri = saveResult.getOrThrow()
-                            _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
-                        }
+                        saveToGallery(photoFile)
                     }
                 }
 
@@ -304,6 +294,19 @@ class CameraViewModel(
                 }
             }
         )
+    }
+    
+    /**
+     * ✅ Common save logic to avoid duplication
+     */
+    private suspend fun saveToGallery(photoFile: File) {
+        val saveResult = savePhotoUseCase(photoFile)
+        if (saveResult.isSuccess) {
+            val uri = saveResult.getOrThrow()
+            _uiState.value = _uiState.value.copy(fileUri = uri)
+        } else {
+            updateError("Failed to save photo to gallery")
+        }
     }
 
     // ================ OTHER CAMERA FUNCTIONS ================
@@ -432,8 +435,6 @@ class CameraViewModel(
 
     override fun onCleared() {
         super.onCleared()
-//        glSurfaceView?.release()
-//        glSurfaceView = null
         gPUPixelHelper?.onDestroy();
     }
 

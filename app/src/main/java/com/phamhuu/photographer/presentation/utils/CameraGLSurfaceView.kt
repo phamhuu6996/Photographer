@@ -25,33 +25,15 @@ class CameraGLSurfaceView (
 
     
 
-    fun captureFilteredImage(callback: (Bitmap) -> Unit) {
+
+    fun release() {
         queueEvent {
             try {
-                filterRenderer.captureFilteredImage { bitmap ->
-                    // Post callback to main thread
-                    post {
-                        try {
-                            callback(bitmap)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                }
+                filterRenderer.release()
+                println("🔥 FilterRenderer released")
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
-
-//    fun release() {
-//        queueEvent {
-//            try {
-//                filterRenderer.release()
-//                println("🔥 FilterRenderer released")
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//            }
-//        }
-//    }
 } 
