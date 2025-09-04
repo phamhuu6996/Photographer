@@ -1,10 +1,13 @@
 package com.phamhuu.photographer.presentation.utils
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.hardware.camera2.CameraCharacteristics
+import android.media.AudioRecord
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.media.MediaRecorder
 import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
@@ -20,8 +23,10 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.microedition.khronos.egl.EGLConfig as EGLConfigLegacy
 import javax.microedition.khronos.opengles.GL10
+import kotlin.concurrent.thread
 
 
 // ===================== KIẾN THỨC TỔNG KẾT =====================
@@ -48,8 +53,9 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     private var mTextureNeedsUpdate = false
     private val mLock = Any()
 
-    // Video recording với MediaCodec + MediaMuxer
+    // Video + Audio recording với dual MediaCodec + MediaMuxer
     private var mVideoEncoder: MediaCodec? = null
+    private var mAudioEncoder: MediaCodec? = null
     private var mMediaMuxer: MediaMuxer? = null
     private var mEncoderSurface: Surface? = null
     private var mEncoderEGLDisplay: EGLDisplay? = null
@@ -58,11 +64,19 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     private var mIsRecording = false
     private var mVideoFile: File? = null
     private var mVideoTrackIndex = -1
+    private var mAudioTrackIndex = -1
     private var mMuxerStarted = false
     
     // Recording dimensions
     private var mRecordingWidth = 1920
     private var mRecordingHeight = 1080
+    
+    // Audio recording với AudioRecord + MediaCodec
+    private var mAudioRecord: AudioRecord? = null
+    private var mAudioThread: Thread? = null
+    private var mAudioRecordingActive = AtomicBoolean(false)
+    private var mAudioEncoderReady = false
+    
 
     // Vertex coordinates
     private val VERTICES = floatArrayOf(
@@ -301,7 +315,8 @@ void main() {
         // Render to encoder surface if recording
         if (mIsRecording && mEncoderEGLSurface != null) {
             renderToEncoderSurface()
-            drainEncoder()
+            drainEncoder() // Drain video encoder
+            drainAudioEncoder() // Drain audio encoder
         }
     }
 
@@ -467,10 +482,20 @@ void main() {
             
             Log.d("FilterRenderer", "Starting filtered recording: ${mRecordingWidth}x${mRecordingHeight}")
             
-            // Setup MediaCodec encoder
-            setupVideoEncoder()
+            // 1. Setup video encoder (always)
+            setupVideoEncoder() // H264 video encoder
             
-            // Setup MediaMuxer
+            // 2. Try setup audio encoder (fallback to video-only if fail)
+            try {
+                setupAudioEncoder() // AAC audio encoder
+                startAudioRecording()
+                Log.d("FilterRenderer", "Audio setup successful")
+            } catch (e: Exception) {
+                Log.w("FilterRenderer", "Audio setup failed, video-only mode: ${e.message}")
+                mAudioEncoder = null
+            }
+            
+            // 3. Setup MediaMuxer
             setupMediaMuxer(videoFile)
             
             mIsRecording = true
@@ -502,8 +527,25 @@ void main() {
         setupEncoderEGL()
         
         mVideoEncoder?.start()
-        Log.d("FilterRenderer", "MediaCodec encoder started")
+        Log.d("FilterRenderer", "MediaCodec video encoder started")
     }
+    
+    /**
+     * Setup AAC audio encoder
+     */
+    private fun setupAudioEncoder() {
+        val format = MediaFormat.createAudioFormat("audio/mp4a-latm", 44100, 1).apply {
+            setInteger(MediaFormat.KEY_AAC_PROFILE, 2) // AAC_PROFILE_LC
+            setInteger(MediaFormat.KEY_BIT_RATE, 128000)
+        }
+        
+        mAudioEncoder = MediaCodec.createEncoderByType("audio/mp4a-latm")
+        mAudioEncoder?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        mAudioEncoder?.start()
+        
+        Log.d("FilterRenderer", "MediaCodec audio encoder started")
+    }
+    
     
     /**
      * Setup MediaMuxer
@@ -550,7 +592,185 @@ void main() {
     }
 
     /**
-     * Drain encoder output và ghi vào MediaMuxer
+     * Start AudioRecord để lấy PCM data cho audio encoder
+     */
+    @SuppressLint("MissingPermission")
+    private fun startAudioRecording() {
+        val sampleRate = 44100
+        val channelConfig = android.media.AudioFormat.CHANNEL_IN_MONO
+        val audioFormat = android.media.AudioFormat.ENCODING_PCM_16BIT
+        val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+        mAudioRecord = AudioRecord(
+            MediaRecorder.AudioSource.MIC,
+            sampleRate,
+            channelConfig,
+            audioFormat,
+            bufferSize * 2 // Double buffer size for safety
+        )
+        
+        mAudioRecord?.startRecording()
+        mAudioRecordingActive.set(true)
+        
+        // Start background thread để process audio data
+        mAudioThread = thread {
+            processAudioData()
+        }
+        
+        Log.d("FilterRenderer", "AudioRecord started")
+    }
+    
+    /**
+     * Process PCM data từ AudioRecord và đẩy vào audio encoder
+     */
+    private fun processAudioData() {
+        val buffer = ByteArray(1024)
+        
+        while (mAudioRecordingActive.get()) {
+            try {
+                val audioRecord = mAudioRecord ?: break
+                val audioEncoder = mAudioEncoder ?: break
+                
+                val bytesRead = audioRecord.read(buffer, 0, buffer.size)
+                if (bytesRead > 0) {
+                    // Lấy input buffer từ audio encoder
+                    val inputBufferIndex = audioEncoder.dequeueInputBuffer(10000) // 10ms timeout
+                    if (inputBufferIndex >= 0) {
+                        val inputBuffer = audioEncoder.getInputBuffer(inputBufferIndex)
+                        inputBuffer?.clear()
+                        inputBuffer?.put(buffer, 0, bytesRead)
+                        
+                        // Queue PCM data vào encoder
+                        val presentationTimeUs = System.nanoTime() / 1000
+                        audioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, presentationTimeUs, 0)
+                    }
+                    
+                    // Drain audio encoder output
+                    drainAudioEncoder()
+                }
+                
+                Thread.sleep(10) // Small delay
+                
+            } catch (e: Exception) {
+                Log.e("FilterRenderer", "Audio processing error: ${e.message}")
+                break
+            }
+        }
+        
+        Log.d("FilterRenderer", "Audio processing thread ended")
+    }
+
+    /**
+     * Signal end of stream cho audio encoder với empty buffer
+     */
+    private fun signalAudioEndOfStream() {
+        val encoder = mAudioEncoder ?: return
+        
+        try {
+            val inputBufferIndex = encoder.dequeueInputBuffer(10000) // 10ms timeout
+            if (inputBufferIndex >= 0) {
+                // Queue empty buffer với END_OF_STREAM flag
+                encoder.queueInputBuffer(
+                    inputBufferIndex, 
+                    0, 
+                    0, 
+                    System.nanoTime() / 1000, 
+                    MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                )
+                Log.d("FilterRenderer", "Audio end of stream buffer queued")
+            }
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Error queuing audio end buffer: ${e.message}")
+        }
+    }
+
+    /**
+     * Drain audio encoder output và add track nếu cần
+     */
+    private fun drainAudioEncoder() {
+        try {
+            val encoder = mAudioEncoder ?: return
+            val muxer = mMediaMuxer ?: return
+            
+            val bufferInfo = MediaCodec.BufferInfo()
+            
+            while (true) {
+                val encoderStatus = encoder.dequeueOutputBuffer(bufferInfo, 0)
+                
+                when {
+                    encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> break
+                    encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        if (mAudioTrackIndex < 0) {
+                            val audioFormat = encoder.outputFormat
+                            mAudioTrackIndex = muxer.addTrack(audioFormat)
+                            mAudioEncoderReady = true
+                            Log.d("FilterRenderer", "Audio track added to muxer")
+                            
+                            // Check if can start muxer
+                            checkAndStartMuxer()
+                        }
+                    }
+                    encoderStatus >= 0 -> {
+                        val encodedData = encoder.getOutputBuffer(encoderStatus)
+                        if (encodedData != null && mMuxerStarted && mAudioTrackIndex >= 0) {
+                            try {
+                                muxer.writeSampleData(mAudioTrackIndex, encodedData, bufferInfo)
+                            } catch (e: Exception) {
+                                Log.e("FilterRenderer", "Error writing audio data: ${e.message}")
+                            }
+                        }
+                        encoder.releaseOutputBuffer(encoderStatus, false)
+                    }
+                }
+            }
+            
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Error draining audio encoder: ${e.message}")
+        }
+    }
+
+    /**
+     * Check và start MediaMuxer khi tracks ready
+     */
+    private fun checkAndStartMuxer() {
+        val muxer = mMediaMuxer ?: return
+        
+        if (!mMuxerStarted && mVideoTrackIndex >= 0) {
+            // Nếu có audio encoder, đợi cả 2 tracks
+            // Nếu không có audio encoder, start với video-only
+            val hasAudioEncoder = mAudioEncoder != null
+            val canStart = if (hasAudioEncoder) {
+                mAudioTrackIndex >= 0 // Đợi audio track
+            } else {
+                true // Video-only, start ngay
+            }
+            
+            if (canStart) {
+                muxer.start()
+                mMuxerStarted = true
+                val mode = if (hasAudioEncoder) "audio+video" else "video-only"
+                Log.d("FilterRenderer", "MediaMuxer started with $mode tracks")
+            }
+        }
+    }
+
+    /**
+     * Stop audio recording
+     */
+    private fun stopAudioRecording() {
+        try {
+            mAudioRecordingActive.set(false)
+            mAudioRecord?.stop()
+            mAudioRecord?.release()
+            mAudioThread?.join(1000) // Wait max 1 second
+            Log.d("FilterRenderer", "Audio recording stopped")
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Error stopping audio: ${e.message}")
+        }
+    }
+
+    /**
+     * Drain video encoder output
      */
     private fun drainEncoder() {
         try {
@@ -563,25 +783,25 @@ void main() {
                 val encoderStatus = encoder.dequeueOutputBuffer(bufferInfo, 0)
                 
                 when {
-                    encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> {
-                        // No output available yet
-                        break
-                    }
+                    encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> break
                     encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        // Add track to muxer
-                        if (!mMuxerStarted) {
-                            val format = encoder.outputFormat
-                            mVideoTrackIndex = muxer.addTrack(format)
-                            muxer.start()
-                            mMuxerStarted = true
-                            Log.d("FilterRenderer", "MediaMuxer started")
+                        if (mVideoTrackIndex < 0) {
+                            val videoFormat = encoder.outputFormat
+                            mVideoTrackIndex = muxer.addTrack(videoFormat)
+                            Log.d("FilterRenderer", "Video track added to muxer")
+                            
+                            // Check if can start muxer
+                            checkAndStartMuxer()
                         }
                     }
                     encoderStatus >= 0 -> {
                         val encodedData = encoder.getOutputBuffer(encoderStatus)
-                        if (encodedData != null && mMuxerStarted) {
-                            // Write encoded data to muxer
-                            muxer.writeSampleData(mVideoTrackIndex, encodedData, bufferInfo)
+                        if (encodedData != null && mMuxerStarted && mVideoTrackIndex >= 0) {
+                            try {
+                                muxer.writeSampleData(mVideoTrackIndex, encodedData, bufferInfo)
+                            } catch (e: Exception) {
+                                Log.e("FilterRenderer", "Error writing video data: ${e.message}")
+                            }
                         }
                         encoder.releaseOutputBuffer(encoderStatus, false)
                     }
@@ -589,9 +809,10 @@ void main() {
             }
             
         } catch (e: Exception) {
-            Log.e("FilterRenderer", "Error draining encoder: ${e.message}")
+            Log.e("FilterRenderer", "Error draining video encoder: ${e.message}")
         }
     }
+    
 
     /**
      * Dừng filtered video recording
@@ -605,15 +826,50 @@ void main() {
             
             mIsRecording = false
             
-            // Signal end of stream to encoder
-            mVideoEncoder?.signalEndOfInputStream()
+            // Stop audio recording
+            stopAudioRecording()
             
-            // Drain remaining data
+            // Signal end of stream to encoders
+            try {
+                mVideoEncoder?.signalEndOfInputStream()
+            } catch (e: Exception) {
+                Log.e("FilterRenderer", "Error signaling video end: ${e.message}")
+            }
+            
+            // Signal audio end với empty buffer + END_OF_STREAM flag
+            if (mAudioEncoder != null && mAudioEncoderReady && mAudioTrackIndex >= 0) {
+                try {
+                    signalAudioEndOfStream()
+                    Log.d("FilterRenderer", "Audio end of stream signaled")
+                } catch (e: Exception) {
+                    Log.e("FilterRenderer", "Error signaling audio end: ${e.message}")
+                }
+            } else {
+                Log.d("FilterRenderer", "Skipping audio end signal - encoder not ready")
+            }
+            
+            // Drain remaining data from both encoders
             drainEncoder()
+            drainAudioEncoder()
             
-            // Stop and release encoder
-            mVideoEncoder?.stop()
-            mVideoEncoder?.release()
+            // Stop and release both encoders
+            try {
+                mVideoEncoder?.stop()
+                mVideoEncoder?.release()
+            } catch (e: Exception) {
+                Log.e("FilterRenderer", "Error stopping video encoder: ${e.message}")
+            }
+            
+            // Chỉ stop audio encoder nếu đã ready
+            if (mAudioEncoder != null && mAudioEncoderReady) {
+                try {
+                    mAudioEncoder?.stop()
+                    mAudioEncoder?.release()
+                    Log.d("FilterRenderer", "Audio encoder stopped")
+                } catch (e: Exception) {
+                    Log.e("FilterRenderer", "Error stopping audio encoder: ${e.message}")
+                }
+            }
             
             // Stop muxer
             if (mMuxerStarted) {
@@ -661,14 +917,20 @@ void main() {
      */
     private fun cleanup() {
         mVideoEncoder = null
+        mAudioEncoder = null
         mMediaMuxer = null
         mEncoderSurface = null
         mEncoderEGLDisplay = null
         mEncoderEGLContext = null
         mEncoderEGLSurface = null
+        mAudioRecord = null
+        mAudioThread = null
         mVideoTrackIndex = -1
+        mAudioTrackIndex = -1
         mMuxerStarted = false
         mIsRecording = false
+        mAudioRecordingActive.set(false)
+        mAudioEncoderReady = false
     }
 
     /**
