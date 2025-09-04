@@ -31,7 +31,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
+import com.phamhuu.photographer.domain.usecase.RecordVideoUseCase
 import com.phamhuu.photographer.domain.usecase.SavePhotoUseCase
+import com.phamhuu.photographer.domain.usecase.SaveVideoUseCase
 import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
 import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.RatioCamera
@@ -56,7 +58,9 @@ class CameraViewModel(
     private val manager3DHelper: Manager3DHelper,
     private val takePhotoUseCase: TakePhotoUseCase,
     private val savePhotoUseCase: SavePhotoUseCase,
-    private val getFirstGalleryItemUseCase: GetFirstGalleryItemUseCase
+    private val getFirstGalleryItemUseCase: GetFirstGalleryItemUseCase,
+    private val recordVideoUseCase: RecordVideoUseCase,
+    private val saveVideoUseCase: SaveVideoUseCase
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState = _uiState.asStateFlow()
@@ -464,13 +468,160 @@ class CameraViewModel(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
-    // TODO: Implement video recording methods with use cases
+    // ================ VIDEO RECORDING METHODS ================
+    
     fun startRecording(context: Context) {
-        // Implementation using RecordVideoUseCase
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                
+                // Create video file
+                val videoFileResult = recordVideoUseCase()
+                if (videoFileResult.isFailure) {
+                    updateError("Failed to create video file")
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    return@launch
+                }
+                
+                val videoFile = videoFileResult.getOrThrow()
+                val hasFilter = uiState.value.currentFilter != ImageFilter.NONE
+                
+                if (hasFilter) {
+                    // Record với filter sử dụng MediaCodec + MediaMuxer
+                    startFilteredRecording(videoFile)
+                } else {
+                    // Record normal sử dụng CameraX VideoCapture
+                    startNormalRecording(videoFile, context)
+                }
+                
+            } catch (e: Exception) {
+                updateError("Failed to start recording: ${e.message}")
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                Log.e("CameraViewModel", "Start recording error: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun startFilteredRecording(videoFile: File) {
+        gPUPixelHelper?.let { helper ->
+            helper.glSurfaceView?.startFilteredVideoRecording(videoFile) { success ->
+                if (success) {
+                    _uiState.value = _uiState.value.copy(
+                        isRecording = true,
+                        isLoading = false
+                    )
+                    Log.d("CameraViewModel", "Filtered video recording started")
+                } else {
+                    updateError("Failed to start filtered recording")
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+            } ?: run {
+                updateError("GL Surface View not initialized")
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        } ?: run {
+            updateError("Filter helper not initialized")
+            _uiState.value = _uiState.value.copy(isLoading = false)
+        }
+    }
+
+    private fun startNormalRecording(videoFile: File, context: Context) {
+        val videoCapture = videoCapture ?: run {
+            updateError("Video capture not initialized")
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            return
+        }
+
+        val outputOptions = androidx.camera.video.FileOutputOptions.Builder(videoFile).build()
+        
+        recording = videoCapture.output
+            .prepareRecording(context, outputOptions)
+            .start(ContextCompat.getMainExecutor(context)) { recordEvent ->
+                when (recordEvent) {
+                    is androidx.camera.video.VideoRecordEvent.Start -> {
+                        _uiState.value = _uiState.value.copy(
+                            isRecording = true,
+                            isLoading = false
+                        )
+                        Log.d("CameraViewModel", "Normal video recording started")
+                    }
+                    is androidx.camera.video.VideoRecordEvent.Finalize -> {
+                        _uiState.value = _uiState.value.copy(isRecording = false)
+                        if (!recordEvent.hasError()) {
+                            viewModelScope.launch {
+                                saveVideoToGallery(videoFile)
+                            }
+                            Log.d("CameraViewModel", "Video recording completed successfully")
+                        } else {
+                            updateError("Recording error: ${recordEvent.error}")
+                            Log.e("CameraViewModel", "Recording error: ${recordEvent.error}")
+                        }
+                    }
+                }
+            }
     }
 
     fun stopRecording() {
-        recording?.stop()
-        _uiState.value = _uiState.value.copy(isRecording = false)
+        viewModelScope.launch {
+            try {
+                val hasFilter = uiState.value.currentFilter != ImageFilter.NONE
+                
+                if (hasFilter) {
+                    // Stop filtered recording
+                    gPUPixelHelper?.let { helper ->
+                        helper.glSurfaceView?.stopFilteredVideoRecording { success: Boolean, videoFile: File? ->
+                            _uiState.value = _uiState.value.copy(isRecording = false)
+                            
+                            if (success && videoFile != null) {
+                                viewModelScope.launch {
+                                    saveVideoToGallery(videoFile)
+                                }
+                                Log.d("CameraViewModel", "Filtered recording stopped successfully")
+                            } else {
+                                updateError("Failed to stop filtered recording")
+                                Log.e("CameraViewModel", "Filtered recording stop failed")
+                            }
+                        } ?: run {
+                            _uiState.value = _uiState.value.copy(isRecording = false)
+                            updateError("GL Surface View not initialized")
+                        }
+                    } ?: run {
+                        _uiState.value = _uiState.value.copy(isRecording = false)
+                        updateError("Filter helper not initialized")
+                    }
+                } else {
+                    // Stop normal recording
+                    recording?.let { activeRecording ->
+                        activeRecording.stop()
+                        Log.d("CameraViewModel", "Normal recording stop requested")
+                    } ?: run {
+                        Log.w("CameraViewModel", "No active recording to stop")
+                        _uiState.value = _uiState.value.copy(isRecording = false)
+                    }
+                }
+                
+            } catch (e: Exception) {
+                Log.e("CameraViewModel", "Error stopping recording: ${e.message}")
+                updateError("Failed to stop recording: ${e.message}")
+                _uiState.value = _uiState.value.copy(isRecording = false)
+            }
+        }
+    }
+    
+    private suspend fun saveVideoToGallery(videoFile: File) {
+        try {
+            val saveResult = saveVideoUseCase(videoFile)
+            if (saveResult.isSuccess) {
+                val uri = saveResult.getOrThrow()
+                _uiState.value = _uiState.value.copy(fileUri = uri)
+                Log.d("CameraViewModel", "Video saved to gallery successfully")
+            } else {
+                updateError("Failed to save video to gallery")
+                Log.e("CameraViewModel", "Failed to save video to gallery")
+            }
+        } catch (e: Exception) {
+            updateError("Error saving video: ${e.message}")
+            Log.e("CameraViewModel", "Error saving video: ${e.message}")
+        }
     }
 }

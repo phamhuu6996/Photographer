@@ -2,15 +2,25 @@ package com.phamhuu.photographer.presentation.utils
 
 import android.graphics.Bitmap
 import android.hardware.camera2.CameraCharacteristics
+import android.media.MediaCodec
+import android.media.MediaFormat
+import android.media.MediaMuxer
+import android.opengl.EGL14
+import android.opengl.EGLConfig
+import android.opengl.EGLContext
+import android.opengl.EGLDisplay
+import android.opengl.EGLSurface
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.util.Log
+import android.view.Surface
 import com.pixpark.gpupixel.GPUPixel
 import com.pixpark.gpupixel.GPUPixelFilter
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
-import javax.microedition.khronos.egl.EGLConfig
+import javax.microedition.khronos.egl.EGLConfig as EGLConfigLegacy
 import javax.microedition.khronos.opengles.GL10
 
 
@@ -37,6 +47,22 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     private var mIsFrontCamera = false
     private var mTextureNeedsUpdate = false
     private val mLock = Any()
+
+    // Video recording với MediaCodec + MediaMuxer
+    private var mVideoEncoder: MediaCodec? = null
+    private var mMediaMuxer: MediaMuxer? = null
+    private var mEncoderSurface: Surface? = null
+    private var mEncoderEGLDisplay: EGLDisplay? = null
+    private var mEncoderEGLContext: EGLContext? = null
+    private var mEncoderEGLSurface: EGLSurface? = null
+    private var mIsRecording = false
+    private var mVideoFile: File? = null
+    private var mVideoTrackIndex = -1
+    private var mMuxerStarted = false
+    
+    // Recording dimensions
+    private var mRecordingWidth = 1920
+    private var mRecordingHeight = 1080
 
     // Vertex coordinates
     private val VERTICES = floatArrayOf(
@@ -96,7 +122,7 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     private var mViewWidth = 0
     private var mViewHeight = 0
 
-    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+    override fun onSurfaceCreated(gl: GL10?, config: EGLConfigLegacy?) {
         Log.d("TAG", "onSurfaceCreated called")
         // Set background color
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
@@ -256,9 +282,7 @@ void main() {
 
     override fun onDrawFrame(gl: GL10?) {
         Log.d("TAG", "onDrawFrame called")
-        // Clear screen
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-
+        
         synchronized(mLock) {
             if (mTextureNeedsUpdate && mTextureData != null) {
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextureID)
@@ -270,6 +294,24 @@ void main() {
                 mTextureNeedsUpdate = false
             }
         }
+
+        // Render to screen
+        renderToTarget(0, mViewWidth, mViewHeight)
+
+        // Render to encoder surface if recording
+        if (mIsRecording && mEncoderEGLSurface != null) {
+            renderToEncoderSurface()
+            drainEncoder()
+        }
+    }
+
+    /**
+     * Render filtered content to target framebuffer
+     */
+    private fun renderToTarget(framebuffer: Int, width: Int, height: Int) {
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebuffer)
+        GLES20.glViewport(0, 0, width, height)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
         // Use shader program
         GLES20.glUseProgram(mProgramHandle)
@@ -297,6 +339,34 @@ void main() {
         // Disable vertex array
         GLES20.glDisableVertexAttribArray(mPositionHandle)
         GLES20.glDisableVertexAttribArray(mTextureCoordHandle)
+    }
+
+    /**
+     * Render filtered frame to encoder surface
+     */
+    private fun renderToEncoderSurface() {
+        try {
+            // Save current EGL state
+            val currentDisplay = EGL14.eglGetCurrentDisplay()
+            val currentContext = EGL14.eglGetCurrentContext()
+            val currentDrawSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_DRAW)
+            val currentReadSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_READ)
+            
+            // Make encoder surface current
+            EGL14.eglMakeCurrent(mEncoderEGLDisplay, mEncoderEGLSurface, mEncoderEGLSurface, mEncoderEGLContext)
+            
+            // Render filtered content
+            renderToTarget(0, mRecordingWidth, mRecordingHeight)
+            
+            // Set presentation time for MediaCodec
+            EGL14.eglSwapBuffers(mEncoderEGLDisplay, mEncoderEGLSurface)
+            
+            // Restore original EGL state
+            EGL14.eglMakeCurrent(currentDisplay, currentDrawSurface, currentReadSurface, currentContext)
+            
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Error rendering to encoder surface: ${e.message}")
+        }
     }
 
     // Update texture data and handle rotation
@@ -378,8 +448,241 @@ void main() {
         return Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, false)
     }
 
+    // ================ FILTERED VIDEO RECORDING ================
+    
+    /**
+     * Bắt đầu ghi video với filter sử dụng MediaCodec + MediaMuxer
+     */
+    fun startFilteredVideoRecording(videoFile: File, callback: (Boolean) -> Unit) {
+        try {
+            mVideoFile = videoFile
+            
+            // Sử dụng texture dimensions thực tế
+            val recordWidth = if (mTextureWidth > 0) mTextureWidth else 1920
+            val recordHeight = if (mTextureHeight > 0) mTextureHeight else 1080
+            
+            // Ensure even dimensions for H264
+            mRecordingWidth = (recordWidth + 1) and 0xFFFFFFFE.toInt()
+            mRecordingHeight = (recordHeight + 1) and 0xFFFFFFFE.toInt()
+            
+            Log.d("FilterRenderer", "Starting filtered recording: ${mRecordingWidth}x${mRecordingHeight}")
+            
+            // Setup MediaCodec encoder
+            setupVideoEncoder()
+            
+            // Setup MediaMuxer
+            setupMediaMuxer(videoFile)
+            
+            mIsRecording = true
+            callback(true)
+            
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Failed to start filtered recording: ${e.message}")
+            cleanup()
+            callback(false)
+        }
+    }
+    
+    /**
+     * Setup MediaCodec video encoder
+     */
+    private fun setupVideoEncoder() {
+        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, mRecordingWidth, mRecordingHeight).apply {
+            setInteger(MediaFormat.KEY_COLOR_FORMAT, 0x7F000789) // COLOR_FormatSurface
+            setInteger(MediaFormat.KEY_BIT_RATE, 8000000) // 8Mbps
+            setInteger(MediaFormat.KEY_FRAME_RATE, 30)
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
+        }
+        
+        mVideoEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+        mVideoEncoder?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        mEncoderSurface = mVideoEncoder?.createInputSurface()
+        
+        // Setup EGL surface for encoder
+        setupEncoderEGL()
+        
+        mVideoEncoder?.start()
+        Log.d("FilterRenderer", "MediaCodec encoder started")
+    }
+    
+    /**
+     * Setup MediaMuxer
+     */
+    private fun setupMediaMuxer(videoFile: File) {
+        mMediaMuxer = MediaMuxer(videoFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        Log.d("FilterRenderer", "MediaMuxer created for: ${videoFile.absolutePath}")
+    }
+    
+    /**
+     * Setup EGL context for encoder surface
+     */
+    private fun setupEncoderEGL() {
+        val display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+        EGL14.eglInitialize(display, null, 0, null, 0)
+        
+        val configs = arrayOfNulls<EGLConfig>(1)
+        val numConfigs = IntArray(1)
+        
+        val attributes = intArrayOf(
+            EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
+            EGL14.EGL_RED_SIZE, 8,
+            EGL14.EGL_GREEN_SIZE, 8,
+            EGL14.EGL_BLUE_SIZE, 8,
+            EGL14.EGL_ALPHA_SIZE, 8,
+            EGL14.EGL_NONE
+        )
+        
+        EGL14.eglChooseConfig(display, attributes, 0, configs, 0, configs.size, numConfigs, 0)
+        
+        val context = EGL14.eglCreateContext(
+            display, configs[0], EGL14.eglGetCurrentContext(), 
+            intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE), 0
+        )
+        
+        mEncoderEGLSurface = EGL14.eglCreateWindowSurface(
+            display, configs[0], mEncoderSurface, intArrayOf(EGL14.EGL_NONE), 0
+        )
+        
+        mEncoderEGLDisplay = display
+        mEncoderEGLContext = context
+        
+        Log.d("FilterRenderer", "Encoder EGL context setup complete")
+    }
+
+    /**
+     * Drain encoder output và ghi vào MediaMuxer
+     */
+    private fun drainEncoder() {
+        try {
+            val encoder = mVideoEncoder ?: return
+            val muxer = mMediaMuxer ?: return
+            
+            val bufferInfo = MediaCodec.BufferInfo()
+            
+            while (true) {
+                val encoderStatus = encoder.dequeueOutputBuffer(bufferInfo, 0)
+                
+                when {
+                    encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                        // No output available yet
+                        break
+                    }
+                    encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        // Add track to muxer
+                        if (!mMuxerStarted) {
+                            val format = encoder.outputFormat
+                            mVideoTrackIndex = muxer.addTrack(format)
+                            muxer.start()
+                            mMuxerStarted = true
+                            Log.d("FilterRenderer", "MediaMuxer started")
+                        }
+                    }
+                    encoderStatus >= 0 -> {
+                        val encodedData = encoder.getOutputBuffer(encoderStatus)
+                        if (encodedData != null && mMuxerStarted) {
+                            // Write encoded data to muxer
+                            muxer.writeSampleData(mVideoTrackIndex, encodedData, bufferInfo)
+                        }
+                        encoder.releaseOutputBuffer(encoderStatus, false)
+                    }
+                }
+            }
+            
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Error draining encoder: ${e.message}")
+        }
+    }
+
+    /**
+     * Dừng filtered video recording
+     */
+    fun stopFilteredVideoRecording(callback: (Boolean, File?) -> Unit) {
+        try {
+            if (!mIsRecording) {
+                callback(false, null)
+                return
+            }
+            
+            mIsRecording = false
+            
+            // Signal end of stream to encoder
+            mVideoEncoder?.signalEndOfInputStream()
+            
+            // Drain remaining data
+            drainEncoder()
+            
+            // Stop and release encoder
+            mVideoEncoder?.stop()
+            mVideoEncoder?.release()
+            
+            // Stop muxer
+            if (mMuxerStarted) {
+                mMediaMuxer?.stop()
+            }
+            mMediaMuxer?.release()
+            
+            // Release EGL resources
+            releaseEncoderEGL()
+            
+            // Cleanup
+            cleanup()
+            
+            Log.d("FilterRenderer", "Filtered video recording stopped successfully")
+            callback(true, mVideoFile)
+            
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Error stopping filtered recording: ${e.message}")
+            cleanup()
+            callback(false, null)
+        }
+    }
+
+    /**
+     * Release encoder EGL resources
+     */
+    private fun releaseEncoderEGL() {
+        try {
+            mEncoderEGLSurface?.let { surface ->
+                EGL14.eglDestroySurface(mEncoderEGLDisplay, surface)
+            }
+            mEncoderEGLContext?.let { context ->
+                EGL14.eglDestroyContext(mEncoderEGLDisplay, context)
+            }
+            mEncoderEGLDisplay?.let { display ->
+                EGL14.eglTerminate(display)
+            }
+        } catch (e: Exception) {
+            Log.e("FilterRenderer", "Error releasing encoder EGL: ${e.message}")
+        }
+    }
+
+    /**
+     * Cleanup all recording resources
+     */
+    private fun cleanup() {
+        mVideoEncoder = null
+        mMediaMuxer = null
+        mEncoderSurface = null
+        mEncoderEGLDisplay = null
+        mEncoderEGLContext = null
+        mEncoderEGLSurface = null
+        mVideoTrackIndex = -1
+        mMuxerStarted = false
+        mIsRecording = false
+    }
+
+    /**
+     * Check if currently recording
+     */
+    fun isRecording(): Boolean = mIsRecording
+
     fun release() {
         try {
+            // Stop recording if active
+            if (mIsRecording) {
+                stopFilteredVideoRecording { _, _ -> }
+            }
+            
             if (mProgramHandle != 0) {
                 GLES20.glDeleteProgram(mProgramHandle)
                 mProgramHandle = 0

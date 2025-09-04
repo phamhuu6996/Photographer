@@ -44,6 +44,6 @@ val appModule = module {
     
     // ViewModels
     viewModel { FilamentViewModel(get<FilamentHelper>()) }
-    viewModel { CameraViewModel(get<FaceLandmarkerHelper>(), get<Manager3DHelper>(), get(), get(), get()) }
+    viewModel { CameraViewModel(get<FaceLandmarkerHelper>(), get<Manager3DHelper>(), get(), get(), get(), get(), get()) }
     viewModel { GalleryViewModel(get()) }
 }
