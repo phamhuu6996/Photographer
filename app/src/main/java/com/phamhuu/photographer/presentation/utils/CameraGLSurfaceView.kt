@@ -47,13 +47,6 @@ class CameraGLSurfaceView (
         }
     }
 
-    /**
-     * Kiểm tra trạng thái recording
-     */
-    fun isRecording(): Boolean {
-        return filterRenderer.isRecording()
-    }
-
     fun release() {
         queueEvent {
             try {
