@@ -211,6 +211,9 @@ class RecordingManager {
         val format = MediaFormat.createAudioFormat(RecordingConstants.AUDIO_MIME_TYPE, audioQuality.sampleRate, audioQuality.channelCount).apply {
             setInteger(MediaFormat.KEY_AAC_PROFILE, audioQuality.aacProfile) // AAC profile from quality setting
             setInteger(MediaFormat.KEY_BIT_RATE, audioQuality.bitRate) // Audio quality bit rate
+            setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 0) // Let encoder determine max input size
+            setInteger(MediaFormat.KEY_SAMPLE_RATE, audioQuality.sampleRate) // Explicit sample rate
+            setInteger(MediaFormat.KEY_CHANNEL_COUNT, audioQuality.channelCount) // Explicit channel count
         }
         
         mAudioEncoder = MediaCodec.createEncoderByType(RecordingConstants.AUDIO_MIME_TYPE)
@@ -301,7 +304,7 @@ class RecordingManager {
         val bufferSize = AudioRecord.getMinBufferSize(audioQuality.sampleRate, audioQuality.channelConfig, RecordingConstants.AUDIO_FORMAT)
 
         mAudioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
+            MediaRecorder.AudioSource.CAMCORDER,
             audioQuality.sampleRate,
             audioQuality.channelConfig,
             RecordingConstants.AUDIO_FORMAT,
@@ -348,16 +351,21 @@ class RecordingManager {
                         inputBuffer?.clear()
                         inputBuffer?.put(buffer, 0, bytesRead)
                         
-                        // Queue PCM data vào encoder
+                        // Queue PCM data vào encoder với timestamp chính xác
                         val presentationTimeUs = System.nanoTime() / 1000
                         audioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, presentationTimeUs, 0)
                     }
                     
                     // Drain audio encoder output
                     drainAudioEncoder()
+                } else if (bytesRead == 0) {
+                    // No data available, sleep briefly
+                    Thread.sleep(5)
+                } else {
+                    // Error reading audio data
+                    Log.e("RecordingManager", "Audio read error: $bytesRead")
+                    break
                 }
-                
-                Thread.sleep(10) // Small delay
                 
             } catch (e: Exception) {
                 Log.e("RecordingManager", "Audio processing error: ${e.message}")

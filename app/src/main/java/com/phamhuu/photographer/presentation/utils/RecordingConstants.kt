@@ -55,7 +55,7 @@ enum class AudioQuality(
         aacProfile = 1,
         channelConfig = AudioFormat.CHANNEL_IN_MONO,
         bufferMultiplier = 1,
-        processingBufferSize = 1024,
+        processingBufferSize = 2048, // 2KB buffer for low quality
         description = "Low Quality (22.05kHz, Mono, 64kbps)"
     ),
 
@@ -66,7 +66,7 @@ enum class AudioQuality(
         aacProfile = 2,
         channelConfig = AudioFormat.CHANNEL_IN_MONO,
         bufferMultiplier = 1,
-        processingBufferSize = 1024,
+        processingBufferSize = 2048, // 2KB buffer for medium quality
         description = "Medium Quality (44.1kHz, Mono, 128kbps)"
     ),
 
@@ -77,7 +77,7 @@ enum class AudioQuality(
         aacProfile = 2,
         channelConfig = AudioFormat.CHANNEL_IN_STEREO,
         bufferMultiplier = 2,
-        processingBufferSize = 2048,
+        processingBufferSize = 4096, // 4KB buffer for stability (1024 * 4)
         description = "High Quality (48kHz, Stereo, 256kbps)"
     ),
 
@@ -88,9 +88,9 @@ enum class AudioQuality(
         aacProfile = 2,
         channelConfig = AudioFormat.CHANNEL_IN_STEREO,
         bufferMultiplier = 2,
-        processingBufferSize = 2048,
+        processingBufferSize = 4096, // 4KB buffer for ultra quality
         description = "Ultra Quality (48kHz, Stereo, 320kbps)"
-    )
+    );
 }
 
 // ===== VIDEO QUALITY ENUMS =====
