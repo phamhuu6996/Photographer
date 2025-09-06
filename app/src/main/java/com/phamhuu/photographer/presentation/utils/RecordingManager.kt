@@ -13,9 +13,14 @@ import android.opengl.EGLDisplay
 import android.opengl.EGLSurface
 import android.util.Log
 import android.view.Surface
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.concurrent.thread
 
 /**
  * RecordingManager - Quản lý Video/Audio Recording với OpenGL Filter
@@ -34,9 +39,10 @@ import kotlin.concurrent.thread
  * - EGL: Separate context cho encoder surface để render off-screen
  * 
  * Thread Safety:
- * - Audio processing chạy trên background thread
+ * - Audio processing chạy trên IO dispatcher coroutine
  * - Video rendering chạy trên OpenGL thread
  * - AtomicBoolean cho audio recording state
+ * - Coroutine cancellation cho clean shutdown
  * 
  * @author Pham Huu
  * @version 1.0
@@ -100,8 +106,11 @@ class RecordingManager {
     /** AudioRecord để capture audio từ microphone */
     private var mAudioRecord: AudioRecord? = null
     
-    /** Background thread xử lý audio data */
-    private var mAudioThread: Thread? = null
+    /** CoroutineScope cho audio processing */
+    private val mAudioScope = CoroutineScope(Dispatchers.IO)
+    
+    /** Job cho audio processing coroutine */
+    private var mAudioJob: Job? = null
     
     /** Atomic flag cho audio recording state (thread-safe) */
     private var mAudioRecordingActive = AtomicBoolean(false)
@@ -287,7 +296,7 @@ class RecordingManager {
      * Chức năng:
      * 1. Setup AudioRecord với PCM 16-bit, 48kHz, stereo
      * 2. Start recording
-     * 3. Start background thread để process audio data
+     * 3. Start coroutine để process audio data
      * 
      * Chất lượng High:
      * - Sample Rate: 48000 Hz (Professional standard)
@@ -295,7 +304,7 @@ class RecordingManager {
      * - Bit Depth: 16-bit PCM
      * - Buffer Size: Double minimum size for stability
      * 
-     * Thread Safety: Audio processing chạy trên background thread
+     * Thread Safety: Audio processing chạy trên IO dispatcher coroutine
      * 
      * @SuppressLint("MissingPermission") - Permission được check ở level cao hơn
      */
@@ -314,8 +323,8 @@ class RecordingManager {
         mAudioRecord?.startRecording()
         mAudioRecordingActive.set(true)
         
-        // Start background thread để process audio data
-        mAudioThread = thread {
+        // Start coroutine để process audio data
+        mAudioJob = mAudioScope.launch {
             processAudioData()
         }
         
@@ -331,10 +340,10 @@ class RecordingManager {
      * 3. Drain audio encoder output
      * 4. Chạy liên tục cho đến khi stop
      * 
-     * Thread: Chạy trên background thread
-     * Thread Safety: Sử dụng AtomicBoolean cho state
+     * Thread: Chạy trên IO dispatcher coroutine
+     * Thread Safety: Sử dụng AtomicBoolean cho state và coroutine cancellation
      */
-    private fun processAudioData() {
+    private suspend fun processAudioData() {
         val buffer = ByteArray(audioQuality.processingBufferSize) // Buffer size from quality setting
         
         while (mAudioRecordingActive.get()) {
@@ -359,8 +368,8 @@ class RecordingManager {
                     // Drain audio encoder output
                     drainAudioEncoder()
                 } else if (bytesRead == 0) {
-                    // No data available, sleep briefly
-                    Thread.sleep(5)
+                    // No data available, delay briefly
+                    delay(5)
                 } else {
                     // Error reading audio data
                     Log.e("RecordingManager", "Audio read error: $bytesRead")
@@ -373,7 +382,7 @@ class RecordingManager {
             }
         }
         
-        Log.d("RecordingManager", "Audio processing thread ended")
+        Log.d("RecordingManager", "Audio processing coroutine ended")
     }
 
     /**
@@ -483,16 +492,17 @@ class RecordingManager {
      * 
      * Chức năng:
      * 1. Set audio recording flag = false
-     * 2. Stop và release AudioRecord
-     * 3. Join audio thread với timeout
+     * 2. Cancel audio coroutine job
+     * 3. Stop và release AudioRecord
      * 
-     * Thread Safety: Sử dụng AtomicBoolean để stop thread
+     * Thread Safety: Sử dụng AtomicBoolean và coroutine cancellation
      */
-    private fun stopAudioRecording() {
+    private suspend fun stopAudioRecording() {
         mAudioRecordingActive.set(false)
+        mAudioJob?.cancel()
+        mAudioJob?.join()
         mAudioRecord?.stop()
         mAudioRecord?.release()
-        mAudioThread?.join(1000) // Wait max 1 second
         Log.d("RecordingManager", "Audio recording stopped")
     }
 
@@ -562,9 +572,11 @@ class RecordingManager {
             
             mIsRecording = false
             
-            // Stop audio recording
-            stopAudioRecording()
-            
+            // Stop audio recording - wait for completion
+            runBlocking {
+                stopAudioRecording()
+            }
+
             // Signal end of stream to encoders
             mVideoEncoder?.signalEndOfInputStream()
             
@@ -643,6 +655,7 @@ class RecordingManager {
      * 2. Reset recording state
      * 3. Reset track indices
      * 4. Reset flags
+     * 5. Cancel audio coroutine job
      * 
      * Lưu ý: Được gọi khi error hoặc stop recording
      */
@@ -655,7 +668,8 @@ class RecordingManager {
         mEncoderEGLContext = null
         mEncoderEGLSurface = null
         mAudioRecord = null
-        mAudioThread = null
+        mAudioJob?.cancel()
+        mAudioJob = null
         mVideoTrackIndex = -1
         mAudioTrackIndex = -1
         mMuxerStarted = false
