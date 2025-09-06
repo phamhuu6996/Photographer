@@ -79,6 +79,23 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     
     /** File video output cho recording */
     private var mVideoFile: File? = null
+
+    // Create vertex shader
+    val vertexShaderCode = """attribute vec2 aPosition;
+attribute vec2 aTextureCoord;
+varying vec2 vTextureCoord;
+void main() {
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+  vTextureCoord = aTextureCoord;
+}"""
+
+    // Create fragment shader
+    val fragmentShaderCode = """precision mediump float;
+varying vec2 vTextureCoord;
+uniform sampler2D uTexture;
+void main() {
+  gl_FragColor = texture2D(uTexture, vTextureCoord);
+}"""
     
 
     // ===================== GEOMETRY DATA =====================
@@ -152,7 +169,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     /** Chiều cao của view (OpenGL surface height) */
     private var mViewHeight = 0
 
-
     /**
      * Callback được gọi khi OpenGL surface được tạo lần đầu
      * 
@@ -181,23 +197,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
 
         // Initialize texture coordinate buffer - using default texture coordinates
         updateTextureCoordinates(0)
-
-        // Create vertex shader
-        val vertexShaderCode = """attribute vec2 aPosition;
-attribute vec2 aTextureCoord;
-varying vec2 vTextureCoord;
-void main() {
-  gl_Position = vec4(aPosition, 0.0, 1.0);
-  vTextureCoord = aTextureCoord;
-}"""
-
-        // Create fragment shader
-        val fragmentShaderCode = """precision mediump float;
-varying vec2 vTextureCoord;
-uniform sampler2D uTexture;
-void main() {
-  gl_FragColor = texture2D(uTexture, vTextureCoord);
-}"""
 
         // Compile shaders
         val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
@@ -315,34 +314,109 @@ void main() {
             mTextureWidth.toFloat() / mTextureHeight
         }
 
-        // Set vertex coordinates while maintaining texture aspect ratio
+        /**
+         * TÍNH TOÁN VERTEX COORDINATES ĐỂ MAINTAIN ASPECT RATIO
+         * 
+         * Mục đích: Đảm bảo video không bị stretch/distort khi hiển thị
+         * 
+         * Logic:
+         * 1. So sánh aspect ratio của texture (video) và view (screen)
+         * 2. Nếu texture rộng hơn view: điều chỉnh height (letterbox)
+         * 3. Nếu texture cao hơn view: điều chỉnh width (pillarbox)
+         * 4. Giữ nguyên aspect ratio gốc của video
+         * 
+         * Vertex format: [x1, y1, x2, y2, x3, y3, x4, y4]
+         * - Bottom left: [0, 1]
+         * - Bottom right: [2, 3] 
+         * - Top left: [4, 5]
+         * - Top right: [6, 7]
+         */
         val adjustedVertices = FloatArray(8)
 
         if (textureAspectRatio > viewAspectRatio) {
-            // Texture is wider than view, adjust height
+            /**
+             * CASE 1: TEXTURE RỘNG HƠN VIEW (LANDSCAPE VIDEO TRÊN PORTRAIT SCREEN)
+             * 
+             * Ví dụ: Video 16:9 trên màn hình 9:16
+             * - textureAspectRatio = 16/9 = 1.78
+             * - viewAspectRatio = 9/16 = 0.56
+             * - textureAspectRatio > viewAspectRatio ✓
+             * 
+             * Giải pháp: Điều chỉnh height (tạo letterbox)
+             * - Giữ width = [-1, 1] (full width)
+             * - Điều chỉnh height = [-heightRatio, heightRatio]
+             * - heightRatio = viewAspectRatio / textureAspectRatio
+             * 
+             * Kết quả: Video hiển thị với black bars trên/dưới
+             */
             val heightRatio = viewAspectRatio / textureAspectRatio
+            
+            // Bottom left: (-1, -heightRatio)
             adjustedVertices[0] = -1.0f // Bottom left x
             adjustedVertices[1] = -heightRatio // Bottom left y
+            
+            // Bottom right: (1, -heightRatio)  
             adjustedVertices[2] = 1.0f // Bottom right x
             adjustedVertices[3] = -heightRatio // Bottom right y
+            
+            // Top left: (-1, heightRatio)
             adjustedVertices[4] = -1.0f // Top left x
             adjustedVertices[5] = heightRatio // Top left y
+            
+            // Top right: (1, heightRatio)
             adjustedVertices[6] = 1.0f // Top right x
             adjustedVertices[7] = heightRatio // Top right y
+            
         } else {
-            // Texture is higher than view, adjust width
+            /**
+             * CASE 2: TEXTURE CAO HƠN VIEW (PORTRAIT VIDEO TRÊN LANDSCAPE SCREEN)
+             * 
+             * Ví dụ: Video 9:16 trên màn hình 16:9
+             * - textureAspectRatio = 9/16 = 0.56
+             * - viewAspectRatio = 16/9 = 1.78
+             * - textureAspectRatio < viewAspectRatio ✓
+             * 
+             * Giải pháp: Điều chỉnh width (tạo pillarbox)
+             * - Giữ height = [-1, 1] (full height)
+             * - Điều chỉnh width = [-widthRatio, widthRatio]
+             * - widthRatio = textureAspectRatio / viewAspectRatio
+             * 
+             * Kết quả: Video hiển thị với black bars trái/phải
+             */
             val widthRatio = textureAspectRatio / viewAspectRatio
+            
+            // Bottom left: (-widthRatio, -1)
             adjustedVertices[0] = -widthRatio // Bottom left x
             adjustedVertices[1] = -1.0f // Bottom left y
+            
+            // Bottom right: (widthRatio, -1)
             adjustedVertices[2] = widthRatio // Bottom right x
             adjustedVertices[3] = -1.0f // Bottom right y
+            
+            // Top left: (-widthRatio, 1)
             adjustedVertices[4] = -widthRatio // Top left x
             adjustedVertices[5] = 1.0f // Top left y
+            
+            // Top right: (widthRatio, 1)
             adjustedVertices[6] = widthRatio // Top right x
             adjustedVertices[7] = 1.0f // Top right y
         }
 
-        // Update vertex buffer
+        /**
+         * CẬP NHẬT VERTEX BUFFER VỚI COORDINATES MỚI
+         * 
+         * Chức năng:
+         * 1. Tạo ByteBuffer với size = 8 floats * 4 bytes = 32 bytes
+         * 2. Set byte order = native (little-endian trên Android)
+         * 3. Wrap thành FloatBuffer
+         * 4. Put adjusted vertices vào buffer
+         * 5. Reset position về 0 để ready cho rendering
+         * 
+         * Lưu ý: 
+         * - allocateDirect() tạo native memory (faster)
+         * - ByteOrder.nativeOrder() đảm bảo compatibility
+         * - position(0) reset để đọc từ đầu buffer
+         */
         val bb = ByteBuffer.allocateDirect(adjustedVertices.size * 4)
         bb.order(ByteOrder.nativeOrder())
         mVertexBuffer = bb.asFloatBuffer()

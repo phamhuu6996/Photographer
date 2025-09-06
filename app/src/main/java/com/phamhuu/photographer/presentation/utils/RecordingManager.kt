@@ -43,6 +43,13 @@ import kotlin.concurrent.thread
  * @since 2024
  */
 class RecordingManager {
+    // ===================== QUALITY SETTINGS =====================
+    /** Audio quality setting cho recording instance này */
+    private val audioQuality = AudioQuality.HIGH_QUALITY
+    
+    /** Video quality setting cho recording instance này */
+    private val videoQuality = VideoQuality.HIGH_QUALITY
+    
     // ===================== VIDEO ENCODING =====================
     /** MediaCodec encoder cho H264 video */
     private var mVideoEncoder: MediaCodec? = null
@@ -140,7 +147,7 @@ class RecordingManager {
             setupAudioEncoder() // AAC audio encoder
             startAudioRecording()
             
-            // 3. Setup MediaMuxer
+            // 2. Setup MediaMuxer
             setupMediaMuxer(videoFile)
             
             mIsRecording = true
@@ -166,14 +173,14 @@ class RecordingManager {
      * Lưu ý: Sử dụng COLOR_FormatSurface để render trực tiếp từ OpenGL
      */
     private fun setupVideoEncoder() {
-        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, mRecordingWidth, mRecordingHeight).apply {
-            setInteger(MediaFormat.KEY_COLOR_FORMAT, 0x7F000789) // COLOR_FormatSurface
-            setInteger(MediaFormat.KEY_BIT_RATE, 8000000) // 8Mbps
-            setInteger(MediaFormat.KEY_FRAME_RATE, 30)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
+        val format = MediaFormat.createVideoFormat(RecordingConstants.VIDEO_MIME_TYPE, mRecordingWidth, mRecordingHeight).apply {
+            setInteger(MediaFormat.KEY_COLOR_FORMAT, RecordingConstants.VIDEO_COLOR_FORMAT) // COLOR_FormatSurface
+            setInteger(MediaFormat.KEY_BIT_RATE, videoQuality.bitRate) // Video quality bit rate
+            setInteger(MediaFormat.KEY_FRAME_RATE, videoQuality.frameRate) // Video quality frame rate
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, videoQuality.iFrameInterval) // Video quality I-frame interval
         }
         
-        mVideoEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+        mVideoEncoder = MediaCodec.createEncoderByType(RecordingConstants.VIDEO_MIME_TYPE)
         mVideoEncoder?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
         mEncoderSurface = mVideoEncoder?.createInputSurface()
         
@@ -181,32 +188,37 @@ class RecordingManager {
         setupEncoderEGL()
         
         mVideoEncoder?.start()
-        Log.d("RecordingManager", "MediaCodec video encoder started")
+        Log.d("RecordingManager", "MediaCodec video encoder started (${videoQuality.description}: ${mRecordingWidth}x${mRecordingHeight})")
     }
     
     /**
-     * Setup MediaCodec audio encoder (AAC)
+     * Setup MediaCodec audio encoder (AAC) - High Quality
      * 
      * Chức năng:
      * 1. Tạo MediaFormat với AAC codec
      * 2. Configure encoder với AAC profile
      * 3. Start encoder
      * 
+     * Chất lượng High:
+     * - Sample Rate: 48000 Hz (Professional standard)
+     * - Channels: 2 (Stereo)
+     * - Bit Rate: 256 kbps (High quality)
+     * - Profile: AAC_LC (Low Complexity)
+     * 
      * Lưu ý: Audio data sẽ được feed từ AudioRecord
      */
     private fun setupAudioEncoder() {
-        val format = MediaFormat.createAudioFormat("audio/mp4a-latm", 44100, 1).apply {
-            setInteger(MediaFormat.KEY_AAC_PROFILE, 2) // AAC_PROFILE_LC
-            setInteger(MediaFormat.KEY_BIT_RATE, 128000)
+        val format = MediaFormat.createAudioFormat(RecordingConstants.AUDIO_MIME_TYPE, audioQuality.sampleRate, audioQuality.channelCount).apply {
+            setInteger(MediaFormat.KEY_AAC_PROFILE, audioQuality.aacProfile) // AAC profile from quality setting
+            setInteger(MediaFormat.KEY_BIT_RATE, audioQuality.bitRate) // Audio quality bit rate
         }
         
-        mAudioEncoder = MediaCodec.createEncoderByType("audio/mp4a-latm")
+        mAudioEncoder = MediaCodec.createEncoderByType(RecordingConstants.AUDIO_MIME_TYPE)
         mAudioEncoder?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
         mAudioEncoder?.start()
         
-        Log.d("RecordingManager", "MediaCodec audio encoder started")
+        Log.d("RecordingManager", "MediaCodec audio encoder started (${audioQuality.description})")
     }
-    
     
     /**
      * Setup MediaMuxer để multiplex video/audio streams
@@ -267,12 +279,18 @@ class RecordingManager {
     }
 
     /**
-     * Start AudioRecord để capture audio từ microphone
+     * Start AudioRecord để capture audio từ microphone - High Quality
      * 
      * Chức năng:
-     * 1. Setup AudioRecord với PCM 16-bit, 44.1kHz, mono
+     * 1. Setup AudioRecord với PCM 16-bit, 48kHz, stereo
      * 2. Start recording
      * 3. Start background thread để process audio data
+     * 
+     * Chất lượng High:
+     * - Sample Rate: 48000 Hz (Professional standard)
+     * - Channels: Stereo (2 channels)
+     * - Bit Depth: 16-bit PCM
+     * - Buffer Size: Double minimum size for stability
      * 
      * Thread Safety: Audio processing chạy trên background thread
      * 
@@ -280,17 +298,14 @@ class RecordingManager {
      */
     @SuppressLint("MissingPermission")
     private fun startAudioRecording() {
-        val sampleRate = 44100
-        val channelConfig = android.media.AudioFormat.CHANNEL_IN_MONO
-        val audioFormat = android.media.AudioFormat.ENCODING_PCM_16BIT
-        val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+        val bufferSize = AudioRecord.getMinBufferSize(audioQuality.sampleRate, audioQuality.channelConfig, RecordingConstants.AUDIO_FORMAT)
 
         mAudioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
-            sampleRate,
-            channelConfig,
-            audioFormat,
-            bufferSize * 2 // Double buffer size for safety
+            audioQuality.sampleRate,
+            audioQuality.channelConfig,
+            RecordingConstants.AUDIO_FORMAT,
+            bufferSize * audioQuality.bufferMultiplier // Buffer size multiplier from quality setting
         )
         
         mAudioRecord?.startRecording()
@@ -301,7 +316,7 @@ class RecordingManager {
             processAudioData()
         }
         
-        Log.d("RecordingManager", "AudioRecord started")
+        Log.d("RecordingManager", "AudioRecord started (${audioQuality.description})")
     }
     
     /**
@@ -317,7 +332,7 @@ class RecordingManager {
      * Thread Safety: Sử dụng AtomicBoolean cho state
      */
     private fun processAudioData() {
-        val buffer = ByteArray(1024)
+        val buffer = ByteArray(audioQuality.processingBufferSize) // Buffer size from quality setting
         
         while (mAudioRecordingActive.get()) {
             try {
@@ -516,7 +531,6 @@ class RecordingManager {
         }
     }
     
-
     /**
      * Dừng filtered video recording và cleanup tất cả resources
      * 
@@ -701,4 +715,5 @@ class RecordingManager {
         drainEncoder() // Drain video encoder
         drainAudioEncoder() // Drain audio encoder
     }
+    
 }
