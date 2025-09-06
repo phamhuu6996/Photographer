@@ -11,96 +11,162 @@ import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig as EGLConfigLegacy
 import javax.microedition.khronos.opengles.GL10
 
-
-// ===================== KIẾN THỨC TỔNG KẾT =====================
-// Khi render ảnh camera lên OpenGL:
-// 1. Xoay (rotation):
-//    - Đổi vị trí các đỉnh (hoặc U/V) để ảnh xoay đúng góc (0, 90, 180, 270)
-// 2. Flip (mirror):
-//    - Camera trước cần mirror ngang (đảo U)
-//    - Camera sau không cần mirror
-//    - Lật dọc (đảo V) nếu muốn flip dọc
-// =============================================================
+/**
+ * FilterRenderer - OpenGL ES 2.0 Renderer cho Camera với Filter Effects
+ * 
+ * Class này chịu trách nhiệm:
+ * 1. Render ảnh camera lên OpenGL Surface với các filter effects
+ * 2. Xử lý rotation và mirroring cho camera trước/sau
+ * 3. Quản lý texture và shader cho rendering
+ * 4. Hỗ trợ capture ảnh đã được filter
+ * 5. Tích hợp với RecordingManager để ghi video có filter
+ * 
+ * Kiến trúc:
+ * - Sử dụng OpenGL ES 2.0 với vertex/fragment shader
+ * - Texture coordinates được tính toán động dựa trên rotation
+ * - Vertex coordinates được điều chỉnh để maintain aspect ratio
+ * - Thread-safe với synchronized blocks cho texture updates
+ * 
+ * @author Pham Huu
+ * @version 1.0
+ * @since 2024
+ */
 class FilterRenderer() : GLSurfaceView.Renderer {
+    // ===================== OPENGL SHADER VARIABLES =====================
+    /** OpenGL texture ID cho camera frame */
     private var mTextureID = -1
+    
+    /** OpenGL shader program handle */
     private var mProgramHandle = 0
+    
+    /** Vertex shader attribute handle cho position */
     private var mPositionHandle = 0
+    
+    /** Vertex shader attribute handle cho texture coordinates */
     private var mTextureCoordHandle = 0
+    
+    /** Fragment shader uniform handle cho texture sampler */
     private var mTextureSamplerHandle = 0
 
+    // ===================== TEXTURE MANAGEMENT =====================
+    /** ByteBuffer chứa texture data từ camera */
     private var mTextureData: ByteBuffer? = null
+    
+    /** Chiều rộng của texture (camera frame width) */
     private var mTextureWidth = 0
+    
+    /** Chiều cao của texture (camera frame height) */
     private var mTextureHeight = 0
-    private var mRotation = 0 // Image rotation angle
+    
+    /** Góc xoay của ảnh (0, 90, 180, 270 degrees) */
+    private var mRotation = 0
+    
+    /** Flag xác định có phải camera trước không (cần mirror) */
     private var mIsFrontCamera = false
+    
+    /** Flag báo hiệu texture cần được update */
     private var mTextureNeedsUpdate = false
+    
+    /** Lock object cho thread safety */
     private val mLock = Any()
 
-    // Recording manager
+    // ===================== RECORDING MANAGEMENT =====================
+    /** Manager xử lý video/audio recording */
     private val recordingManager = RecordingManager()
+    
+    /** Flag xác định có đang recording không */
     private var mIsRecording = false
+    
+    /** File video output cho recording */
     private var mVideoFile: File? = null
     
 
-    // Vertex coordinates
+    // ===================== GEOMETRY DATA =====================
+    /** 
+     * Vertex coordinates cho quad (4 đỉnh của hình chữ nhật)
+     * Format: [x1, y1, x2, y2, x3, y3, x4, y4]
+     * Tạo hình chữ nhật từ -1 đến 1 (normalized device coordinates)
+     */
     private val VERTICES = floatArrayOf(
         -1.0f, -1.0f,  // Bottom left
-        1.0f, -1.0f,  // Bottom right
-        -1.0f, 1.0f,  // Top left
-        1.0f, 1.0f // Top right
+        1.0f, -1.0f,   // Bottom right
+        -1.0f, 1.0f,   // Top left
+        1.0f, 1.0f     // Top right
     )
 
-    // Texture coordinates - default (0° rotation)
+    // ===================== TEXTURE COORDINATES FOR ROTATION =====================
+    /** Texture coordinates cho 0° rotation (không xoay) */
     private val TEXTURE_COORDS_0 = floatArrayOf(
         0.0f, 1.0f,  // Bottom left
         1.0f, 1.0f,  // Bottom right
         0.0f, 0.0f,  // Top left
-        1.0f, 0.0f // Top right
+        1.0f, 0.0f   // Top right
     )
 
-    // Texture coordinates - 90° clockwise rotation
+    /** Texture coordinates cho 90° clockwise rotation */
     private val TEXTURE_COORDS_90 = floatArrayOf(
         0.0f, 0.0f,  // Bottom left
         0.0f, 1.0f,  // Bottom right
         1.0f, 0.0f,  // Top left
-        1.0f, 1.0f // Top right
+        1.0f, 1.0f   // Top right
     )
 
-    // Texture coordinates - 180° clockwise rotation
+    /** Texture coordinates cho 180° clockwise rotation */
     private val TEXTURE_COORDS_180 = floatArrayOf(
         1.0f, 0.0f,  // Bottom left
         0.0f, 0.0f,  // Bottom right
         1.0f, 1.0f,  // Top left
-        0.0f, 1.0f // Top right
+        0.0f, 1.0f   // Top right
     )
 
-    // Texture coordinates - 270° clockwise rotation
+    /** Texture coordinates cho 270° clockwise rotation */
     private val TEXTURE_COORDS_270 = floatArrayOf(
         1.0f, 1.0f,  // Bottom left
         1.0f, 0.0f,  // Bottom right
         0.0f, 1.0f,  // Top left
-        0.0f, 0.0f // Top right
+        0.0f, 0.0f   // Top right
     )
 
-    // Texture coordinates for front camera mirroring - default (0° rotation)
+    /** Texture coordinates cho front camera mirroring - 0° rotation */
     private val TEXTURE_COORDS_MIRROR_0 = floatArrayOf(
-        1.0f, 1.0f,  // Bottom left
-        0.0f, 1.0f,  // Bottom right
-        1.0f, 0.0f,  // Top left
-        0.0f, 0.0f // Top right
+        1.0f, 1.0f,  // Bottom left (mirrored)
+        0.0f, 1.0f,  // Bottom right (mirrored)
+        1.0f, 0.0f,  // Top left (mirrored)
+        0.0f, 0.0f   // Top right (mirrored)
     )
 
-    // Currently used texture coordinates
+    /** Texture coordinates hiện tại đang sử dụng (được cập nhật theo rotation) */
     private var TEXTURE_COORDS = TEXTURE_COORDS_0
 
+    // ===================== BUFFER MANAGEMENT =====================
+    /** FloatBuffer chứa vertex coordinates */
     private var mVertexBuffer: FloatBuffer? = null
+    
+    /** FloatBuffer chứa texture coordinates */
     private var mTexCoordBuffer: FloatBuffer? = null
 
-    // View dimension properties
+    // ===================== VIEW PROPERTIES =====================
+    /** Chiều rộng của view (OpenGL surface width) */
     private var mViewWidth = 0
+    
+    /** Chiều cao của view (OpenGL surface height) */
     private var mViewHeight = 0
 
 
+    /**
+     * Callback được gọi khi OpenGL surface được tạo lần đầu
+     * 
+     * Chức năng:
+     * 1. Khởi tạo OpenGL state (background color, viewport)
+     * 2. Tạo và compile vertex/fragment shader
+     * 3. Tạo OpenGL program và link shaders
+     * 4. Lấy attribute/uniform locations
+     * 5. Tạo texture object cho camera frame
+     * 6. Khởi tạo vertex/texture coordinate buffers
+     * 
+     * @param gl OpenGL context (legacy, không sử dụng)
+     * @param config EGL configuration (legacy, không sử dụng)
+     */
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfigLegacy?) {
         Log.d("TAG", "onSurfaceCreated called")
         // Set background color
@@ -169,7 +235,16 @@ void main() {
         )
     }
 
-    // Update texture coordinates based on rotation angle
+    /**
+     * Cập nhật texture coordinates dựa trên góc xoay và loại camera
+     * 
+     * Logic:
+     * - Camera trước: Cần mirror ngang (đảo U coordinate) để hiển thị đúng
+     * - Camera sau: Không cần mirror
+     * - Rotation: 0°, 90°, 180°, 270° với texture coordinates tương ứng
+     * 
+     * @param rotation Góc xoay (0, 90, 180, 270 degrees)
+     */
     private fun updateTextureCoordinates(rotation: Int) {
         // Mirror only for front camera to correct preview parity
         TEXTURE_COORDS = when (rotation) {
@@ -186,6 +261,18 @@ void main() {
         mTexCoordBuffer!!.position(0)
     }
 
+    /**
+     * Callback được gọi khi surface size thay đổi
+     * 
+     * Chức năng:
+     * 1. Cập nhật OpenGL viewport
+     * 2. Lưu trữ view dimensions
+     * 3. Tính toán lại vertex coordinates để maintain aspect ratio
+     * 
+     * @param gl OpenGL context (legacy, không sử dụng)
+     * @param width Chiều rộng mới của surface
+     * @param height Chiều cao mới của surface
+     */
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         Log.d("TAG", "onSurfaceChanged: width=$width, height=$height")
         GLES20.glViewport(0, 0, width, height)
@@ -201,7 +288,17 @@ void main() {
         }
     }
 
-    // Update vertex coordinates to maintain video aspect ratio
+    /**
+     * Cập nhật vertex coordinates để maintain aspect ratio của video
+     * 
+     * Logic:
+     * 1. Tính aspect ratio của view và texture
+     * 2. Nếu texture rộng hơn view: điều chỉnh height (letterbox)
+     * 3. Nếu texture cao hơn view: điều chỉnh width (pillarbox)
+     * 4. Cập nhật vertex buffer với coordinates mới
+     * 
+     * Điều này đảm bảo video không bị stretch/distort khi hiển thị
+     */
     private fun updateVertexCoordinates() {
         if (mViewWidth <= 0 || mViewHeight <= 0 || mTextureWidth <= 0 || mTextureHeight <= 0) {
             return
@@ -259,6 +356,17 @@ void main() {
         )
     }
 
+    /**
+     * Callback được gọi mỗi frame để render
+     * 
+     * Chức năng:
+     * 1. Cập nhật texture data nếu cần (từ camera frame)
+     * 2. Render lên screen (main surface)
+     * 3. Render lên encoder surface nếu đang recording
+     * 4. Drain encoder data nếu đang recording
+     * 
+     * @param gl OpenGL context (legacy, không sử dụng)
+     */
     override fun onDrawFrame(gl: GL10?) {
         Log.d("TAG", "onDrawFrame called")
         
@@ -287,7 +395,19 @@ void main() {
     }
 
     /**
-     * Render filtered content to target framebuffer
+     * Render filtered content lên target framebuffer
+     * 
+     * Chức năng:
+     * 1. Bind target framebuffer (0 = screen, khác = offscreen)
+     * 2. Set viewport và clear buffer
+     * 3. Use shader program
+     * 4. Set vertex và texture coordinates
+     * 5. Bind texture và draw quad
+     * 6. Disable vertex arrays
+     * 
+     * @param framebuffer Target framebuffer ID (0 = screen)
+     * @param width Chiều rộng render area
+     * @param height Chiều cao render area
      */
     private fun renderToTarget(framebuffer: Int, width: Int, height: Int) {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebuffer)
@@ -323,7 +443,23 @@ void main() {
     }
 
 
-    // Update texture data and handle rotation
+    /**
+     * Cập nhật texture data từ camera frame và xử lý rotation
+     * 
+     * Chức năng:
+     * 1. Cập nhật texture data từ camera frame
+     * 2. Xử lý thay đổi kích thước texture
+     * 3. Cập nhật texture coordinates nếu rotation/camera thay đổi
+     * 4. Cập nhật vertex coordinates để maintain aspect ratio
+     * 
+     * Thread-safe: Sử dụng synchronized block
+     * 
+     * @param data ByteArray chứa RGBA pixel data từ camera
+     * @param width Chiều rộng của camera frame
+     * @param height Chiều cao của camera frame
+     * @param isFrontCamera True nếu là camera trước (cần mirror)
+     * @param rotation Góc xoay (0, 90, 180, 270 degrees)
+     */
     fun updateTextureData(data: ByteArray, width: Int, height: Int, isFrontCamera: Boolean, rotation: Int) {
         synchronized(mLock) {
             val sizeChanged =
@@ -357,7 +493,20 @@ void main() {
         }
     }
 
-    // Compile shader
+    /**
+     * Compile OpenGL shader từ source code
+     * 
+     * Chức năng:
+     * 1. Tạo shader object
+     * 2. Set source code
+     * 3. Compile shader
+     * 4. Check compilation status
+     * 5. Return shader ID hoặc 0 nếu lỗi
+     * 
+     * @param type Shader type (GL_VERTEX_SHADER hoặc GL_FRAGMENT_SHADER)
+     * @param shaderCode Source code của shader
+     * @return Shader ID nếu thành công, 0 nếu lỗi
+     */
     private fun compileShader(type: Int, shaderCode: String): Int {
         val shader = GLES20.glCreateShader(type)
         GLES20.glShaderSource(shader, shaderCode)
@@ -376,9 +525,16 @@ void main() {
     }
 
     /**
-     * Yêu cầu capture ảnh đã được filter
-     *
-     * Ảnh sẽ được capture trong onDrawFrame() và gọi callback
+     * Capture ảnh đã được filter từ OpenGL framebuffer
+     * 
+     * Chức năng:
+     * 1. Đọc pixel data từ OpenGL framebuffer
+     * 2. Tạo Bitmap từ pixel data
+     * 3. Flip vertical (OpenGL lưu top-bottom, Android cần bottom-top)
+     * 
+     * Lưu ý: Phải gọi trong OpenGL context (trong onDrawFrame)
+     * 
+     * @return Bitmap đã được filter và flip đúng hướng
      */
     fun captureFilteredImage() : Bitmap {
         val bufferSize = mViewWidth * mViewHeight * 4
@@ -397,6 +553,14 @@ void main() {
         return flipVertical(bitmap)
     }
 
+    /**
+     * Flip bitmap theo chiều dọc
+     * 
+     * OpenGL lưu pixel data từ top-bottom, nhưng Android Bitmap cần bottom-top
+     * 
+     * @param src Bitmap gốc
+     * @return Bitmap đã được flip vertical
+     */
     private fun flipVertical(src: Bitmap): Bitmap {
         val matrix = android.graphics.Matrix().apply { preScale(1f, -1f) }
         return Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, false)
@@ -405,7 +569,15 @@ void main() {
     // ================ FILTERED VIDEO RECORDING ================
     
     /**
-     * Bắt đầu ghi video với filter sử dụng MediaCodec + MediaMuxer
+     * Bắt đầu ghi video với filter effects
+     * 
+     * Chức năng:
+     * 1. Set recording state và video file
+     * 2. Delegate cho RecordingManager để setup encoders
+     * 3. Sử dụng view dimensions làm recording dimensions
+     * 
+     * @param videoFile File output cho video
+     * @param callback Callback trả về kết quả (true = thành công, false = lỗi)
      */
     fun startFilteredVideoRecording(videoFile: File, callback: (Boolean) -> Unit) {
         mVideoFile = videoFile
@@ -418,12 +590,28 @@ void main() {
 
     /**
      * Dừng filtered video recording
+     * 
+     * Chức năng:
+     * 1. Set recording state = false
+     * 2. Delegate cho RecordingManager để stop và cleanup
+     * 
+     * @param callback Callback trả về kết quả và file video
      */
     fun stopFilteredVideoRecording(callback: (Boolean, File?) -> Unit) {
         mIsRecording = false
         recordingManager.stopFilteredVideoRecording(callback)
     }
 
+    /**
+     * Release tất cả OpenGL resources
+     * 
+     * Chức năng:
+     * 1. Stop recording nếu đang active
+     * 2. Delete OpenGL program
+     * 3. Delete OpenGL texture
+     * 
+     * Phải gọi khi destroy renderer để tránh memory leak
+     */
     fun release() {
         // Stop recording if active
         if (mIsRecording) {

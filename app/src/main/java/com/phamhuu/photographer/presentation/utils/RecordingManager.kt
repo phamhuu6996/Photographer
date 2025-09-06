@@ -17,33 +17,109 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
+/**
+ * RecordingManager - Quản lý Video/Audio Recording với OpenGL Filter
+ * 
+ * Class này chịu trách nhiệm:
+ * 1. Setup và quản lý MediaCodec encoders (H264 video, AAC audio)
+ * 2. Quản lý MediaMuxer để multiplex video/audio streams
+ * 3. Setup EGL context cho encoder surface (off-screen rendering)
+ * 4. Capture audio từ microphone với AudioRecord
+ * 5. Xử lý encoding pipeline và data flow
+ * 6. Quản lý recording lifecycle (start/stop/cleanup)
+ * 
+ * Kiến trúc:
+ * - Video: Camera → OpenGL Filter → Encoder Surface → MediaCodec → MediaMuxer
+ * - Audio: Microphone → AudioRecord → MediaCodec → MediaMuxer
+ * - EGL: Separate context cho encoder surface để render off-screen
+ * 
+ * Thread Safety:
+ * - Audio processing chạy trên background thread
+ * - Video rendering chạy trên OpenGL thread
+ * - AtomicBoolean cho audio recording state
+ * 
+ * @author Pham Huu
+ * @version 1.0
+ * @since 2024
+ */
 class RecordingManager {
-    // Video + Audio recording với dual MediaCodec + MediaMuxer
+    // ===================== VIDEO ENCODING =====================
+    /** MediaCodec encoder cho H264 video */
     private var mVideoEncoder: MediaCodec? = null
+    
+    /** MediaCodec encoder cho AAC audio */
     private var mAudioEncoder: MediaCodec? = null
+    
+    /** MediaMuxer để multiplex video/audio streams thành MP4 */
     private var mMediaMuxer: MediaMuxer? = null
+    
+    /** Input surface cho video encoder (từ MediaCodec) */
     private var mEncoderSurface: Surface? = null
+    
+    // ===================== EGL CONTEXT FOR ENCODER =====================
+    /** EGL display cho encoder surface */
     private var mEncoderEGLDisplay: EGLDisplay? = null
+    
+    /** EGL context cho encoder surface */
     private var mEncoderEGLContext: EGLContext? = null
+    
+    /** EGL surface cho encoder (off-screen rendering) */
     private var mEncoderEGLSurface: EGLSurface? = null
+    
+    // ===================== RECORDING STATE =====================
+    /** Flag xác định có đang recording không */
     private var mIsRecording = false
+    
+    /** File output cho video recording */
     private var mVideoFile: File? = null
+    
+    /** Track index của video trong MediaMuxer */
     private var mVideoTrackIndex = -1
+    
+    /** Track index của audio trong MediaMuxer */
     private var mAudioTrackIndex = -1
+    
+    /** Flag xác định MediaMuxer đã start chưa */
     private var mMuxerStarted = false
     
-    // Recording dimensions
+    // ===================== RECORDING DIMENSIONS =====================
+    /** Chiều rộng recording (được làm chẵn cho H264) */
     private var mRecordingWidth = 1920
+    
+    /** Chiều cao recording (được làm chẵn cho H264) */
     private var mRecordingHeight = 1080
     
-    // Audio recording với AudioRecord + MediaCodec
+    // ===================== AUDIO RECORDING =====================
+    /** AudioRecord để capture audio từ microphone */
     private var mAudioRecord: AudioRecord? = null
+    
+    /** Background thread xử lý audio data */
     private var mAudioThread: Thread? = null
+    
+    /** Atomic flag cho audio recording state (thread-safe) */
     private var mAudioRecordingActive = AtomicBoolean(false)
+    
+    /** Flag xác định audio encoder đã ready chưa */
     private var mAudioEncoderReady = false
 
     /**
-     * Bắt đầu ghi video với filter sử dụng MediaCodec + MediaMuxer
+     * Bắt đầu ghi video với filter effects
+     * 
+     * Chức năng:
+     * 1. Setup video encoder (H264) với input surface
+     * 2. Setup audio encoder (AAC) và AudioRecord
+     * 3. Setup MediaMuxer để multiplex streams
+     * 4. Setup EGL context cho encoder surface
+     * 5. Start audio recording thread
+     * 
+     * Pipeline:
+     * - Video: OpenGL → Encoder Surface → MediaCodec → MediaMuxer
+     * - Audio: Microphone → AudioRecord → MediaCodec → MediaMuxer
+     * 
+     * @param videoFile File output cho video (MP4)
+     * @param textureWidth Chiều rộng texture từ camera
+     * @param textureHeight Chiều cao texture từ camera
+     * @param callback Callback trả về kết quả (true = thành công, false = lỗi)
      */
     fun startFilteredVideoRecording(videoFile: File, textureWidth: Int, textureHeight: Int, callback: (Boolean) -> Unit) {
         try {
@@ -78,7 +154,16 @@ class RecordingManager {
     }
     
     /**
-     * Setup MediaCodec video encoder
+     * Setup MediaCodec video encoder (H264)
+     * 
+     * Chức năng:
+     * 1. Tạo MediaFormat với H264 codec
+     * 2. Configure encoder với COLOR_FormatSurface
+     * 3. Tạo input surface cho encoder
+     * 4. Setup EGL context cho surface
+     * 5. Start encoder
+     * 
+     * Lưu ý: Sử dụng COLOR_FormatSurface để render trực tiếp từ OpenGL
      */
     private fun setupVideoEncoder() {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, mRecordingWidth, mRecordingHeight).apply {
@@ -100,7 +185,14 @@ class RecordingManager {
     }
     
     /**
-     * Setup AAC audio encoder
+     * Setup MediaCodec audio encoder (AAC)
+     * 
+     * Chức năng:
+     * 1. Tạo MediaFormat với AAC codec
+     * 2. Configure encoder với AAC profile
+     * 3. Start encoder
+     * 
+     * Lưu ý: Audio data sẽ được feed từ AudioRecord
      */
     private fun setupAudioEncoder() {
         val format = MediaFormat.createAudioFormat("audio/mp4a-latm", 44100, 1).apply {
@@ -117,7 +209,13 @@ class RecordingManager {
     
     
     /**
-     * Setup MediaMuxer
+     * Setup MediaMuxer để multiplex video/audio streams
+     * 
+     * Chức năng:
+     * 1. Tạo MediaMuxer với MP4 output format
+     * 2. Set output file path
+     * 
+     * @param videoFile File output cho video
      */
     private fun setupMediaMuxer(videoFile: File) {
         mMediaMuxer = MediaMuxer(videoFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
@@ -125,7 +223,15 @@ class RecordingManager {
     }
     
     /**
-     * Setup EGL context for encoder surface
+     * Setup EGL context cho encoder surface
+     * 
+     * Chức năng:
+     * 1. Initialize EGL display
+     * 2. Choose EGL config
+     * 3. Create EGL context
+     * 4. Create EGL surface từ encoder surface
+     * 
+     * Lưu ý: EGL context này dùng để render off-screen lên encoder surface
      */
     private fun setupEncoderEGL() {
         val display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
@@ -161,7 +267,16 @@ class RecordingManager {
     }
 
     /**
-     * Start AudioRecord để lấy PCM data cho audio encoder
+     * Start AudioRecord để capture audio từ microphone
+     * 
+     * Chức năng:
+     * 1. Setup AudioRecord với PCM 16-bit, 44.1kHz, mono
+     * 2. Start recording
+     * 3. Start background thread để process audio data
+     * 
+     * Thread Safety: Audio processing chạy trên background thread
+     * 
+     * @SuppressLint("MissingPermission") - Permission được check ở level cao hơn
      */
     @SuppressLint("MissingPermission")
     private fun startAudioRecording() {
@@ -190,7 +305,16 @@ class RecordingManager {
     }
     
     /**
-     * Process PCM data từ AudioRecord và đẩy vào audio encoder
+     * Process PCM data từ AudioRecord và feed vào audio encoder
+     * 
+     * Chức năng:
+     * 1. Đọc PCM data từ AudioRecord
+     * 2. Feed data vào audio encoder input buffer
+     * 3. Drain audio encoder output
+     * 4. Chạy liên tục cho đến khi stop
+     * 
+     * Thread: Chạy trên background thread
+     * Thread Safety: Sử dụng AtomicBoolean cho state
      */
     private fun processAudioData() {
         val buffer = ByteArray(1024)
@@ -230,7 +354,13 @@ class RecordingManager {
     }
 
     /**
-     * Signal end of stream cho audio encoder với empty buffer
+     * Signal end of stream cho audio encoder
+     * 
+     * Chức năng:
+     * 1. Queue empty buffer với END_OF_STREAM flag
+     * 2. Báo hiệu audio encoder kết thúc input
+     * 
+     * Lưu ý: Phải gọi trước khi stop encoder
      */
     private fun signalAudioEndOfStream() {
         val encoder = mAudioEncoder ?: return
@@ -250,7 +380,15 @@ class RecordingManager {
     }
 
     /**
-     * Drain audio encoder output và add track nếu cần
+     * Drain audio encoder output và write vào MediaMuxer
+     * 
+     * Chức năng:
+     * 1. Dequeue output buffer từ audio encoder
+     * 2. Add audio track vào MediaMuxer nếu chưa có
+     * 3. Write encoded data vào MediaMuxer
+     * 4. Release output buffer
+     * 
+     * Lưu ý: Phải gọi liên tục trong recording loop
      */
     private fun drainAudioEncoder() {
         val encoder = mAudioEncoder ?: return
@@ -287,6 +425,13 @@ class RecordingManager {
 
     /**
      * Check và start MediaMuxer khi tracks ready
+     * 
+     * Logic:
+     * 1. Nếu có audio encoder: đợi cả video và audio tracks
+     * 2. Nếu không có audio encoder: start với video-only
+     * 3. Start MediaMuxer khi đủ tracks
+     * 
+     * Lưu ý: MediaMuxer chỉ start được 1 lần
      */
     private fun checkAndStartMuxer() {
         val muxer = mMediaMuxer ?: return
@@ -311,7 +456,14 @@ class RecordingManager {
     }
 
     /**
-     * Stop audio recording
+     * Stop audio recording và cleanup resources
+     * 
+     * Chức năng:
+     * 1. Set audio recording flag = false
+     * 2. Stop và release AudioRecord
+     * 3. Join audio thread với timeout
+     * 
+     * Thread Safety: Sử dụng AtomicBoolean để stop thread
      */
     private fun stopAudioRecording() {
         mAudioRecordingActive.set(false)
@@ -322,7 +474,15 @@ class RecordingManager {
     }
 
     /**
-     * Drain video encoder output
+     * Drain video encoder output và write vào MediaMuxer
+     * 
+     * Chức năng:
+     * 1. Dequeue output buffer từ video encoder
+     * 2. Add video track vào MediaMuxer nếu chưa có
+     * 3. Write encoded data vào MediaMuxer
+     * 4. Release output buffer
+     * 
+     * Lưu ý: Phải gọi liên tục trong recording loop
      */
     private fun drainEncoder() {
         val encoder = mVideoEncoder ?: return
@@ -358,7 +518,18 @@ class RecordingManager {
     
 
     /**
-     * Dừng filtered video recording
+     * Dừng filtered video recording và cleanup tất cả resources
+     * 
+     * Chức năng:
+     * 1. Stop audio recording
+     * 2. Signal end of stream cho encoders
+     * 3. Drain remaining data từ encoders
+     * 4. Stop và release encoders
+     * 5. Stop và release MediaMuxer
+     * 6. Release EGL resources
+     * 7. Cleanup tất cả variables
+     * 
+     * @param callback Callback trả về kết quả và file video
      */
     fun stopFilteredVideoRecording(callback: (Boolean, File?) -> Unit) {
         try {
@@ -421,7 +592,14 @@ class RecordingManager {
     }
 
     /**
-     * Release encoder EGL resources
+     * Release EGL resources cho encoder surface
+     * 
+     * Chức năng:
+     * 1. Destroy EGL surface
+     * 2. Destroy EGL context
+     * 3. Terminate EGL display
+     * 
+     * Lưu ý: Phải gọi để tránh memory leak
      */
     private fun releaseEncoderEGL() {
         mEncoderEGLSurface?.let { surface ->
@@ -436,7 +614,15 @@ class RecordingManager {
     }
 
     /**
-     * Cleanup all recording resources
+     * Cleanup tất cả recording resources và reset state
+     * 
+     * Chức năng:
+     * 1. Set tất cả variables về null/default values
+     * 2. Reset recording state
+     * 3. Reset track indices
+     * 4. Reset flags
+     * 
+     * Lưu ý: Được gọi khi error hoặc stop recording
      */
     private fun cleanup() {
         mVideoEncoder = null
@@ -457,17 +643,30 @@ class RecordingManager {
     }
 
     /**
-     * Check if currently recording
+     * Check xem có đang recording không
+     * 
+     * @return true nếu đang recording, false nếu không
      */
     fun isRecording(): Boolean = mIsRecording
 
     /**
-     * Get encoder surface
+     * Get encoder surface cho video recording
+     * 
+     * @return Surface cho video encoder, null nếu chưa setup
      */
     fun getEncoderSurface(): Surface? = mEncoderSurface
 
     /**
-     * Render to encoder surface
+     * Render filtered content lên encoder surface
+     * 
+     * Chức năng:
+     * 1. Save current EGL state
+     * 2. Make encoder surface current
+     * 3. Call render function với recording dimensions
+     * 4. Swap buffers để commit frame
+     * 5. Restore original EGL state
+     * 
+     * @param renderFunction Function render với (width, height) parameters
      */
     fun renderToEncoderSurface(renderFunction: (Int, Int) -> Unit) {
         // Save current EGL state
@@ -490,7 +689,13 @@ class RecordingManager {
     }
 
     /**
-     * Drain encoders
+     * Drain cả video và audio encoders
+     * 
+     * Chức năng:
+     * 1. Drain video encoder output
+     * 2. Drain audio encoder output
+     * 
+     * Lưu ý: Phải gọi liên tục trong recording loop
      */
     fun drainEncoders() {
         drainEncoder() // Drain video encoder
