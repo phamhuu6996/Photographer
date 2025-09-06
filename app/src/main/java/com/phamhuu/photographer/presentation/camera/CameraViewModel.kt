@@ -1,6 +1,7 @@
 package com.phamhuu.photographer.presentation.camera
 
 import Manager3DHelper
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.opengl.GLSurfaceView
@@ -525,6 +526,7 @@ class CameraViewModel(
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun startNormalRecording(videoFile: File, context: Context) {
         val videoCapture = videoCapture ?: run {
             updateError("Video capture not initialized")
@@ -536,6 +538,7 @@ class CameraViewModel(
         
         recording = videoCapture.output
             .prepareRecording(context, outputOptions)
+            .withAudioEnabled()
             .start(ContextCompat.getMainExecutor(context)) { recordEvent ->
                 when (recordEvent) {
                     is androidx.camera.video.VideoRecordEvent.Start -> {
