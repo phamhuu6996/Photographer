@@ -1,7 +1,6 @@
 package com.phamhuu.photographer.presentation.utils
 
 import android.graphics.Bitmap
-import android.media.MediaCodec
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.util.Log
@@ -41,8 +40,6 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     private val recordingManager = RecordingManager()
     private var mIsRecording = false
     private var mVideoFile: File? = null
-    private var mVideoTrackIndex = -1
-    private var mAudioTrackIndex = -1
     
 
     // Vertex coordinates
@@ -426,12 +423,6 @@ void main() {
         mIsRecording = false
         recordingManager.stopFilteredVideoRecording(callback)
     }
-
-
-    /**
-     * Check if currently recording
-     */
-    fun isRecording(): Boolean = mIsRecording
 
     fun release() {
         // Stop recording if active

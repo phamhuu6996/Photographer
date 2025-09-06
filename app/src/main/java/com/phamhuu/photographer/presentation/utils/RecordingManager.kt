@@ -61,16 +61,8 @@ class RecordingManager {
             
             // 1. Setup video encoder (always)
             setupVideoEncoder() // H264 video encoder
-            
-            // 2. Try setup audio encoder (fallback to video-only if fail)
-            try {
-                setupAudioEncoder() // AAC audio encoder
-                startAudioRecording()
-                Log.d("RecordingManager", "Audio setup successful")
-            } catch (e: Exception) {
-                Log.w("RecordingManager", "Audio setup failed, video-only mode: ${e.message}")
-                mAudioEncoder = null
-            }
+            setupAudioEncoder() // AAC audio encoder
+            startAudioRecording()
             
             // 3. Setup MediaMuxer
             setupMediaMuxer(videoFile)
@@ -243,21 +235,17 @@ class RecordingManager {
     private fun signalAudioEndOfStream() {
         val encoder = mAudioEncoder ?: return
         
-        try {
-            val inputBufferIndex = encoder.dequeueInputBuffer(10000) // 10ms timeout
-            if (inputBufferIndex >= 0) {
-                // Queue empty buffer với END_OF_STREAM flag
-                encoder.queueInputBuffer(
-                    inputBufferIndex, 
-                    0, 
-                    0, 
-                    System.nanoTime() / 1000, 
-                    MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                )
-                Log.d("RecordingManager", "Audio end of stream buffer queued")
-            }
-        } catch (e: Exception) {
-            Log.e("RecordingManager", "Error queuing audio end buffer: ${e.message}")
+        val inputBufferIndex = encoder.dequeueInputBuffer(10000) // 10ms timeout
+        if (inputBufferIndex >= 0) {
+            // Queue empty buffer với END_OF_STREAM flag
+            encoder.queueInputBuffer(
+                inputBufferIndex, 
+                0, 
+                0, 
+                System.nanoTime() / 1000, 
+                MediaCodec.BUFFER_FLAG_END_OF_STREAM
+            )
+            Log.d("RecordingManager", "Audio end of stream buffer queued")
         }
     }
 
@@ -265,44 +253,35 @@ class RecordingManager {
      * Drain audio encoder output và add track nếu cần
      */
     private fun drainAudioEncoder() {
-        try {
-            val encoder = mAudioEncoder ?: return
-            val muxer = mMediaMuxer ?: return
+        val encoder = mAudioEncoder ?: return
+        val muxer = mMediaMuxer ?: return
+        
+        val bufferInfo = MediaCodec.BufferInfo()
+        
+        while (true) {
+            val encoderStatus = encoder.dequeueOutputBuffer(bufferInfo, 0)
             
-            val bufferInfo = MediaCodec.BufferInfo()
-            
-            while (true) {
-                val encoderStatus = encoder.dequeueOutputBuffer(bufferInfo, 0)
-                
-                when {
-                    encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> break
-                    encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        if (mAudioTrackIndex < 0) {
-                            val audioFormat = encoder.outputFormat
-                            mAudioTrackIndex = muxer.addTrack(audioFormat)
-                            mAudioEncoderReady = true
-                            Log.d("RecordingManager", "Audio track added to muxer")
-                            
-                            // Check if can start muxer
-                            checkAndStartMuxer()
-                        }
-                    }
-                    encoderStatus >= 0 -> {
-                        val encodedData = encoder.getOutputBuffer(encoderStatus)
-                        if (encodedData != null && mMuxerStarted && mAudioTrackIndex >= 0) {
-                            try {
-                                muxer.writeSampleData(mAudioTrackIndex, encodedData, bufferInfo)
-                            } catch (e: Exception) {
-                                Log.e("RecordingManager", "Error writing audio data: ${e.message}")
-                            }
-                        }
-                        encoder.releaseOutputBuffer(encoderStatus, false)
+            when {
+                encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> break
+                encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    if (mAudioTrackIndex < 0) {
+                        val audioFormat = encoder.outputFormat
+                        mAudioTrackIndex = muxer.addTrack(audioFormat)
+                        mAudioEncoderReady = true
+                        Log.d("RecordingManager", "Audio track added to muxer")
+                        
+                        // Check if can start muxer
+                        checkAndStartMuxer()
                     }
                 }
+                encoderStatus >= 0 -> {
+                    val encodedData = encoder.getOutputBuffer(encoderStatus)
+                    if (encodedData != null && mMuxerStarted && mAudioTrackIndex >= 0) {
+                        muxer.writeSampleData(mAudioTrackIndex, encodedData, bufferInfo)
+                    }
+                    encoder.releaseOutputBuffer(encoderStatus, false)
+                }
             }
-            
-        } catch (e: Exception) {
-            Log.e("RecordingManager", "Error draining audio encoder: ${e.message}")
         }
     }
 
@@ -335,58 +314,45 @@ class RecordingManager {
      * Stop audio recording
      */
     private fun stopAudioRecording() {
-        try {
-            mAudioRecordingActive.set(false)
-            mAudioRecord?.stop()
-            mAudioRecord?.release()
-            mAudioThread?.join(1000) // Wait max 1 second
-            Log.d("RecordingManager", "Audio recording stopped")
-        } catch (e: Exception) {
-            Log.e("RecordingManager", "Error stopping audio: ${e.message}")
-        }
+        mAudioRecordingActive.set(false)
+        mAudioRecord?.stop()
+        mAudioRecord?.release()
+        mAudioThread?.join(1000) // Wait max 1 second
+        Log.d("RecordingManager", "Audio recording stopped")
     }
 
     /**
      * Drain video encoder output
      */
     private fun drainEncoder() {
-        try {
-            val encoder = mVideoEncoder ?: return
-            val muxer = mMediaMuxer ?: return
+        val encoder = mVideoEncoder ?: return
+        val muxer = mMediaMuxer ?: return
+        
+        val bufferInfo = MediaCodec.BufferInfo()
+        
+        while (true) {
+            val encoderStatus = encoder.dequeueOutputBuffer(bufferInfo, 0)
             
-            val bufferInfo = MediaCodec.BufferInfo()
-            
-            while (true) {
-                val encoderStatus = encoder.dequeueOutputBuffer(bufferInfo, 0)
-                
-                when {
-                    encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> break
-                    encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        if (mVideoTrackIndex < 0) {
-                            val videoFormat = encoder.outputFormat
-                            mVideoTrackIndex = muxer.addTrack(videoFormat)
-                            Log.d("RecordingManager", "Video track added to muxer")
-                            
-                            // Check if can start muxer
-                            checkAndStartMuxer()
-                        }
-                    }
-                    encoderStatus >= 0 -> {
-                        val encodedData = encoder.getOutputBuffer(encoderStatus)
-                        if (encodedData != null && mMuxerStarted && mVideoTrackIndex >= 0) {
-                            try {
-                                muxer.writeSampleData(mVideoTrackIndex, encodedData, bufferInfo)
-                            } catch (e: Exception) {
-                                Log.e("RecordingManager", "Error writing video data: ${e.message}")
-                            }
-                        }
-                        encoder.releaseOutputBuffer(encoderStatus, false)
+            when {
+                encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER -> break
+                encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    if (mVideoTrackIndex < 0) {
+                        val videoFormat = encoder.outputFormat
+                        mVideoTrackIndex = muxer.addTrack(videoFormat)
+                        Log.d("RecordingManager", "Video track added to muxer")
+                        
+                        // Check if can start muxer
+                        checkAndStartMuxer()
                     }
                 }
+                encoderStatus >= 0 -> {
+                    val encodedData = encoder.getOutputBuffer(encoderStatus)
+                    if (encodedData != null && mMuxerStarted && mVideoTrackIndex >= 0) {
+                        muxer.writeSampleData(mVideoTrackIndex, encodedData, bufferInfo)
+                    }
+                    encoder.releaseOutputBuffer(encoderStatus, false)
+                }
             }
-            
-        } catch (e: Exception) {
-            Log.e("RecordingManager", "Error draining video encoder: ${e.message}")
         }
     }
     
@@ -407,20 +373,12 @@ class RecordingManager {
             stopAudioRecording()
             
             // Signal end of stream to encoders
-            try {
-                mVideoEncoder?.signalEndOfInputStream()
-            } catch (e: Exception) {
-                Log.e("RecordingManager", "Error signaling video end: ${e.message}")
-            }
+            mVideoEncoder?.signalEndOfInputStream()
             
             // Signal audio end với empty buffer + END_OF_STREAM flag
             if (mAudioEncoder != null && mAudioEncoderReady && mAudioTrackIndex >= 0) {
-                try {
-                    signalAudioEndOfStream()
-                    Log.d("RecordingManager", "Audio end of stream signaled")
-                } catch (e: Exception) {
-                    Log.e("RecordingManager", "Error signaling audio end: ${e.message}")
-                }
+                signalAudioEndOfStream()
+                Log.d("RecordingManager", "Audio end of stream signaled")
             } else {
                 Log.d("RecordingManager", "Skipping audio end signal - encoder not ready")
             }
@@ -430,22 +388,14 @@ class RecordingManager {
             drainAudioEncoder()
             
             // Stop and release both encoders
-            try {
-                mVideoEncoder?.stop()
-                mVideoEncoder?.release()
-            } catch (e: Exception) {
-                Log.e("RecordingManager", "Error stopping video encoder: ${e.message}")
-            }
+            mVideoEncoder?.stop()
+            mVideoEncoder?.release()
             
             // Chỉ stop audio encoder nếu đã ready
             if (mAudioEncoder != null && mAudioEncoderReady) {
-                try {
-                    mAudioEncoder?.stop()
-                    mAudioEncoder?.release()
-                    Log.d("RecordingManager", "Audio encoder stopped")
-                } catch (e: Exception) {
-                    Log.e("RecordingManager", "Error stopping audio encoder: ${e.message}")
-                }
+                mAudioEncoder?.stop()
+                mAudioEncoder?.release()
+                Log.d("RecordingManager", "Audio encoder stopped")
             }
             
             // Stop muxer
@@ -474,18 +424,14 @@ class RecordingManager {
      * Release encoder EGL resources
      */
     private fun releaseEncoderEGL() {
-        try {
-            mEncoderEGLSurface?.let { surface ->
-                EGL14.eglDestroySurface(mEncoderEGLDisplay, surface)
-            }
-            mEncoderEGLContext?.let { context ->
-                EGL14.eglDestroyContext(mEncoderEGLDisplay, context)
-            }
-            mEncoderEGLDisplay?.let { display ->
-                EGL14.eglTerminate(display)
-            }
-        } catch (e: Exception) {
-            Log.e("RecordingManager", "Error releasing encoder EGL: ${e.message}")
+        mEncoderEGLSurface?.let { surface ->
+            EGL14.eglDestroySurface(mEncoderEGLDisplay, surface)
+        }
+        mEncoderEGLContext?.let { context ->
+            EGL14.eglDestroyContext(mEncoderEGLDisplay, context)
+        }
+        mEncoderEGLDisplay?.let { display ->
+            EGL14.eglTerminate(display)
         }
     }
 
@@ -524,28 +470,23 @@ class RecordingManager {
      * Render to encoder surface
      */
     fun renderToEncoderSurface(renderFunction: (Int, Int) -> Unit) {
-        try {
-            // Save current EGL state
-            val currentDisplay = EGL14.eglGetCurrentDisplay()
-            val currentContext = EGL14.eglGetCurrentContext()
-            val currentDrawSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_DRAW)
-            val currentReadSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_READ)
-            
-            // Make encoder surface current
-            EGL14.eglMakeCurrent(mEncoderEGLDisplay, mEncoderEGLSurface, mEncoderEGLSurface, mEncoderEGLContext)
-            
-            // Render filtered content
-            renderFunction(mRecordingWidth, mRecordingHeight)
-            
-            // Set presentation time for MediaCodec
-            EGL14.eglSwapBuffers(mEncoderEGLDisplay, mEncoderEGLSurface)
-            
-            // Restore original EGL state
-            EGL14.eglMakeCurrent(currentDisplay, currentDrawSurface, currentReadSurface, currentContext)
-            
-        } catch (e: Exception) {
-            Log.e("RecordingManager", "Error rendering to encoder surface: ${e.message}")
-        }
+        // Save current EGL state
+        val currentDisplay = EGL14.eglGetCurrentDisplay()
+        val currentContext = EGL14.eglGetCurrentContext()
+        val currentDrawSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_DRAW)
+        val currentReadSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_READ)
+        
+        // Make encoder surface current
+        EGL14.eglMakeCurrent(mEncoderEGLDisplay, mEncoderEGLSurface, mEncoderEGLSurface, mEncoderEGLContext)
+        
+        // Render filtered content
+        renderFunction(mRecordingWidth, mRecordingHeight)
+        
+        // Set presentation time for MediaCodec
+        EGL14.eglSwapBuffers(mEncoderEGLDisplay, mEncoderEGLSurface)
+        
+        // Restore original EGL state
+        EGL14.eglMakeCurrent(currentDisplay, currentDrawSurface, currentReadSurface, currentContext)
     }
 
     /**
