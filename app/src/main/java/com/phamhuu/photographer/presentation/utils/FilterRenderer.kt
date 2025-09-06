@@ -410,7 +410,7 @@ void main() {
     fun startFilteredVideoRecording(videoFile: File, callback: (Boolean) -> Unit) {
         mVideoFile = videoFile
         mIsRecording = true
-        recordingManager.startFilteredVideoRecording(videoFile, mTextureWidth, mTextureHeight, callback)
+        recordingManager.startFilteredVideoRecording(videoFile, mViewWidth, mViewHeight, callback)
     }
     
 
