@@ -24,6 +24,5 @@ data class CameraUiState(
     val timerDelay: TimerDelay = TimerDelay.OFF,
     val landmarkResult: FaceLandmarkerHelper.ResultBundle? = null,
     val isLoading: Boolean = false,
-    val error: String? = null,
     val currentFilter: ImageFilter = ImageFilter.NONE
 ) 

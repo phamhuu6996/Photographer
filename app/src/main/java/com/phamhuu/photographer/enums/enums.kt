@@ -105,3 +105,10 @@ enum class RatioCamera(val ratio: AspectRatioStrategy) {
     }
 }
 
+enum class SnackbarType(val actionLabel: String, val duration: Long) {
+    SUCCESS("OK", 2000L),
+    FAIL("Dismiss", 4000L),
+    WARNING("Got it", 3000L),
+    INFO("OK", 2000L)
+}
+

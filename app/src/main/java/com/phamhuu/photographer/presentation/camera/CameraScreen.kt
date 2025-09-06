@@ -94,14 +94,6 @@ fun CameraScreen(
         }
     }
 
-    // Show error message if present
-    uiState.value.error?.let { error ->
-        LaunchedEffect(error) {
-            // You can show toast or snackbar here
-            // For now, just clear the error after showing
-            viewModel.clearError()
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -128,28 +120,6 @@ fun CameraScreen(
                     factory = { filterGLSurfaceView },
                     modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
                 )
-                
-                // ✅ Show loading indicator during filter transition
-                AnimatedVisibility(
-                    visible = uiState.value.isLoading,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.Center)
-                ) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.Black.copy(alpha = 0.7f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "🔄 Applying ${uiState.value.currentFilter.displayName}...",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
             }
             else -> {
                 // Normal camera preview
@@ -158,28 +128,6 @@ fun CameraScreen(
                     modifier = Modifier.fillMaxSize()
                 )
             }
-        }
-
-        // Error display
-        uiState.value.error?.let { error ->
-            Text(
-                text = error,
-                color = Color.Red,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-        }
-
-        // Filter indicator ở top center
-        AnimatedVisibility(
-            visible = uiState.value.currentFilter != ImageFilter.NONE && !uiState.value.isLoading,
-            enter = fadeIn() + slideInVertically { -it },
-            exit = fadeOut() + slideOutVertically { -it },
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            FilterIndicator(
-                filter = uiState.value.currentFilter,
-                modifier = Modifier.padding(top = 80.dp)
-            )
         }
 
         CameraControls(
@@ -205,13 +153,6 @@ fun CameraScreen(
             onChangeTimeDelay = { viewModel.setTimerDelay(it) },
             onChangeResolution = { 
                 viewModel.setRatioCamera(it, context, lifecycleOwner, previewView)
-            },
-            // Bottom navigation callbacks
-            onBeautyEffectSelected = { beautyEffect ->
-                // TODO: Map BeautyEffect to ImageFilter
-            },
-            on3DModelSelected = { model3D ->
-                viewModel.selectModel3D(context, model3D)
             },
             onImageFilterSelected = { imageFilter ->
                 // ✅ Real OpenGL ES filtering với ImageAnalyzer data!

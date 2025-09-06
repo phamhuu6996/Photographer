@@ -38,7 +38,9 @@ import com.phamhuu.photographer.domain.usecase.SaveVideoUseCase
 import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
 import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.RatioCamera
+import com.phamhuu.photographer.enums.SnackbarType
 import com.phamhuu.photographer.enums.TimerDelay
+import com.phamhuu.photographer.presentation.common.SnackbarManager
 import com.phamhuu.photographer.enums.TypeModel3D
 import com.phamhuu.photographer.presentation.utils.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.utils.FilterRenderer
@@ -206,6 +208,12 @@ class CameraViewModel(
                 _uiState.value = _uiState.value.copy(isLoading = false)
 
                 println("🔥 CameraViewModel: Filter ${filter.displayName} applied successfully")
+                
+                // Show success message
+                SnackbarManager.show(
+                    message = "Filter ${filter.displayName} applied successfully",
+                    type = SnackbarType.SUCCESS
+                )
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -309,6 +317,12 @@ class CameraViewModel(
         if (saveResult.isSuccess) {
             val uri = saveResult.getOrThrow()
             _uiState.value = _uiState.value.copy(fileUri = uri)
+            
+            // Show success message
+            SnackbarManager.show(
+                message = "Photo saved successfully!",
+                type = SnackbarType.SUCCESS
+            )
         } else {
             updateError("Failed to save photo to gallery")
         }
@@ -462,11 +476,15 @@ class CameraViewModel(
     }
 
     private fun updateError(message: String) {
-        _uiState.value = _uiState.value.copy(error = message, isLoading = false)
+        SnackbarManager.show(
+            message = message,
+            type = SnackbarType.FAIL
+        )
+        _uiState.value = _uiState.value.copy(isLoading = false)
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        // No longer needed since we don't use error state
     }
 
     // ================ VIDEO RECORDING METHODS ================
@@ -618,6 +636,12 @@ class CameraViewModel(
                 val uri = saveResult.getOrThrow()
                 _uiState.value = _uiState.value.copy(fileUri = uri)
                 Log.d("CameraViewModel", "Video saved to gallery successfully")
+                
+                // Show success message
+                SnackbarManager.show(
+                    message = "Video saved successfully!",
+                    type = SnackbarType.SUCCESS
+                )
             } else {
                 updateError("Failed to save video to gallery")
                 Log.e("CameraViewModel", "Failed to save video to gallery")

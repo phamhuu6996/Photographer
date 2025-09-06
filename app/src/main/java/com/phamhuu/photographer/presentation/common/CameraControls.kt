@@ -56,19 +56,11 @@ fun CameraControls(
     resolution: RatioCamera = RatioCamera.RATIO_3_4,
     onChangeTimeDelay: (TimerDelay) -> Unit,
     onChangeResolution: (RatioCamera) -> Unit,
-    onBeautyEffectSelected: (BeautyEffect) -> Unit = {},
-    on3DModelSelected: (TypeModel3D) -> Unit = {},
     onImageFilterSelected: (ImageFilter) -> Unit = {},
     currentFilter: ImageFilter = ImageFilter.NONE
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
-    val showTimerOptions = remember { mutableStateOf(false) }
-    val currentAspectRatio = remember { mutableStateOf("4:3") }
-    
-    // Popup states
-    val showBeautyPopup = remember { mutableStateOf(false) }
-    val show3DPopup = remember { mutableStateOf(false) }
     val showFilterPopup = remember { mutableStateOf(false) }
 
     Box(
@@ -178,16 +170,6 @@ fun CameraControls(
                         color = Color.White,
                     )
 
-                // Beauty Effects button
-                ImageCustom(
-                    id = R.drawable.ic_beauty_whitening,
-                    imageMode = ImageMode.MEDIUM,
-                    color = Color.White,
-                    modifier = Modifier.clickable { 
-                        showBeautyPopup.value = true
-                    }
-                )
-
                 if (isCapture)
                     ImageCustom(
                         id = R.drawable.capture,
@@ -211,16 +193,6 @@ fun CameraControls(
                         }
                     )
 
-                // 3D button
-                ImageCustom(
-                    id = R.drawable.ic_3d,
-                    imageMode = ImageMode.MEDIUM,
-                    color = Color.White,
-                    modifier = Modifier.clickable { 
-                        show3DPopup.value = true
-                    }
-                )
-
                 // Image Filters button với status indicator
                 ImageCustom(
                     id = R.drawable.ic_effects,
@@ -231,34 +203,6 @@ fun CameraControls(
                     }
                 )
             }
-        }
-        
-        // Beauty Effects Popup
-        if (showBeautyPopup.value) {
-            HorizontalScrollablePopup(
-                items = BeautyEffect.entries.map { it.toPopupItemData() },
-                onItemClick = { item ->
-                    val beautyEffect = BeautyEffect.entries[item.id]
-                    onBeautyEffectSelected(beautyEffect)
-                    showBeautyPopup.value = false
-                },
-                onDismiss = { showBeautyPopup.value = false },
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-        
-        // 3D Models Popup
-        if (show3DPopup.value) {
-            HorizontalScrollablePopup(
-                items = TypeModel3D.entries.map { it.toPopupItemData() },
-                onItemClick = { item ->
-                    val model3D = TypeModel3D.entries[item.id]
-                    on3DModelSelected(model3D)
-                    show3DPopup.value = false
-                },
-                onDismiss = { show3DPopup.value = false },
-                modifier = Modifier.align(Alignment.Center)
-            )
         }
         
         // Image Filters Popup - ✅ REAL OpenGL ES Filters!
