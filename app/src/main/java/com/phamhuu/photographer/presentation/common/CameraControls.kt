@@ -62,6 +62,18 @@ fun CameraControls(
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
     val showFilterPopup = remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val onChangeCameraModifier = remember(onShowGallery) {
+        modifier.clickable {
+            if (onShowGallery != null) {
+                onShowGallery()
+            }
+        }
+    }
+    val uriThumbnails = remember(fileUri) {
+        fileUri.let { Gallery.getResourceUri(context, fileUri) }
+    }
 
     Box(
         modifier = modifier
@@ -155,12 +167,8 @@ fun CameraControls(
             ) {
                 if (fileUri != null)
                     AsyncImageCustom(
-                        imageSource = Gallery.getResourceUri(LocalContext.current, fileUri),
-                        modifier.clickable {
-                            if (onShowGallery != null) {
-                                onShowGallery()
-                            }
-                        },
+                        imageSource = uriThumbnails,
+                        modifier = onChangeCameraModifier,
                         size = 40.dp,
                     )
                 else
