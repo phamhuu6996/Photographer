@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.R
-import com.phamhuu.photographer.enums.BeautyEffect
 import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.ImageMode
 import com.phamhuu.photographer.enums.RatioCamera
@@ -203,7 +202,7 @@ fun CameraControls(
 
                 // Image Filters button với status indicator
                 ImageCustom(
-                    id = R.drawable.ic_effects,
+                    id = R.drawable.magic,
                     imageMode = ImageMode.MEDIUM,
                     color = if (currentFilter != ImageFilter.NONE) Color.Yellow else Color.White,
                     modifier = Modifier.clickable { 

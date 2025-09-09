@@ -240,6 +240,7 @@ class CameraViewModel(
             
             try {
                 val hasFilter = uiState.value.currentFilter != ImageFilter.NONE
+                delay(_uiState.value.timerDelay.millisecond)
                 capturePhoto(context, hasFilter)
             } catch (e: Exception) {
                 updateError("Photo capture failed: ${e.message}")
@@ -297,7 +298,6 @@ class CameraViewModel(
     private fun captureFromCamera(photoFile: File, context: Context) {
         val imageCapture = imageCapture ?: return
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
         imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(context),
