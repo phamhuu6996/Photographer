@@ -128,8 +128,10 @@ class CameraViewModel(
         context: Context,
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView,
+        ratioCamera: RatioCamera? = null,
     ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        var setRatio = false
 
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
@@ -139,7 +141,7 @@ class CameraViewModel(
             val imageAnalyzerBuilder = ImageAnalysis.Builder()
             
             if (uiState.value.setupCapture) {
-                val resolutionSelect = resolutionSelector(uiState.value.ratioCamera)
+                val resolutionSelect = resolutionSelector(ratioCamera ?: uiState.value.ratioCamera)
                 previewBuilder.setResolutionSelector(resolutionSelect)
                 imageCaptureBuilder.setResolutionSelector(resolutionSelect)
                 imageAnalyzerBuilder.setResolutionSelector(resolutionSelect)
@@ -157,6 +159,10 @@ class CameraViewModel(
                 .build()
                 .also {
                     it.setAnalyzer(Dispatchers.Default.asExecutor()) { image ->
+                        if (ratioCamera != null && !setRatio) {
+                            setRatio = true
+                            _uiState.value = _uiState.value.copy(ratioCamera = ratioCamera)
+                        }
                         handleImageAnalyzerFrame(image)
                         image.close()
                     }
@@ -341,9 +347,8 @@ class CameraViewModel(
         cameraControl?.enableTorch(newFlashMode == ImageCapture.FLASH_MODE_ON)
     }
 
-    fun setRatioCamera(ratioCamera: RatioCamera, context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
-        _uiState.value = _uiState.value.copy(ratioCamera = ratioCamera)
-        startCamera(context, lifecycleOwner, previewView)
+    fun setRatioCamera(ratioCamera: RatioCamera, context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+        startCamera(context, lifecycleOwner, previewView, ratioCamera)
     }
 
     fun setTimerDelay(timerDelay: TimerDelay) {
