@@ -31,6 +31,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
+import com.phamhuu.photographer.domain.model.BeautySettings
 import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
 import com.phamhuu.photographer.domain.usecase.RecordVideoUseCase
 import com.phamhuu.photographer.domain.usecase.SavePhotoUseCase
@@ -110,12 +111,11 @@ class CameraViewModel(
                 // If already processing, close the ImageProxy to prevent memory leaks
                 return
             }
-            if (uiState.value.currentFilter != ImageFilter.NONE) {
-                gPUPixelHelper?.handleImageAnalytic(
-                    imageProxy,
-                    uiState.value.lensFacing == CameraSelector.LENS_FACING_FRONT,
-                )
-            }
+            // Always process with filter since beauty filter is always active
+            gPUPixelHelper?.handleImageAnalytic(
+                imageProxy,
+                uiState.value.lensFacing == CameraSelector.LENS_FACING_FRONT,
+            )
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -185,6 +185,10 @@ class CameraViewModel(
                 )
                 cameraControl = camera?.cameraControl
 
+
+                // Apply default beauty settings when camera starts
+                applyBeautySettingsToFilter(_uiState.value.beautySettings)
+
             } catch (e: Exception) {
                 updateError("Không thể khởi động camera: ${e.message}")
             }
@@ -223,8 +227,8 @@ class CameraViewModel(
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    currentFilter = ImageFilter.NONE // Fallback to no filter on error
+                    isLoading = false
+                    // No fallback needed - filter is always BEAUTY
                 )
                 updateError("Failed to apply filter: ${e.message}")
                 println("❌ CameraViewModel: Filter application failed: ${e.message}")
@@ -239,7 +243,7 @@ class CameraViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                val hasFilter = uiState.value.currentFilter != ImageFilter.NONE
+                val hasFilter = true // Always has filter since beauty is always active
                 delay(_uiState.value.timerDelay.millisecond)
                 capturePhoto(context, hasFilter)
             } catch (e: Exception) {
@@ -383,6 +387,70 @@ class CameraViewModel(
         startCamera(context, lifecycleOwner, previewView)
     }
 
+    // ================ BEAUTY SETTINGS METHODS ================
+    
+    /**
+     * Toggle beauty adjustment panel visibility
+     */
+    fun toggleBeautyPanel() {
+        _uiState.value = _uiState.value.copy(
+            isBeautyPanelVisible = !_uiState.value.isBeautyPanelVisible
+        )
+    }
+    
+    /**
+     * Update beauty settings and apply to GPU filter
+     */
+    fun updateBeautySettings(newSettings: BeautySettings) {
+        val validatedSettings = newSettings.validate()
+        _uiState.value = _uiState.value.copy(beautySettings = validatedSettings)
+        
+        // Apply settings to GPUPixel filter
+        applyBeautySettingsToFilter(validatedSettings)
+    }
+    
+    /**
+     * Update individual beauty parameter
+     */
+    fun updateSkinSmoothing(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(skinSmoothing = value))
+    }
+    
+    fun updateWhiteness(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(whiteness = value))
+    }
+    
+    fun updateThinFace(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(thinFace = value))
+    }
+    
+    fun updateBigEye(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(bigEye = value))
+    }
+    
+    fun updateBlendLevel(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(blendLevel = value))
+    }
+    
+    /**
+     * Reset beauty settings to default values
+     */
+    fun resetBeautySettings() {
+        updateBeautySettings(BeautySettings.default())
+    }
+    
+    /**
+     * Apply beauty settings to GPUPixel filter
+     */
+    private fun applyBeautySettingsToFilter(settings: BeautySettings) {
+        gPUPixelHelper?.updateBeautySettings(settings)
+    }
+
     fun changeZoom(zoomChange: Float) {
         val maxZoom: Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1f
         val minZoom: Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1f
@@ -508,15 +576,10 @@ class CameraViewModel(
                 }
                 
                 val videoFile = videoFileResult.getOrThrow()
-                val hasFilter = uiState.value.currentFilter != ImageFilter.NONE
+                val hasFilter = true // Always has filter since beauty is always active
                 
-                if (hasFilter) {
-                    // Record với filter sử dụng MediaCodec + MediaMuxer
-                    startFilteredRecording(videoFile)
-                } else {
-                    // Record normal sử dụng CameraX VideoCapture
-                    startNormalRecording(videoFile, context)
-                }
+                // Always use filtered recording since beauty filter is always active
+                startFilteredRecording(videoFile)
                 
             } catch (e: Exception) {
                 updateError("Failed to start recording: ${e.message}")
@@ -590,40 +653,30 @@ class CameraViewModel(
     fun stopRecording() {
         viewModelScope.launch {
             try {
-                val hasFilter = uiState.value.currentFilter != ImageFilter.NONE
+                val hasFilter = true // Always has filter since beauty is always active
                 
-                if (hasFilter) {
-                    // Stop filtered recording
-                    gPUPixelHelper?.let { helper ->
-                        helper.glSurfaceView?.stopFilteredVideoRecording { success: Boolean, videoFile: File? ->
-                            _uiState.value = _uiState.value.copy(isRecording = false)
-                            
-                            if (success && videoFile != null) {
-                                viewModelScope.launch {
-                                    saveVideoToGallery(videoFile)
-                                }
-                                Log.d("CameraViewModel", "Filtered recording stopped successfully")
-                            } else {
-                                updateError("Failed to stop filtered recording")
-                                Log.e("CameraViewModel", "Filtered recording stop failed")
+                // Always use filtered recording since beauty filter is always active
+                // Stop filtered recording
+                gPUPixelHelper?.let { helper ->
+                    helper.glSurfaceView?.stopFilteredVideoRecording { success: Boolean, videoFile: File? ->
+                        _uiState.value = _uiState.value.copy(isRecording = false)
+                        
+                        if (success && videoFile != null) {
+                            viewModelScope.launch {
+                                saveVideoToGallery(videoFile)
                             }
-                        } ?: run {
-                            _uiState.value = _uiState.value.copy(isRecording = false)
-                            updateError("GL Surface View not initialized")
+                            Log.d("CameraViewModel", "Filtered recording stopped successfully")
+                        } else {
+                            updateError("Failed to stop filtered recording")
+                            Log.e("CameraViewModel", "Filtered recording stop failed")
                         }
                     } ?: run {
                         _uiState.value = _uiState.value.copy(isRecording = false)
-                        updateError("Filter helper not initialized")
+                        updateError("GL Surface View not initialized")
                     }
-                } else {
-                    // Stop normal recording
-                    recording?.let { activeRecording ->
-                        activeRecording.stop()
-                        Log.d("CameraViewModel", "Normal recording stop requested")
-                    } ?: run {
-                        Log.w("CameraViewModel", "No active recording to stop")
-                        _uiState.value = _uiState.value.copy(isRecording = false)
-                    }
+                } ?: run {
+                    _uiState.value = _uiState.value.copy(isRecording = false)
+                    updateError("Filter helper not initialized")
                 }
                 
             } catch (e: Exception) {

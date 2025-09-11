@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.opengl.GLSurfaceView
 import android.util.Log
 import androidx.camera.core.ImageProxy
+import com.phamhuu.photographer.domain.model.BeautySettings
 import com.pixpark.gpupixel.FaceDetector
 import com.pixpark.gpupixel.GPUPixel
 import com.pixpark.gpupixel.GPUPixelFilter
@@ -29,6 +30,12 @@ class GPUPixelHelper {
     private var mFaceDetector: FaceDetector? = null
     private var mSinkRawData: GPUPixelSinkRawData? = null
     var glSurfaceView: CameraGLSurfaceView? = null
+    
+    // Track face detection state
+    private var hasFaceDetected: Boolean = false
+    
+    // Store current beauty settings to re-apply when face detection changes
+    private var currentBeautySettings: BeautySettings? = null
 
     fun initGpuPixel(context: Context, gLSurfaceView: CameraGLSurfaceView) {
         this.glSurfaceView = gLSurfaceView
@@ -52,13 +59,6 @@ class GPUPixelHelper {
         mLipstickFilter!!.AddSink(mBeautyFilter)
         mBeautyFilter!!.AddSink(mFaceReshapeFilter)
         mFaceReshapeFilter!!.AddSink(mSinkRawData)
-
-        // Set default parameters
-        mBeautyFilter!!.SetProperty("skin_smoothing", 3f / 10.0f)
-        mBeautyFilter!!.SetProperty("whiteness", 3f / 10.0f)
-        mFaceReshapeFilter!!.SetProperty("thin_face", 3f / 160.0f)
-        mFaceReshapeFilter!!.SetProperty("big_eye", 3f / 40.0f)
-        mLipstickFilter!!.SetProperty("blend_level", 3f / 10.0f)
     }
 
     fun handleImageAnalytic(imageProxy: ImageProxy, isFrontCamera: Boolean) {
@@ -91,10 +91,23 @@ class GPUPixelHelper {
             FaceDetector.GPUPIXEL_FRAME_TYPE_RGBA
         )
 
+        val previousFaceState = hasFaceDetected
+        
         if (landmarks != null && landmarks.isNotEmpty()) {
             Log.d("Face landmarks", "Face landmarks detected: " + landmarks.size)
+            hasFaceDetected = true
             mFaceReshapeFilter!!.SetProperty("face_landmark", landmarks)
             mLipstickFilter!!.SetProperty("face_landmark", landmarks)
+        } else {
+            // No face detected
+            hasFaceDetected = false
+            Log.d("Face landmarks", "No face detected - disabling face-dependent effects")
+        }
+        
+        // Re-apply beauty settings if face detection state changed
+        if (previousFaceState != hasFaceDetected && currentBeautySettings != null) {
+            Log.d("GPUPixelHelper", "Face detection state changed, re-applying beauty settings")
+            applyBeautySettings(currentBeautySettings!!)
         }
 
 
@@ -167,4 +180,53 @@ class GPUPixelHelper {
 
         glSurfaceView?.release()
     }
+    
+    /**
+     * Update beauty settings for all filters
+     * 
+     * @param settings BeautySettings object containing all beauty parameters
+     */
+    fun updateBeautySettings(settings: BeautySettings) {
+        // Store current settings for re-application when face detection changes
+        currentBeautySettings = settings
+        applyBeautySettings(settings)
+    }
+    
+    /**
+     * Apply beauty settings with face detection logic
+     */
+    private fun applyBeautySettings(settings: BeautySettings) {
+        try {
+            // Always apply general beauty effects (không cần face detection)
+            mBeautyFilter?.SetProperty("skin_smoothing", settings.skinSmoothing)
+            mBeautyFilter?.SetProperty("whiteness", settings.whiteness)
+            
+            // Only apply face-dependent effects when face is detected
+            if (hasFaceDetected) {
+                // Update face reshape filter properties
+                mFaceReshapeFilter?.SetProperty("thin_face", settings.thinFace)
+                mFaceReshapeFilter?.SetProperty("big_eye", settings.bigEye)
+                
+                // Update lipstick filter properties
+                mLipstickFilter?.SetProperty("blend_level", settings.blendLevel)
+                
+                Log.d("GPUPixelHelper", "Beauty settings applied with face effects: $settings")
+            } else {
+                // Disable face-dependent effects
+                mFaceReshapeFilter?.SetProperty("thin_face", 0f)
+                mFaceReshapeFilter?.SetProperty("big_eye", 0f)
+                mLipstickFilter?.SetProperty("blend_level", 0f)
+                
+                Log.d("GPUPixelHelper", "Beauty settings applied without face effects (no face detected)")
+            }
+        } catch (e: Exception) {
+            Log.e("GPUPixelHelper", "Error applying beauty settings: ${e.message}")
+        }
+    }
+    
+    /**
+     * Get current face detection state
+     * @return true if face is currently detected
+     */
+    fun isFaceDetected(): Boolean = hasFaceDetected
 }

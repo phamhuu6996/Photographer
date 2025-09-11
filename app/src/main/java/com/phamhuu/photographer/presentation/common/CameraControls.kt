@@ -56,11 +56,10 @@ fun CameraControls(
     onChangeTimeDelay: (TimerDelay) -> Unit,
     onChangeResolution: (RatioCamera) -> Unit,
     onImageFilterSelected: (ImageFilter) -> Unit = {},
-    currentFilter: ImageFilter = ImageFilter.NONE
+    currentFilter: ImageFilter = ImageFilter.BEAUTY
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
-    val showFilterPopup = remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val onChangeCameraModifier = remember(onShowGallery) {
@@ -200,32 +199,19 @@ fun CameraControls(
                         }
                     )
 
-                // Image Filters button với status indicator
+                // Beauty Adjustment button
                 ImageCustom(
                     id = R.drawable.magic,
                     imageMode = ImageMode.MEDIUM,
-                    color = if (currentFilter != ImageFilter.NONE) Color.Yellow else Color.White,
+                    color = Color.White, // Normal white color since filter is default
                     modifier = Modifier.clickable { 
-                        showFilterPopup.value = true
+                        onImageFilterSelected(ImageFilter.BEAUTY) // Triggers beauty panel toggle
                     }
                 )
             }
         }
         
-        // Image Filters Popup - ✅ REAL OpenGL ES Filters!
-        if (showFilterPopup.value) {
-            HorizontalScrollablePopup(
-                items = ImageFilter.entries.map { it.toPopupItemData() },
-                selectedItemId = currentFilter.ordinal,
-                onItemClick = { item ->
-                    val imageFilter = ImageFilter.entries[item.id]
-                    onImageFilterSelected(imageFilter)
-                    showFilterPopup.value = false
-                },
-                onDismiss = { showFilterPopup.value = false },
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
+        // Filter popup removed - beauty panel is now handled directly in CameraScreen
     }
 }
 

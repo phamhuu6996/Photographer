@@ -35,6 +35,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phamhuu.photographer.enums.ImageFilter
+import com.phamhuu.photographer.presentation.common.BeautyAdjustmentPanel
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.SlideVertically
@@ -111,24 +112,13 @@ fun CameraScreen(
             lifecycle = lifecycleOwner.lifecycle,
         )
         
-        // ✅ Improved view switching với loading feedback
-        when {
-            uiState.value.currentFilter != ImageFilter.NONE -> {
-                // Filtered camera preview với ImageAnalyzer data
-                val ratio = uiState.value.ratioCamera.toRatio()// Default ratio if not set
-                AndroidView(
-                    factory = { filterGLSurfaceView },
-                    modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
-                )
-            }
-            else -> {
-                // Normal camera preview
-                AndroidView(
-                    factory = { previewView },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
+        // ✅ Always show filtered camera preview (no more conditional rendering)
+        // Beauty filter is always active
+        val ratio = uiState.value.ratioCamera.toRatio()
+        AndroidView(
+            factory = { filterGLSurfaceView },
+            modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
+        )
 
         CameraControls(
             onCaptureClick = { viewModel.takePhoto(context) },
@@ -155,8 +145,8 @@ fun CameraScreen(
                 viewModel.setRatioCamera(it, context, lifecycleOwner, previewView)
             },
             onImageFilterSelected = { imageFilter ->
-                // ✅ Real OpenGL ES filtering với ImageAnalyzer data!
-                viewModel.setImageFilter(imageFilter)
+                // ✅ Changed: Now opens beauty adjustment panel instead of switching filters
+                viewModel.toggleBeautyPanel()
             },
             currentFilter = uiState.value.currentFilter
         )
@@ -172,6 +162,20 @@ fun CameraScreen(
                 { brightness -> viewModel.setBrightness(brightness) }
             )
         }
+        
+        // Beauty Adjustment Panel
+        BeautyAdjustmentPanel(
+            isVisible = uiState.value.isBeautyPanelVisible,
+            beautySettings = uiState.value.beautySettings,
+            onSkinSmoothingChange = { viewModel.updateSkinSmoothing(it) },
+            onWhitenessChange = { viewModel.updateWhiteness(it) },
+            onThinFaceChange = { viewModel.updateThinFace(it) },
+            onBigEyeChange = { viewModel.updateBigEye(it) },
+            onBlendLevelChange = { viewModel.updateBlendLevel(it) },
+            onResetToDefaults = { viewModel.resetBeautySettings() },
+            onDismiss = { viewModel.toggleBeautyPanel() },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 

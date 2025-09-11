@@ -25,7 +25,6 @@ enum class ImageFilter(
     val displayName: String, 
     val iconRes: Int,
 ) {
-    NONE("Không", R.drawable.ic_filter),
     BEAUTY("Beauty", R.drawable.magic);
     
     fun toPopupItemData(): PopupItemData {
