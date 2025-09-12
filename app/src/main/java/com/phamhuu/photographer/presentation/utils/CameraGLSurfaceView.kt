@@ -28,9 +28,13 @@ class CameraGLSurfaceView (
     /**
      * Bắt đầu ghi filtered video
      */
-    fun startFilteredVideoRecording(videoFile: File, callback: (Boolean) -> Unit) {
+    fun startFilteredVideoRecording(
+        videoFile: File, 
+        overlayFunction: ((android.graphics.Canvas, Int, Int) -> Unit)? = null,
+        callback: (Boolean) -> Unit
+    ) {
         queueEvent {
-            filterRenderer.startFilteredVideoRecording(videoFile) { success ->
+            filterRenderer.startFilteredVideoRecording(videoFile, overlayFunction) { success ->
                 callback(success)
             }
         }

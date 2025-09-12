@@ -79,6 +79,9 @@ class FilterRenderer() : GLSurfaceView.Renderer {
     
     /** File video output cho recording */
     private var mVideoFile: File? = null
+    
+    /** Function để render text overlay lên video */
+    private var mOverlayFunction: ((android.graphics.Canvas, Int, Int) -> Unit)? = null
 
     // Create vertex shader
     val vertexShaderCode = """attribute vec2 aPosition;
@@ -461,9 +464,12 @@ void main() {
 
         // Render to encoder surface if recording
         if (mIsRecording) {
-            recordingManager.renderToEncoderSurface { width, height ->
-                renderToTarget(0, width, height)
-            }
+            recordingManager.renderToEncoderSurface(
+                renderFunction = { width, height ->
+                    renderToTarget(0, width, height)
+                },
+                overlayFunction = mOverlayFunction
+            )
             recordingManager.drainEncoders()
         }
     }
@@ -653,8 +659,13 @@ void main() {
      * @param videoFile File output cho video
      * @param callback Callback trả về kết quả (true = thành công, false = lỗi)
      */
-    fun startFilteredVideoRecording(videoFile: File, callback: (Boolean) -> Unit) {
+    fun startFilteredVideoRecording(
+        videoFile: File, 
+        overlayFunction: ((android.graphics.Canvas, Int, Int) -> Unit)? = null,
+        callback: (Boolean) -> Unit
+    ) {
         mVideoFile = videoFile
+        mOverlayFunction = overlayFunction
         mIsRecording = true
         recordingManager.startFilteredVideoRecording(videoFile, mViewWidth, mViewHeight, callback)
     }

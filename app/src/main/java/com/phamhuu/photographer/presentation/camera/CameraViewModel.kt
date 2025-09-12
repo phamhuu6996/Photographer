@@ -716,7 +716,12 @@ class CameraViewModel(
 
     private suspend fun startFilteredRecording(videoFile: File) {
         gPUPixelHelper?.let { helper ->
-            helper.glSurfaceView?.startFilteredVideoRecording(videoFile) { success ->
+            // Create overlay function if location enabled
+            val overlayFunction = if (uiState.value.isLocationEnabled) {
+                createVideoOverlayFunction()
+            } else null
+            
+            helper.glSurfaceView?.startFilteredVideoRecording(videoFile, overlayFunction) { success ->
                 if (success) {
                     _uiState.value = _uiState.value.copy(
                         isRecording = true,
@@ -734,6 +739,20 @@ class CameraViewModel(
         } ?: run {
             updateError("Filter helper not initialized")
             _uiState.value = _uiState.value.copy(isLoading = false)
+        }
+    }
+    
+    /**
+     * Create overlay function for video recording
+     */
+    private fun createVideoOverlayFunction(): (android.graphics.Canvas, Int, Int) -> Unit = { canvas, width, height ->
+        val location = uiState.value.locationState.locationInfo
+        if (showOnVideos && location != null) {
+            com.phamhuu.photographer.data.renderer.AddTextService.renderAddressToVideo(
+                canvas, 
+                location.address, 
+                width
+            )
         }
     }
 
