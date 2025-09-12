@@ -6,6 +6,5 @@ import kotlinx.coroutines.flow.Flow
 interface LocationRepository {
     fun getCurrentLocation(): Flow<LocationInfo?>
     suspend fun getLastKnownLocation(): LocationInfo?
-    fun startLocationUpdates()
     fun stopLocationUpdates()
 }

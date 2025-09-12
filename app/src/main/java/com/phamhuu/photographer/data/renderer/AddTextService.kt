@@ -7,8 +7,7 @@ import android.graphics.Typeface
 import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import com.phamhuu.photographer.presentation.common.AddressOverlayConstants
-import com.phamhuu.photographer.presentation.common.AddressTextUtils
+import com.phamhuu.photographer.contants.Contants
 
 /**
  * AddTextService - Handles text rendering for both photo capture and video recording
@@ -64,7 +63,7 @@ object AddTextService {
             lines.add(currentLine)
         }
         
-        return lines.take(AddressOverlayConstants.MAX_LINES).ifEmpty { listOf(text) }
+        return lines.take(Contants.MAX_LINES).ifEmpty { listOf(text) }
     }
     
     /**
@@ -96,15 +95,15 @@ object AddTextService {
         address: String,
         bitmapWidth: Int,
     ) {
-        val textSizePx = bitmapWidth * AddressOverlayConstants.TEXT_SIZE_RATIO
+        val textSizePx = bitmapWidth * Contants.TEXT_SIZE_RATIO
         val textPaint = createTextPaint(textSizePx)
 
-        val maxWidth = bitmapWidth * AddressOverlayConstants.MAX_WIDTH_RATIO
-        val formattedAddress = AddressTextUtils.formatAddress(address)
+        val maxWidth = bitmapWidth * Contants.MAX_WIDTH_RATIO
+        val formattedAddress = formatAddress(address)
         val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
         
         val padding = bitmapWidth * 0.02f
-        val lineHeight = textSizePx * AddressOverlayConstants.LINE_HEIGHT_MULTIPLIER
+        val lineHeight = textSizePx * Contants.LINE_HEIGHT_MULTIPLIER
         
         // TOP_RIGHT positioning
         val startX = bitmapWidth - padding  // Right edge position
@@ -144,13 +143,11 @@ object AddTextService {
         textSizePx: Float
     ) {
         val textPaint = createTextPaint(textSizePx)
-
-        // Use most of the canvas width for text, leaving some padding
         val maxWidth = canvasWidth * 0.9f
-        val formattedAddress = AddressTextUtils.formatAddress(address)
+        val formattedAddress = formatAddress(address)
         val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
         
-        val lineHeight = textSizePx * AddressOverlayConstants.LINE_HEIGHT_MULTIPLIER
+        val lineHeight = textSizePx * Contants.LINE_HEIGHT_MULTIPLIER
         
         // TOP_RIGHT positioning for preview - position text within canvas bounds
         // startX should be where the RIGHT edge of text should be, not where text starts

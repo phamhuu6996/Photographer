@@ -123,8 +123,8 @@ data class LocationInfo(
 - Permissions and LocationRepository
 - Basic overlay with AddressOverlay composable  
 - Photo capture integration with PhotoCaptureService
-- Simple toggle icon for enable/disable
-- Location state unified into CameraUiState
+- Location toggle integrated into CameraControls with on/off icons
+- Location state unified into CameraUiState (isLocationEnabled)
 - Basic unit tests
 
 ✅ **Completed Medium Priority:**
@@ -143,13 +143,21 @@ data class LocationInfo(
 - Advanced performance optimization  
 - Comprehensive integration tests
 
-🎯 **Current Implementation (AddTextService - Data Layer):**
+🎯 **Current Implementation:**
+
+**AddTextService (Data Layer):**
 - **Service:** AddTextService in data/renderer for all text rendering
 - **Photo Capture:** renderAddressToPhoto() for bitmap output
-- **Video Recording:** renderAddressToVideo() for frame-by-frame overlay
-- **Preview:** renderAddressForPreview() for Compose Canvas
-- **Paint Objects:** Shared createTextPaint() and createStrokePaint()
+- **Video Recording:** renderAddressToVideo() for frame-by-frame overlay  
+- **Preview:** renderAddressForPreview() for Compose Canvas with extra right padding
+- **Paint Objects:** Shared createTextPaint() with Paint.Align.RIGHT
 - **Text Processing:** Shared wrapText() and drawAddressText() logic
 - **Architecture:** Data layer service used by presentation and services
-- **Default:** Location enabled, TOP_RIGHT, FULL address
-- **Photos/Videos:** Follow main toggle
+
+**Location Toggle (UI Layer):**
+- **Integration:** Built into CameraControls top row with other camera controls
+- **Icons:** R.drawable.location_on / R.drawable.location_off based on state
+- **State:** CameraUiState.isLocationEnabled (default: true)
+- **Handler:** onChangeLocationToggle calls viewModel.toggleLocationEnabled()
+- **Conditional Display:** Address overlay only shows when isLocationEnabled = true
+- **Position:** Top-right aligned with proper padding for readability

@@ -12,7 +12,6 @@ import com.phamhuu.photographer.data.repository.GalleryRepository
 import com.phamhuu.photographer.data.repository.GalleryRepositoryImpl
 import com.phamhuu.photographer.data.repository.LocationRepository
 import com.phamhuu.photographer.data.repository.LocationRepositoryImpl
-import com.phamhuu.photographer.data.service.VideoRecordingService
 import com.phamhuu.photographer.domain.usecase.AddTextCaptureUseCase
 import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
 import com.phamhuu.photographer.domain.usecase.RecordVideoUseCase
@@ -48,9 +47,6 @@ val appModule = module {
             Geocoder(androidContext())
         )
     }
-    
-    // Services
-    single { VideoRecordingService(androidContext()) }
     
     // Renderers (Data Layer)
     single { com.phamhuu.photographer.data.renderer.AddTextService }

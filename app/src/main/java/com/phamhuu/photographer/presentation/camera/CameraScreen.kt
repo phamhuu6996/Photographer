@@ -130,8 +130,6 @@ fun CameraScreen(
             if (uiState.value.isLocationEnabled) {
                 CanvasAddressOverlay(
                     locationInfo = uiState.value.locationState.locationInfo,
-                    isLoading = uiState.value.locationState.isLoading,
-                    error = uiState.value.locationState.error,
                     modifier = Modifier.align(Alignment.TopEnd)
                 )
             }

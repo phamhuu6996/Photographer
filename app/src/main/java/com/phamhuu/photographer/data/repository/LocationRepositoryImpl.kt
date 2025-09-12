@@ -79,11 +79,6 @@ class LocationRepositoryImpl(
             }
     }
 
-    @SuppressLint("MissingPermission")
-    override fun startLocationUpdates() {
-        // Implementation handled in getCurrentLocation() flow
-    }
-
     override fun stopLocationUpdates() {
         locationCallback?.let {
             fusedLocationClient.removeLocationUpdates(it)
