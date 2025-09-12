@@ -1,5 +1,7 @@
 package com.phamhuu.photographer.domain.usecase
 
+import android.graphics.Bitmap
+import android.net.LocalSocketAddress
 import android.net.Uri
 import com.phamhuu.photographer.data.repository.CameraRepository
 import com.phamhuu.photographer.data.repository.GalleryRepository
@@ -68,4 +70,16 @@ class GetFirstGalleryItemUseCase(
             Result.failure(e)
         }
     }
-} 
+}
+
+class AddTextCaptureUseCase(
+    private val cameraRepository: CameraRepository
+) {
+    suspend operator fun invoke(bitmap: Bitmap, address: String): Result<Bitmap> {
+        return try {
+            Result.success(cameraRepository.addAddressCapture(bitmap, address))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}

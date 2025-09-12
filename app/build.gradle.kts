@@ -54,6 +54,8 @@ dependencies {
     //noinspection GradlePath
     implementation(files("./libs/gpupixel-release.aar"))
     testImplementation(libs.junit)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
@@ -89,4 +91,7 @@ dependencies {
 
     implementation(libs.koin.android)
     implementation (libs.koin.androidx.compose)
+
+    // Location
+    implementation(libs.play.services.location)
 }

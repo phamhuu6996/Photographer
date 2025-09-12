@@ -1,232 +1,155 @@
 # Tasks
 
-## Update Filter System - Always-On Beauty Filter
-**Last performed:** December 2024
-**Status:** ✅ Completed - Successfully implemented
-**Complexity:** High - Required UI, filter engine, and state management changes
+- Add/adjust filters: update GPU Pixel configs; test performance on real devices.
+- Camera stability: handle lifecycle, permissions, preview surface size, black screen fixes.
+- ML features: configure MediaPipe models (`.task`), manage frame conversion efficiently.
+- 3D rendering: load `.glb` assets via Filament; manage renderer lifecycle.
+- Navigation/State: keep composables small; hoist state to view models.
+- Perf tips: avoid unnecessary allocations in frame loop; prefer immutable data for Compose.
 
-### Overview
-Change from current on/off filter system to always-on beauty filter with adjustable parameters accessible via magic icon (R.drawable.magic).
+## Location address overlay - Detailed Task Breakdown
 
-### Requirements
-1. **Always-on Filter**: Remove normal camera mode, filter always active
-2. **Beauty Adjustment Panel**: Magic icon opens adjustment controls
-3. **5 Beauty Parameters** with default values:
-   - `skin_smoothing`: 3f / 10.0f (0.3)
-   - `whiteness`: 3f / 10.0f (0.3)
-   - `thin_face`: 3f / 160.0f (0.01875)
-   - `big_eye`: 3f / 40.0f (0.075)
-   - `blend_level`: 3f / 10.0f (0.3)
+### Phase 1: Foundation & Permissions
+1.1. Add location dependencies to `build.gradle.kts`:
+- Google Play Services Location
+- Geocoder (or use built-in Android Geocoder)
 
-### Files to Modify
+1.2. Add manifest permissions to `AndroidManifest.xml`:
+- `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`
+- Consider `ACCESS_BACKGROUND_LOCATION` if needed
 
-#### Core Logic Files
-- `CameraViewModel.kt` - Remove filter switching, add beauty settings state
-- `CameraScreen.kt` - Update UI for always-on filter, add beauty panel
-- `GPUPixelHelper.kt` - Add beauty property setting methods
-- `enums/enums.kt` - Remove ImageFilter.NONE, add BeautySettings data class
+1.3. Update existing permission handler:
+- Add location permissions to existing `InitCameraPermission`
+- Update permissions array to include `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`
+- Leverage existing permission handling infrastructure
 
-#### UI Components
-- `presentation/common/CameraControls.kt` - Update magic icon behavior
-- Create new: `presentation/common/BeautyAdjustmentPanel.kt` - Slider controls
-
-#### Data Layer
-- Create new: `domain/model/BeautySettings.kt` - Data model
-- Update DI configuration if needed
-
-### Implementation Plan
-
-#### Phase 1: Analysis & Preparation
-1. **Analyze Current Filter System**
-   - Review `CameraViewModel.kt` filter switching logic
-   - Review `CameraScreen.kt` conditional rendering
-   - Review `GPUPixelHelper.kt` filter implementation
-   - Review `ImageFilter` enum usage
-
-2. **Analyze Beauty Filter Integration**
-   - Locate `mBeautyFilter`, `mFaceReshapeFilter`, `mLipstickFilter` usage
-   - Understand GPUPixel library interface
-   - Verify property setting methods
-
-#### Phase 2: Data Model Creation
-3. **Create BeautySettings Data Class**
-   ```kotlin
-   data class BeautySettings(
-       val skinSmoothing: Float = 3f / 10.0f,
-       val whiteness: Float = 3f / 10.0f,
-       val thinFace: Float = 3f / 160.0f,
-       val bigEye: Float = 3f / 40.0f,
-       val blendLevel: Float = 3f / 10.0f
-   )
-   ```
-
-4. **Update CameraViewModel State**
-   - Add `beautySettings: BeautySettings` to UI state
-   - Add methods: `updateBeautySettings()`, `resetBeautySettings()`
-   - Remove filter on/off logic
-
-#### Phase 3: Filter System Refactor
-5. **Remove Filter On/Off Logic**
-   - Remove `ImageFilter.NONE` from enum
-   - Update `CameraViewModel.startCamera()` to always enable filter
-   - Simplify `CameraScreen` conditional rendering
-   - Update filter initialization
-
-6. **Implement Beauty Property Setting**
-   - Add methods in `GPUPixelHelper.kt`:
-     ```kotlin
-     fun updateBeautySettings(settings: BeautySettings)
-     fun setSkinSmoothing(value: Float)
-     fun setWhiteness(value: Float)
-     // ... other properties
-     ```
-
-#### Phase 4: UI Implementation
-7. **Create BeautyAdjustmentPanel**
-   - Slider for each beauty property
-   - Real-time preview updates
-   - Reset to defaults button
-   - Save/Cancel functionality
-
-8. **Update CameraControls**
-   - Change magic icon behavior from filter toggle to beauty panel toggle
-   - Add panel show/hide animation
-   - Integrate with CameraScreen
-
-#### Phase 5: Integration & Testing
-9. **Connect UI to Filter Engine**
-   - Link slider changes to `updateBeautySettings()`
-   - Implement real-time property updates
-   - Optimize performance for smooth adjustments
-
-10. **Testing & Polish**
-    - Test on multiple devices
-    - Verify performance with real-time updates
-    - Polish UI animations and responsiveness
-    - Test edge cases and error handling
-
-### Important Considerations
-
-#### Performance
-- Real-time beauty adjustments may impact performance
-- Consider debouncing slider updates
-- Monitor memory usage during adjustments
-
-#### User Experience  
-- Smooth transitions when opening/closing beauty panel
-- Clear visual feedback for current settings
-- Intuitive slider ranges and sensitivity
-
-#### Technical Challenges
-- GPUPixel library integration for property setting
-- Real-time filter parameter updates
-- State management for beauty settings
-- UI responsiveness during adjustments
-
-### Success Criteria
-- ✅ Filter always active (no normal camera mode)
-- ✅ Magic icon opens beauty adjustment panel
-- ✅ 5 beauty parameters adjustable with sliders
-- ✅ Real-time preview updates
-- ✅ Smooth performance (30+ FPS maintained)
-- ✅ Settings persist during session
-- ✅ Default values applied correctly
-
-### Testing Checklist
-- [x] Filter always active on camera start
-- [x] Magic icon toggles beauty panel
-- [x] All 5 sliders functional with correct ranges
-- [x] Real-time updates work smoothly
-- [ ] Performance acceptable on target devices (needs device testing)
-- [x] Default values applied correctly
-- [x] Panel animations smooth
-- [x] Edge cases handled properly
-
-### Implementation Summary
-**Successfully implemented all core requirements:**
-- ✅ Always-on beauty filter system
-- ✅ Magic icon opens beauty adjustment panel
-- ✅ 5 beauty parameters with sliders (skin_smoothing, whiteness, thin_face, big_eye, blend_level)
-- ✅ Real-time preview updates
-- ✅ Default values matching specifications
-- ✅ Clean architecture integration
-- ✅ Removed filter on/off logic
-- ✅ Updated all conditional rendering
-
-**Files Created/Modified:**
-- `BeautySettings.kt` - New data model
-- `BeautyAdjustmentPanel.kt` - New UI component with SlideHorizontal integration
-- Updated: `CameraUiState.kt`, `CameraViewModel.kt`, `GPUPixelHelper.kt`, `CameraScreen.kt`, `CameraControls.kt`, `enums.kt`
-
-### Recent UI/UX Improvements (December 2024)
-**Additional enhancements completed:**
-- ✅ **Custom Slider Integration**: Replaced standard Material3 sliders with custom SlideHorizontal from UICommon.kt
-- ✅ **Track Thickness**: Increased to 8dp for better visibility and touch interaction
-- ✅ **Transparent Background**: Panel background set to 50% transparency (0.5f alpha)
-- ✅ **Tap-to-Dismiss**: Added background overlay for intuitive panel dismissal
-- ✅ **Compact Design**: Reduced padding and spacing for cleaner look
-- ✅ **Magic Icon Color**: Changed from yellow to white since beauty filter is now default
-- ✅ **Value Normalization**: Proper range handling for different beauty parameters
-- ✅ **Gradient Track**: Beautiful gradient from gray to white for visual appeal
-
-**Technical Implementation:**
-- Created `BeautySlideHorizontal` wrapper component for value range normalization
-- Integrated `CustomSlider` and `CustomPaintSlider` from UICommon.kt
-- Fixed all remaining `ImageFilter.NONE` references in codebase
-- Enhanced user experience with smooth animations and real-time feedback
-
-## Face Detection Logic Fix
-**Performed:** December 2024
-**Status:** ✅ Completed - Smart face-dependent effects implemented
-**Complexity:** Medium - Logic optimization and state management
-
-### Issue Identified
-- Beauty effects (especially lipstick blend) were applying even when no face was detected
-- Face detection state changes weren't triggering beauty settings re-application
-- Users experiencing "ghost effects" when moving face in/out of frame
-
-### Solution Implemented
-1. **State Tracking**: Added `hasFaceDetected` boolean in `GPUPixelHelper`
-2. **Settings Storage**: Added `currentBeautySettings` for re-application scenarios  
-3. **Smart Re-application**: Detect face state changes and auto re-apply settings
-4. **Effect Categories**:
-   - **Face-Independent**: `skin_smoothing`, `whiteness` - always active
-   - **Face-Dependent**: `thin_face`, `big_eye`, `blend_level` - only when face detected
-
-### Technical Implementation
+### Phase 2: Location Service Layer
+2.1. Create location data models:
 ```kotlin
-// Face state change detection
-val previousFaceState = hasFaceDetected
-// ... face detection logic ...
-if (previousFaceState != hasFaceDetected && currentBeautySettings != null) {
-    applyBeautySettings(currentBeautySettings!!)
-}
+data class LocationInfo(
+    val latitude: Double,
+    val longitude: Double, 
+    val address: String,
+    val timestamp: Long
+)
 ```
 
-### Files Modified
-- `GPUPixelHelper.kt` - Added state tracking and auto re-application logic
-- `BeautyAdjustmentPanel.kt` - Added face detection indicators (👤 icons)
+2.2. Create `LocationRepository` in `data/` layer:
+- Interface and implementation
+- Use FusedLocationProviderClient
+- Handle location updates and caching
 
-## Code Cleanup and Optimization  
-**Performed:** December 2024
-**Status:** ✅ Completed - Removed dead code and simplified API
-**Complexity:** Low - Code maintenance and cleanup
+2.3. Create `GeocodingService`:
+- Convert lat/lng to readable address
+- Handle offline/error cases with fallback text
+- Cache recent addresses to avoid API spam
 
-### Actions Taken
-1. **Removed Unused Methods**: Eliminated individual setter methods in `GPUPixelHelper`:
-   - `setSkinSmoothing(value: Float)`
-   - `setWhiteness(value: Float)`
-   - `setThinFace(value: Float)`
-   - `setBigEye(value: Float)`
-   - `setBlendLevel(value: Float)`
+### Phase 3: Location ViewModel & State Management
+3.1. Create `LocationViewModel`:
+- Manage location state with StateFlow
+- Handle permissions state
+- Integrate with Koin DI
 
-2. **Simplified API**: Now exposes only essential methods:
-   - `updateBeautySettings(settings: BeautySettings)` - Main settings application
-   - `isFaceDetected(): Boolean` - Face detection state query
+3.2. Add location state to camera:
+- Extend existing camera ViewModel or create shared state
+- Location updates only when camera active
 
-3. **Preserved Functionality**: All UI interactions still work through `CameraViewModel` wrapper methods
+### Phase 4: UI Overlay Implementation
+4.1. Create `AddressOverlay` composable:
+- Small widget following decomposition rule
+- Configurable position (top-left, bottom-left, etc.)
+- Styled text with background/shadow for readability
 
-### Benefits
-- **Cleaner Code**: Reduced from 232 to ~210 lines in `GPUPixelHelper`
-- **Better Maintainability**: Single point of truth for beauty settings
-- **No Breaking Changes**: Existing UI and ViewModel code unchanged
+4.2. Integrate into camera preview:
+- Add overlay to `CameraControls` or camera screen
+- Position absolute over preview surface
+- Handle orientation changes
+
+### Phase 5: Capture Integration
+5.1. Photo capture with address:
+- Modify capture logic to embed address
+- Option 1: Draw text on bitmap before save
+- Option 2: Write to EXIF metadata
+- Option 3: Both approaches
+
+5.2. Video recording with address:
+- Real-time overlay: Draw text frame-by-frame during recording
+- Post-processing: Add text overlay after recording
+- Consider performance impact
+
+### Phase 6: Settings & Configuration
+6.1. Add settings screen/dialog:
+- Toggle enable/disable address overlay
+- Choose overlay position
+- Choose address format (full/short)
+
+6.2. Persist settings:
+- Use DataStore or SharedPreferences
+- Set reasonable defaults
+
+### Phase 7: Error Handling & Edge Cases
+7.1. Handle permission denied:
+- Show fallback UI
+- Option to manually enable in settings
+- Graceful degradation
+
+7.2. Handle no GPS/network:
+- Show "Location unavailable" text
+- Retry mechanism
+- Offline caching of last known location
+
+7.3. Handle geocoding failures:
+- Fallback to coordinates display
+- Rate limiting protection
+- Network timeout handling
+
+### Phase 8: Testing & Polish
+8.1. Unit tests:
+- LocationRepository tests
+- GeocodingService tests
+- ViewModel state tests
+
+8.2. Integration tests:
+- Permission flow tests
+- Camera capture with address tests
+
+8.3. Performance testing:
+- Memory usage with continuous location updates
+- Battery impact assessment
+- UI responsiveness during geocoding
+
+### Implementation Status:
+✅ **Completed High Priority:**
+- Permissions and LocationRepository
+- Basic overlay with AddressOverlay composable  
+- Photo capture integration with PhotoCaptureService
+- Simple toggle icon for enable/disable
+- Location state unified into CameraUiState
+- Basic unit tests
+
+✅ **Completed Medium Priority:**
+- DI integration with Koin
+- Single unified state object (CameraUiState)
+- EXIF metadata writing
+- Error handling and fallbacks
+
+🚧 **Partially Completed Low Priority:**
+- Basic video service structure (metadata only)
+- Location permission handling
+- Address formatting options
+
+📋 **Remaining Tasks:**
+- Real-time video overlay during recording
+- Advanced performance optimization  
+- Comprehensive integration tests
+
+🎯 **Current Implementation (AddTextService - Data Layer):**
+- **Service:** AddTextService in data/renderer for all text rendering
+- **Photo Capture:** renderAddressToPhoto() for bitmap output
+- **Video Recording:** renderAddressToVideo() for frame-by-frame overlay
+- **Preview:** renderAddressForPreview() for Compose Canvas
+- **Paint Objects:** Shared createTextPaint() and createStrokePaint()
+- **Text Processing:** Shared wrapText() and drawAddressText() logic
+- **Architecture:** Data layer service used by presentation and services
+- **Default:** Location enabled, TOP_RIGHT, FULL address
+- **Photos/Videos:** Follow main toggle

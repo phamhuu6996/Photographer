@@ -35,10 +35,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phamhuu.photographer.enums.ImageFilter
+import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
 import com.phamhuu.photographer.presentation.common.BeautyAdjustmentPanel
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
+import com.phamhuu.photographer.presentation.common.LocationToggleIcon
 import com.phamhuu.photographer.presentation.common.SlideVertically
+
 import com.phamhuu.photographer.presentation.filament.FilamentSurfaceView
 import com.phamhuu.photographer.presentation.utils.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.utils.FilterRenderer
@@ -70,6 +73,7 @@ fun CameraScreen(
         viewModel.setFilterHelper(filterGLSurfaceView, context)
         viewModel.startCamera(context, lifecycleOwner, previewView)
         viewModel.checkGalleryContent()
+        viewModel.checkLocationPermission(context) // Check location permission after camera permissions granted
     }, context)
 
     DisposableEffect(Unit) {
@@ -115,10 +119,24 @@ fun CameraScreen(
         // ✅ Always show filtered camera preview (no more conditional rendering)
         // Beauty filter is always active
         val ratio = uiState.value.ratioCamera.toRatio()
-        AndroidView(
-            factory = { filterGLSurfaceView },
+        Box(
             modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
-        )
+        ) {
+            AndroidView(
+                factory = { filterGLSurfaceView },
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            // Address Overlay inside camera frame (only show when location enabled)
+            if (uiState.value.isLocationEnabled) {
+                CanvasAddressOverlay(
+                    locationInfo = uiState.value.locationState.locationInfo,
+                    isLoading = uiState.value.locationState.isLoading,
+                    error = uiState.value.locationState.error,
+                    modifier = Modifier.align(Alignment.TopEnd)
+                )
+            }
+        }
 
         CameraControls(
             onCaptureClick = { viewModel.takePhoto(context) },
@@ -163,6 +181,15 @@ fun CameraScreen(
             )
         }
         
+        // Location Toggle Icon
+        LocationToggleIcon(
+            isEnabled = uiState.value.isLocationEnabled,
+            onToggle = { viewModel.toggleLocationEnabled() },
+            modifier = Modifier.align(Alignment.TopEnd)
+        )
+
+
+
         // Beauty Adjustment Panel
         BeautyAdjustmentPanel(
             isVisible = uiState.value.isBeautyPanelVisible,

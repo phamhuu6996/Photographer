@@ -26,10 +26,12 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.ui.geometry.Offset
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.domain.model.BeautySettings
 import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
@@ -45,12 +47,25 @@ import com.phamhuu.photographer.presentation.common.SnackbarManager
 import com.phamhuu.photographer.enums.TypeModel3D
 import com.phamhuu.photographer.presentation.utils.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.utils.FilterRenderer
+import com.phamhuu.photographer.data.repository.LocationRepository
+import com.phamhuu.photographer.domain.usecase.AddTextCaptureUseCase
+import com.phamhuu.photographer.models.LocationInfo
+import com.phamhuu.photographer.models.LocationState
+
+
 import com.phamhuu.photographer.presentation.utils.GPUPixelHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -64,10 +79,24 @@ class CameraViewModel(
     private val savePhotoUseCase: SavePhotoUseCase,
     private val getFirstGalleryItemUseCase: GetFirstGalleryItemUseCase,
     private val recordVideoUseCase: RecordVideoUseCase,
-    private val saveVideoUseCase: SaveVideoUseCase
+    private val saveVideoUseCase: SaveVideoUseCase,
+    private val addTextCaptureUseCase: AddTextCaptureUseCase,
+    private val locationRepository: LocationRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState = _uiState.asStateFlow()
+    
+    // Location state accessors
+    val locationState: StateFlow<LocationState> = uiState.map { it.locationState }.stateIn(
+        viewModelScope, SharingStarted.Eagerly, LocationState()
+    )
+    val isLocationEnabled: StateFlow<Boolean> = uiState.map { it.isLocationEnabled }.stateIn(
+        viewModelScope, SharingStarted.Eagerly, true
+    )
+    
+    // Hardcoded settings as requested (TOP_RIGHT position, FULL address format)
+    val showOnPhotos get() = uiState.value.isLocationEnabled
+    val showOnVideos get() = uiState.value.isLocationEnabled
     
     // Camera related variables
     private var recording: Recording? = null
@@ -90,6 +119,99 @@ class CameraViewModel(
         val cameraInfo = camera?.cameraInfo ?: return null
         val camera2Info = Camera2CameraInfo.from(cameraInfo)
         return camera2Info.cameraId
+    }
+
+    // Location methods
+    fun checkLocationPermission(context: Context) {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(hasPermission = hasPermission))
+        }
+
+        if (hasPermission && uiState.value.isLocationEnabled) {
+            startLocationUpdates()
+        }
+    }
+
+    fun onLocationPermissionGranted() {
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(hasPermission = true))
+        }
+        if (uiState.value.isLocationEnabled) {
+            startLocationUpdates()
+        }
+    }
+
+    fun toggleLocationEnabled() {
+        val newState = !uiState.value.isLocationEnabled
+        _uiState.update { it.copy(isLocationEnabled = newState) }
+        
+        if (newState && uiState.value.locationState.hasPermission) {
+            startLocationUpdates()
+        } else {
+            stopLocationUpdates()
+        }
+    }
+
+    private fun startLocationUpdates() {
+        if (!uiState.value.locationState.hasPermission) return
+
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(isLoading = true, error = null))
+        }
+
+        viewModelScope.launch {
+            try {
+                // Get last known location first for immediate display
+                val lastKnown = locationRepository.getLastKnownLocation()
+                if (lastKnown != null) {
+                    _uiState.update { 
+                        it.copy(locationState = it.locationState.copy(
+                            locationInfo = lastKnown,
+                            isLoading = false
+                        ))
+                    }
+                }
+
+                // Then start continuous updates
+                locationRepository.getCurrentLocation()
+                    .catch { error ->
+                        _uiState.update { 
+                            it.copy(locationState = it.locationState.copy(
+                                isLoading = false,
+                                error = error.message ?: "Unknown location error"
+                            ))
+                        }
+                    }
+                    .collect { locationInfo ->
+                        _uiState.update { 
+                            it.copy(locationState = it.locationState.copy(
+                                locationInfo = locationInfo,
+                                isLoading = false,
+                                error = null
+                            ))
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update { 
+                    it.copy(locationState = it.locationState.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to get location"
+                    ))
+                }
+            }
+        }
+    }
+
+    private fun stopLocationUpdates() {
+        locationRepository.stopLocationUpdates()
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(isLoading = false))
+        }
     }
 
     private fun resolutionSelector(ratio: RatioCamera): ResolutionSelector {
@@ -290,10 +412,23 @@ class CameraViewModel(
     }
     
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
-        FileOutputStream(file).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        // Add address overlay if location is enabled and available
+        val location = uiState.value.locationState.locationInfo
+        val finalBitmap = if (showOnPhotos && location != null) {
+            addTextCaptureUseCase.invoke(bitmap, location.address).getOrElse {
+                bitmap
+            }
+        } else {
+            bitmap
         }
-        bitmap.recycle()
+        
+        FileOutputStream(file).use { out ->
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        finalBitmap.recycle()
+        if (finalBitmap != bitmap) {
+            bitmap.recycle()
+        }
     }
 
     /**
@@ -527,7 +662,8 @@ class CameraViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        gPUPixelHelper?.onDestroy();
+        gPUPixelHelper?.onDestroy()
+        stopLocationUpdates()
     }
 
     private fun listenMediaPipe() {
@@ -663,6 +799,8 @@ class CameraViewModel(
                         
                         if (success && videoFile != null) {
                             viewModelScope.launch {
+                                // TODO: Add address overlay to video file if needed
+                                // For now, just save the video as-is
                                 saveVideoToGallery(videoFile)
                             }
                             Log.d("CameraViewModel", "Filtered recording stopped successfully")
