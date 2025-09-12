@@ -85,6 +85,7 @@ class LocationRepositoryImpl(
         }
     }
 
+    @SuppressLint("DefaultLocale")
     private fun getAddressFromLocation(latitude: Double, longitude: Double): String {
         return try {
             val addresses = geocoder.getFromLocation(latitude, longitude, 1)

@@ -120,39 +120,43 @@ data class LocationInfo(
 
 ### Implementation Status:
 ✅ **Completed High Priority:**
-- Permissions and LocationRepository
-- Basic overlay with AddressOverlay composable  
-- Photo capture integration with PhotoCaptureService
+- Permissions and LocationRepository (clean interface)
+- Address overlay with simplified CanvasAddressText/CanvasAddressOverlay
+- Photo capture integration with AddTextService
 - Location toggle integrated into CameraControls with on/off icons
 - Location state unified into CameraUiState (isLocationEnabled)
 - Basic unit tests
+- Code consolidation and cleanup
 
 ✅ **Completed Medium Priority:**
 - DI integration with Koin
 - Single unified state object (CameraUiState)
 - EXIF metadata writing
-- Error handling and fallbacks
+- Constants consolidation in Contants.kt
+- AddTextService self-contained (no external dependencies)
+- UI components simplified and optimized
 
-🚧 **Partially Completed Low Priority:**
-- Basic video service structure (metadata only)
-- Location permission handling
-- Address formatting options
+✅ **Completed Low Priority:**
+- Address formatting moved to AddTextService
+- Removed redundant files (AddressTextUtils.kt, AddressOverlayConstants.kt)
+- Removed unused constants and methods
+- Canvas size optimization (180x80dp for preview)
 
 📋 **Remaining Tasks:**
 - Real-time video overlay during recording
 - Advanced performance optimization  
 - Comprehensive integration tests
 
-🎯 **Current Implementation:**
+🎯 **Current Implementation (Updated):**
 
-**AddTextService (Data Layer):**
-- **Service:** AddTextService in data/renderer for all text rendering
+**AddTextService (Data Layer - Consolidated):**
+- **Service:** AddTextService in data/renderer - self-contained text rendering service
 - **Photo Capture:** renderAddressToPhoto() for bitmap output
 - **Video Recording:** renderAddressToVideo() for frame-by-frame overlay  
 - **Preview:** renderAddressForPreview() for Compose Canvas with extra right padding
 - **Paint Objects:** Shared createTextPaint() with Paint.Align.RIGHT
-- **Text Processing:** Shared wrapText() and drawAddressText() logic
-- **Architecture:** Data layer service used by presentation and services
+- **Text Processing:** Built-in wrapText(), drawAddressText(), and formatAddress() methods
+- **Architecture:** Single service handles all text rendering - no external dependencies
 
 **Location Toggle (UI Layer):**
 - **Integration:** Built into CameraControls top row with other camera controls
@@ -161,3 +165,16 @@ data class LocationInfo(
 - **Handler:** onChangeLocationToggle calls viewModel.toggleLocationEnabled()
 - **Conditional Display:** Address overlay only shows when isLocationEnabled = true
 - **Position:** Top-right aligned with proper padding for readability
+
+**UI Components (Simplified):**
+- **CanvasAddressText:** Simple text renderer - fixed 180x80dp canvas size
+- **CanvasAddressOverlay:** Minimal wrapper - shows text or Spacer based on locationInfo
+- **Constants:** All address constants moved to Contants.kt (TEXT_SIZE, MAX_LINES, etc.)
+- **Removed:** AddressTextUtils.kt (functionality moved to AddTextService)
+- **Removed:** AddressOverlayConstants.kt (moved to Contants.kt)
+
+**Location Repository (Clean):**
+- **Interface:** Minimal 3 methods - getCurrentLocation(), getLastKnownLocation(), stopLocationUpdates()
+- **Implementation:** LocationRepositoryImpl with FusedLocationProviderClient + Geocoder
+- **State Management:** Direct access via CameraUiState (no separate StateFlow accessors)
+- **DI:** Single LocationRepository instance in Koin appModule

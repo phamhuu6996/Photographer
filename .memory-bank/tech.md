@@ -14,7 +14,10 @@
   - MediaPipe Tasks Vision: 0.20230731
   - Filament: 1.36.0 (filament-android, utils, gltfio)
   - Local AAR: `libs/gpupixel-release.aar`
+  - Google Play Services Location: for location services
 - Conventions:
   - Compose: small composables; hoist state; remember performance.
   - DI: Koin modules; single-activity with Navigation Compose.
   - Heavy work off main; prefer GPU acceleration when available.
+  - Constants: centralized in `contants/Contants.kt`
+  - Services: self-contained with minimal dependencies.
