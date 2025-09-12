@@ -464,12 +464,15 @@ void main() {
 
         // Render to encoder surface if recording
         if (mIsRecording) {
-            recordingManager.renderToEncoderSurface(
-                renderFunction = { width, height ->
-                    renderToTarget(0, width, height)
-                },
-                overlayFunction = mOverlayFunction
-            )
+            recordingManager.renderToEncoderSurface { width, height ->
+                // 1. Render camera frame first
+                renderToTarget(0, width, height)
+                
+                // 2. Render text overlay on top if provided
+                mOverlayFunction?.let { overlayFunction ->
+                    renderTextOverlay(overlayFunction, width, height)
+                }
+            }
             recordingManager.drainEncoders()
         }
     }
@@ -587,7 +590,7 @@ void main() {
      * @param shaderCode Source code của shader
      * @return Shader ID nếu thành công, 0 nếu lỗi
      */
-    private fun compileShader(type: Int, shaderCode: String): Int {
+    fun compileShader(type: Int, shaderCode: String): Int {
         val shader = GLES20.glCreateShader(type)
         GLES20.glShaderSource(shader, shaderCode)
         GLES20.glCompileShader(shader)
@@ -646,6 +649,112 @@ void main() {
         return Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, false)
     }
 
+    // ================ TEXT OVERLAY RENDERING ================
+    
+    /**
+     * Render text overlay trực tiếp trong FilterRenderer
+     * 
+     * @param overlayFunction Function để vẽ text lên canvas
+     * @param width Chiều rộng render area
+     * @param height Chiều cao render area
+     */
+    private fun renderTextOverlay(
+        overlayFunction: (android.graphics.Canvas, Int, Int) -> Unit,
+        width: Int,
+        height: Int
+    ) {
+        // Create bitmap for text overlay
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            width, 
+            height, 
+            android.graphics.Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bitmap)
+        
+        // Clear canvas with transparent background
+        canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
+        
+        // Render text using overlay function
+        overlayFunction(canvas, width, height)
+        
+        // Render bitmap as overlay using existing OpenGL resources
+        renderBitmapOverlay(bitmap)
+        
+        // Clean up
+        bitmap.recycle()
+    }
+    
+    /**
+     * Render bitmap as overlay using existing OpenGL resources
+     * 
+     * Tái sử dụng shader program và buffers có sẵn để render bitmap overlay
+     * 
+     * @param bitmap Bitmap chứa text overlay
+     */
+    fun renderBitmapOverlay(bitmap: Bitmap) {
+        // Create temporary texture for overlay
+        val overlayTexture = IntArray(1)
+        GLES20.glGenTextures(1, overlayTexture, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, overlayTexture[0])
+        
+        // Upload bitmap to texture
+        android.opengl.GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
+        
+        // Set texture parameters (reuse same settings as camera texture)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        
+        // Enable alpha blending for overlay
+        GLES20.glEnable(GLES20.GL_BLEND)
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        
+        // Use existing shader program
+        GLES20.glUseProgram(mProgramHandle)
+        
+        // Use existing vertex buffer (full screen quad)
+        GLES20.glVertexAttribPointer(mPositionHandle, 2, GLES20.GL_FLOAT, false, 0, mVertexBuffer)
+        GLES20.glEnableVertexAttribArray(mPositionHandle)
+        
+        // Use TEXTURE_COORDS_0 for overlay (no rotation needed)
+        val overlayTexCoordBuffer = createTexCoordBuffer(TEXTURE_COORDS_0)
+        GLES20.glVertexAttribPointer(mTextureCoordHandle, 2, GLES20.GL_FLOAT, false, 0, overlayTexCoordBuffer)
+        GLES20.glEnableVertexAttribArray(mTextureCoordHandle)
+        
+        // Bind overlay texture
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, overlayTexture[0])
+        GLES20.glUniform1i(mTextureSamplerHandle, 0)
+        
+        // Draw overlay quad
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+        
+        // Disable vertex arrays
+        GLES20.glDisableVertexAttribArray(mPositionHandle)
+        GLES20.glDisableVertexAttribArray(mTextureCoordHandle)
+        
+        // Disable blending
+        GLES20.glDisable(GLES20.GL_BLEND)
+        
+        // Cleanup temporary texture
+        GLES20.glDeleteTextures(1, overlayTexture, 0)
+    }
+    
+    /**
+     * Create texture coordinate buffer (helper method)
+     * 
+     * Tái sử dụng logic tạo buffer từ updateTextureCoordinates()
+     */
+    private fun createTexCoordBuffer(texCoords: FloatArray): FloatBuffer {
+        val bb = ByteBuffer.allocateDirect(texCoords.size * 4)
+        bb.order(ByteOrder.nativeOrder())
+        val buffer = bb.asFloatBuffer()
+        buffer.put(texCoords)
+        buffer.position(0)
+        return buffer
+    }
+    
     // ================ FILTERED VIDEO RECORDING ================
     
     /**

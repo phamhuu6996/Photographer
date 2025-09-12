@@ -11,13 +11,8 @@ import android.opengl.EGLConfig
 import android.opengl.EGLContext
 import android.opengl.EGLDisplay
 import android.opengl.EGLSurface
-import android.opengl.GLES20
-import android.opengl.GLUtils
 import android.util.Log
 import android.view.Surface
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.FloatBuffer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -123,18 +118,6 @@ class RecordingManager {
     /** Flag xác định audio encoder đã ready chưa */
     private var mAudioEncoderReady = false
     
-    // ===================== TEXT OVERLAY OPENGL =====================
-    /** OpenGL texture ID cho text overlay */
-    private var mOverlayTextureId = IntArray(1)
-    
-    /** OpenGL shader program cho text overlay */
-    private var mOverlayProgram = 0
-    
-    /** Vertex buffer cho overlay quad */
-    private var mOverlayVertexBuffer: FloatBuffer? = null
-    
-    /** Texture coordinate buffer cho overlay */
-    private var mOverlayTexCoordBuffer: FloatBuffer? = null
 
     /**
      * Bắt đầu ghi video với filter effects
@@ -695,17 +678,7 @@ class RecordingManager {
         mAudioRecordingActive.set(false)
         mAudioEncoderReady = false
         
-        // Cleanup overlay OpenGL resources
-        if (mOverlayTextureId[0] != 0) {
-            GLES20.glDeleteTextures(1, mOverlayTextureId, 0)
-            mOverlayTextureId[0] = 0
-        }
-        if (mOverlayProgram != 0) {
-            GLES20.glDeleteProgram(mOverlayProgram)
-            mOverlayProgram = 0
-        }
-        mOverlayVertexBuffer = null
-        mOverlayTexCoordBuffer = null
+        // No overlay renderer cleanup needed - using FilterRenderer
     }
 
     /**
@@ -735,8 +708,7 @@ class RecordingManager {
      * @param renderFunction Function render với (width, height) parameters
      */
     fun renderToEncoderSurface(
-        renderFunction: (Int, Int) -> Unit,
-        overlayFunction: ((android.graphics.Canvas, Int, Int) -> Unit)? = null
+        renderFunction: (Int, Int) -> Unit
     ) {
         // Save current EGL state
         val currentDisplay = EGL14.eglGetCurrentDisplay()
@@ -747,13 +719,8 @@ class RecordingManager {
         // Make encoder surface current
         EGL14.eglMakeCurrent(mEncoderEGLDisplay, mEncoderEGLSurface, mEncoderEGLSurface, mEncoderEGLContext)
         
-        // Render filtered content
+        // Render everything (camera + overlay) trong một callback
         renderFunction(mRecordingWidth, mRecordingHeight)
-        
-        // Render text overlay if provided
-        overlayFunction?.let { overlay ->
-            renderTextOverlay(overlay)
-        }
         
         // Set presentation time for MediaCodec
         EGL14.eglSwapBuffers(mEncoderEGLDisplay, mEncoderEGLSurface)
@@ -762,173 +729,6 @@ class RecordingManager {
         EGL14.eglMakeCurrent(currentDisplay, currentDrawSurface, currentReadSurface, currentContext)
     }
 
-    /**
-     * Render text overlay lên encoder surface
-     */
-    private fun renderTextOverlay(overlayFunction: (android.graphics.Canvas, Int, Int) -> Unit) {
-        // Create bitmap for text overlay
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            mRecordingWidth, 
-            mRecordingHeight, 
-            android.graphics.Bitmap.Config.ARGB_8888
-        )
-        val canvas = android.graphics.Canvas(bitmap)
-        
-        // Clear canvas with transparent background
-        canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
-        
-        // Render text using overlay function
-        overlayFunction(canvas, mRecordingWidth, mRecordingHeight)
-        
-        // Convert bitmap to OpenGL texture and render as overlay
-        drawBitmapAsOverlay(bitmap)
-        
-        // Clean up
-        bitmap.recycle()
-    }
-    
-    /**
-     * Setup OpenGL resources cho text overlay
-     */
-    private fun setupOverlayGL() {
-        // Create texture
-        GLES20.glGenTextures(1, mOverlayTextureId, 0)
-        
-        // Create shader program
-        val vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, overlayVertexShaderCode)
-        val fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER, overlayFragmentShaderCode)
-        
-        mOverlayProgram = GLES20.glCreateProgram()
-        GLES20.glAttachShader(mOverlayProgram, vertexShader)
-        GLES20.glAttachShader(mOverlayProgram, fragmentShader)
-        GLES20.glLinkProgram(mOverlayProgram)
-        
-        // Create vertex buffers
-        setupOverlayBuffers()
-    }
-    
-    /**
-     * Setup vertex và texture coordinate buffers
-     */
-    private fun setupOverlayBuffers() {
-        // Full screen quad vertices
-        val vertices = floatArrayOf(
-            -1.0f, -1.0f,  // Bottom left
-             1.0f, -1.0f,  // Bottom right
-            -1.0f,  1.0f,  // Top left
-             1.0f,  1.0f   // Top right
-        )
-        
-        // Texture coordinates (flipped Y for Android)
-        val texCoords = floatArrayOf(
-            0.0f, 1.0f,  // Bottom left
-            1.0f, 1.0f,  // Bottom right
-            0.0f, 0.0f,  // Top left
-            1.0f, 0.0f   // Top right
-        )
-        
-        // Create vertex buffer
-        val vertexByteBuffer = ByteBuffer.allocateDirect(vertices.size * 4)
-        vertexByteBuffer.order(ByteOrder.nativeOrder())
-        mOverlayVertexBuffer = vertexByteBuffer.asFloatBuffer()
-        mOverlayVertexBuffer?.put(vertices)
-        mOverlayVertexBuffer?.position(0)
-        
-        // Create texture coordinate buffer
-        val texCoordByteBuffer = ByteBuffer.allocateDirect(texCoords.size * 4)
-        texCoordByteBuffer.order(ByteOrder.nativeOrder())
-        mOverlayTexCoordBuffer = texCoordByteBuffer.asFloatBuffer()
-        mOverlayTexCoordBuffer?.put(texCoords)
-        mOverlayTexCoordBuffer?.position(0)
-    }
-    
-    /**
-     * Draw bitmap as OpenGL overlay
-     */
-    private fun drawBitmapAsOverlay(bitmap: android.graphics.Bitmap) {
-        // Setup OpenGL if not done
-        if (mOverlayProgram == 0) {
-            setupOverlayGL()
-        }
-        
-        // Bind texture và upload bitmap data
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mOverlayTextureId[0])
-        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
-        
-        // Set texture parameters
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
-        
-        // Use shader program
-        GLES20.glUseProgram(mOverlayProgram)
-        
-        // Enable alpha blending cho overlay
-        GLES20.glEnable(GLES20.GL_BLEND)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-        
-        // Get shader attribute locations
-        val positionHandle = GLES20.glGetAttribLocation(mOverlayProgram, "aPosition")
-        val texCoordHandle = GLES20.glGetAttribLocation(mOverlayProgram, "aTexCoord")
-        val textureHandle = GLES20.glGetUniformLocation(mOverlayProgram, "uTexture")
-        
-        // Enable vertex arrays
-        GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glEnableVertexAttribArray(texCoordHandle)
-        
-        // Bind vertex data
-        GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, mOverlayVertexBuffer)
-        GLES20.glVertexAttribPointer(texCoordHandle, 2, GLES20.GL_FLOAT, false, 0, mOverlayTexCoordBuffer)
-        
-        // Bind texture
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mOverlayTextureId[0])
-        GLES20.glUniform1i(textureHandle, 0)
-        
-        // Draw overlay quad
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-        
-        // Disable vertex arrays
-        GLES20.glDisableVertexAttribArray(positionHandle)
-        GLES20.glDisableVertexAttribArray(texCoordHandle)
-        
-        // Disable blending
-        GLES20.glDisable(GLES20.GL_BLEND)
-    }
-    
-    /**
-     * Load OpenGL shader
-     */
-    private fun loadShader(type: Int, shaderCode: String): Int {
-        val shader = GLES20.glCreateShader(type)
-        GLES20.glShaderSource(shader, shaderCode)
-        GLES20.glCompileShader(shader)
-        return shader
-    }
-    
-    // Vertex shader cho text overlay
-    private val overlayVertexShaderCode = """
-        attribute vec2 aPosition;
-        attribute vec2 aTexCoord;
-        varying vec2 vTexCoord;
-        
-        void main() {
-            gl_Position = vec4(aPosition, 0.0, 1.0);
-            vTexCoord = aTexCoord;
-        }
-    """.trimIndent()
-    
-    // Fragment shader cho text overlay
-    private val overlayFragmentShaderCode = """
-        precision mediump float;
-        uniform sampler2D uTexture;
-        varying vec2 vTexCoord;
-        
-        void main() {
-            gl_FragColor = texture2D(uTexture, vTexCoord);
-        }
-    """.trimIndent()
 
     /**
      * Drain cả video và audio encoders
