@@ -53,10 +53,11 @@ fun CameraControls(
     flashMode: Int,
     timeDelay: TimerDelay = TimerDelay.OFF,
     resolution: RatioCamera = RatioCamera.RATIO_3_4,
+    enableLocation: Boolean = false,
     onChangeTimeDelay: (TimerDelay) -> Unit,
     onChangeResolution: (RatioCamera) -> Unit,
     onImageFilterSelected: (ImageFilter) -> Unit = {},
-    currentFilter: ImageFilter = ImageFilter.BEAUTY
+    onChangeLocationToggle: () -> Unit = {},
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
@@ -72,6 +73,8 @@ fun CameraControls(
     val uriThumbnails = remember(fileUri) {
         fileUri.let { Gallery.getResourceUri(context, fileUri) }
     }
+
+    val iconLocation = if(enableLocation) R.drawable.location_on else R.drawable.location_off
 
     Box(
         modifier = modifier
@@ -112,6 +115,14 @@ fun CameraControls(
                 modifier = Modifier.clickable {
                     onChangeResolution(resolution.next())
                 }
+            )
+
+            // Location toggle button
+            ImageCustom(
+                id = iconLocation,
+                imageMode = ImageMode.MEDIUM,
+                color = Color.White,
+                modifier = Modifier.clickable { onChangeLocationToggle() }
             )
             
             // Camera switch button

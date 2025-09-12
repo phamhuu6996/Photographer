@@ -39,7 +39,6 @@ import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
 import com.phamhuu.photographer.presentation.common.BeautyAdjustmentPanel
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
-import com.phamhuu.photographer.presentation.common.LocationToggleIcon
 import com.phamhuu.photographer.presentation.common.SlideVertically
 
 import com.phamhuu.photographer.presentation.filament.FilamentSurfaceView
@@ -158,6 +157,7 @@ fun CameraScreen(
             flashMode = uiState.value.flashMode,
             timeDelay = uiState.value.timerDelay,
             resolution = uiState.value.ratioCamera,
+            enableLocation = uiState.value.isLocationEnabled,
             onChangeTimeDelay = { viewModel.setTimerDelay(it) },
             onChangeResolution = { 
                 viewModel.setRatioCamera(it, context, lifecycleOwner, previewView)
@@ -166,7 +166,9 @@ fun CameraScreen(
                 // ✅ Changed: Now opens beauty adjustment panel instead of switching filters
                 viewModel.toggleBeautyPanel()
             },
-            currentFilter = uiState.value.currentFilter
+            onChangeLocationToggle = {
+                viewModel.toggleLocationEnabled() // Handle permission inside
+            }
         )
 
         // Brightness slider with animation
@@ -180,15 +182,6 @@ fun CameraScreen(
                 { brightness -> viewModel.setBrightness(brightness) }
             )
         }
-        
-        // Location Toggle Icon
-        LocationToggleIcon(
-            isEnabled = uiState.value.isLocationEnabled,
-            onToggle = { viewModel.toggleLocationEnabled() },
-            modifier = Modifier.align(Alignment.TopEnd)
-        )
-
-
 
         // Beauty Adjustment Panel
         BeautyAdjustmentPanel(
