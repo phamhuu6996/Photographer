@@ -1,0 +1,23 @@
+# Tech
+
+- Android Gradle Plugin: 8.5.0
+- Kotlin: 1.9.0 (JVM 17)
+- Compile/Target SDK: 34; Min SDK: 28
+- Compose BOM: 2025.02.00; Compiler Extension: 1.5.1
+- Major deps:
+  - CameraX: 1.4.1 (core, camera2, lifecycle, video, view, extensions)
+  - Compose UI: 1.7.x; Material3; Lifecycle runtime/viewmodel compose
+  - Navigation Compose: 2.8.8
+  - Coil Compose: 2.5.0
+  - Room KTX: 2.6.1
+  - Koin: 3.4.0
+  - MediaPipe Tasks Vision: 0.20230731
+  - Filament: 1.36.0 (filament-android, utils, gltfio)
+  - Local AAR: `libs/gpupixel-release.aar`
+  - Google Play Services Location: for location services
+- Conventions:
+  - Compose: small composables; hoist state; remember performance.
+  - DI: Koin modules; single-activity with Navigation Compose.
+  - Heavy work off main; prefer GPU acceleration when available.
+  - Constants: centralized in `contants/Contants.kt`
+  - Services: self-contained with minimal dependencies.

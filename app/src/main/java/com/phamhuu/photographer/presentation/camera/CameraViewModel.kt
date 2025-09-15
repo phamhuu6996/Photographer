@@ -4,12 +4,8 @@ import Manager3DHelper
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.ImageFormat
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
-import android.net.Uri
-import android.util.Size
-import android.widget.Toast
+import android.opengl.GLSurfaceView
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
@@ -21,37 +17,51 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
-import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.compose.ui.geometry.Offset
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
+import com.phamhuu.photographer.domain.model.BeautySettings
 import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
+import com.phamhuu.photographer.domain.usecase.RecordVideoUseCase
 import com.phamhuu.photographer.domain.usecase.SavePhotoUseCase
+import com.phamhuu.photographer.domain.usecase.SaveVideoUseCase
 import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
 import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.RatioCamera
+import com.phamhuu.photographer.enums.SnackbarType
 import com.phamhuu.photographer.enums.TimerDelay
+import com.phamhuu.photographer.presentation.common.SnackbarManager
 import com.phamhuu.photographer.enums.TypeModel3D
 import com.phamhuu.photographer.presentation.utils.CameraGLSurfaceView
+import com.phamhuu.photographer.presentation.utils.FilterRenderer
+import com.phamhuu.photographer.data.repository.LocationRepository
+import com.phamhuu.photographer.domain.usecase.AddTextCaptureUseCase
+import com.phamhuu.photographer.models.LocationInfo
+import com.phamhuu.photographer.models.LocationState
+
+
+import com.phamhuu.photographer.presentation.utils.GPUPixelHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -63,10 +73,19 @@ class CameraViewModel(
     private val manager3DHelper: Manager3DHelper,
     private val takePhotoUseCase: TakePhotoUseCase,
     private val savePhotoUseCase: SavePhotoUseCase,
-    private val getFirstGalleryItemUseCase: GetFirstGalleryItemUseCase
+    private val getFirstGalleryItemUseCase: GetFirstGalleryItemUseCase,
+    private val recordVideoUseCase: RecordVideoUseCase,
+    private val saveVideoUseCase: SaveVideoUseCase,
+    private val addTextCaptureUseCase: AddTextCaptureUseCase,
+    private val locationRepository: LocationRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState = _uiState.asStateFlow()
+    
+    
+    // Hardcoded settings as requested (TOP_RIGHT position, FULL address format)
+    val showOnPhotos get() = uiState.value.isLocationEnabled
+    val showOnVideos get() = uiState.value.isLocationEnabled
     
     // Camera related variables
     private var recording: Recording? = null
@@ -76,9 +95,7 @@ class CameraViewModel(
     private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
     private var cameraControl: CameraControl? = null
-
-    // ✅ CameraGLSurfaceView reference for OpenGL filtering
-    private var glSurfaceView: CameraGLSurfaceView? = null
+    private var gPUPixelHelper: GPUPixelHelper? = null
 
     private val isProcessingImage = AtomicBoolean(false)
 
@@ -93,13 +110,109 @@ class CameraViewModel(
         return camera2Info.cameraId
     }
 
+    // Location methods
+    fun checkLocationPermission(context: Context) {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(hasPermission = hasPermission))
+        }
+
+        if (hasPermission && uiState.value.isLocationEnabled) {
+            startLocationUpdates()
+        }
+    }
+
+    fun onLocationPermissionGranted() {
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(hasPermission = true))
+        }
+        if (uiState.value.isLocationEnabled) {
+            startLocationUpdates()
+        }
+    }
+
+    fun toggleLocationEnabled() {
+        val newState = !uiState.value.isLocationEnabled
+        _uiState.update { it.copy(isLocationEnabled = newState) }
+        
+        if (newState && uiState.value.locationState.hasPermission) {
+            startLocationUpdates()
+        } else {
+            stopLocationUpdates()
+        }
+    }
+
+    private fun startLocationUpdates() {
+        if (!uiState.value.locationState.hasPermission) return
+
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(isLoading = true, error = null))
+        }
+
+        viewModelScope.launch {
+            try {
+                // Get last known location first for immediate display
+                val lastKnown = locationRepository.getLastKnownLocation()
+                if (lastKnown != null) {
+                    _uiState.update { 
+                        it.copy(locationState = it.locationState.copy(
+                            locationInfo = lastKnown,
+                            isLoading = false
+                        ))
+                    }
+                }
+
+                // Then start continuous updates
+                locationRepository.getCurrentLocation()
+                    .catch { error ->
+                        _uiState.update { 
+                            it.copy(locationState = it.locationState.copy(
+                                isLoading = false,
+                                error = error.message ?: "Unknown location error"
+                            ))
+                        }
+                    }
+                    .collect { locationInfo ->
+                        _uiState.update { 
+                            it.copy(locationState = it.locationState.copy(
+                                locationInfo = locationInfo,
+                                isLoading = false,
+                                error = null
+                            ))
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update { 
+                    it.copy(locationState = it.locationState.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to get location"
+                    ))
+                }
+            }
+        }
+    }
+
+    private fun stopLocationUpdates() {
+        locationRepository.stopLocationUpdates()
+        _uiState.update { 
+            it.copy(locationState = it.locationState.copy(isLoading = false))
+        }
+    }
+
     private fun resolutionSelector(ratio: RatioCamera): ResolutionSelector {
         return ResolutionSelector.Builder()
             .setAspectRatioStrategy(ratio.ratio).build()
     }
 
-    fun  setGLView(glSurfaceView: CameraGLSurfaceView) {
-        this.glSurfaceView = glSurfaceView
+    fun  setFilterHelper(glSurfaceView: CameraGLSurfaceView, context: Context) {
+        Log.d("CameraViewModel", "Setting up FilterHelper with GLSurfaceView and FilterRenderer")
+        this.gPUPixelHelper = GPUPixelHelper().apply {
+            initGpuPixel(context, glSurfaceView)
+        }
     }
 
     // ✅ Thread-safe ImageProxy processing
@@ -109,14 +222,11 @@ class CameraViewModel(
                 // If already processing, close the ImageProxy to prevent memory leaks
                 return
             }
-            // ✅ Feed to filter system only if filter is active
-            val currentFilter = uiState.value.currentFilter
-            if (currentFilter != ImageFilter.NONE && glSurfaceView != null) {
-                // Don't close ImageProxy here - let GLSurfaceView handle it
-                glSurfaceView?.updateImage(imageProxy)
-            }
-            // Always feed to MediaPipe for face detection (create copy if needed)
-            detectFace(imageProxy)
+            // Always process with filter since beauty filter is always active
+            gPUPixelHelper?.handleImageAnalytic(
+                imageProxy,
+                uiState.value.lensFacing == CameraSelector.LENS_FACING_FRONT,
+            )
 
         } catch (e: Exception) {
             e.printStackTrace()
@@ -129,8 +239,10 @@ class CameraViewModel(
         context: Context,
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView,
+        ratioCamera: RatioCamera? = null,
     ) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        var setRatio = false
 
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
@@ -140,7 +252,7 @@ class CameraViewModel(
             val imageAnalyzerBuilder = ImageAnalysis.Builder()
             
             if (uiState.value.setupCapture) {
-                val resolutionSelect = resolutionSelector(uiState.value.ratioCamera)
+                val resolutionSelect = resolutionSelector(ratioCamera ?: uiState.value.ratioCamera)
                 previewBuilder.setResolutionSelector(resolutionSelect)
                 imageCaptureBuilder.setResolutionSelector(resolutionSelect)
                 imageAnalyzerBuilder.setResolutionSelector(resolutionSelect)
@@ -158,6 +270,10 @@ class CameraViewModel(
                 .build()
                 .also {
                     it.setAnalyzer(Dispatchers.Default.asExecutor()) { image ->
+                        if (ratioCamera != null && !setRatio) {
+                            setRatio = true
+                            _uiState.value = _uiState.value.copy(ratioCamera = ratioCamera)
+                        }
                         handleImageAnalyzerFrame(image)
                         image.close()
                     }
@@ -180,6 +296,10 @@ class CameraViewModel(
                 )
                 cameraControl = camera?.cameraControl
 
+
+                // Apply default beauty settings when camera starts
+                applyBeautySettingsToFilter(_uiState.value.beautySettings)
+
             } catch (e: Exception) {
                 updateError("Không thể khởi động camera: ${e.message}")
             }
@@ -196,24 +316,30 @@ class CameraViewModel(
                     currentFilter = filter,
                     isLoading = true
                 )
-                
+
                 println("🔥 CameraViewModel: Setting filter to ${filter.displayName}")
-                
+
                 // ✅ Apply filter to GLSurfaceView if available
-                glSurfaceView?.setImageFilter(filter)
-                
+//                glSurfaceView?.setImageFilter(filter)
+
                 // ✅ Shorter processing delay for better UX
                 delay(300)
-                
+
                 // ✅ Update loading state
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                
+
                 println("🔥 CameraViewModel: Filter ${filter.displayName} applied successfully")
                 
+                // Show success message
+                SnackbarManager.show(
+                    message = "Filter ${filter.displayName} applied successfully",
+                    type = SnackbarType.SUCCESS
+                )
+
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    currentFilter = ImageFilter.NONE // Fallback to no filter on error
+                    isLoading = false
+                    // No fallback needed - filter is always BEAUTY
                 )
                 updateError("Failed to apply filter: ${e.message}")
                 println("❌ CameraViewModel: Filter application failed: ${e.message}")
@@ -228,82 +354,85 @@ class CameraViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                if (uiState.value.currentFilter != ImageFilter.NONE && glSurfaceView != null) {
-                    // Capture filtered image từ GLSurfaceView
-                    captureFilteredPhoto(context)
-                } else {
-                    // Use normal camera capture
-                    val photoFileResult = takePhotoUseCase()
-                    if (photoFileResult.isSuccess) {
-                        val photoFile = photoFileResult.getOrThrow()
-                        captureImageToFile(context, photoFile)
-                    } else {
-                        updateError("Failed to create photo file")
-                    }
-                }
+                val hasFilter = true // Always has filter since beauty is always active
+                delay(_uiState.value.timerDelay.millisecond)
+                capturePhoto(context, hasFilter)
             } catch (e: Exception) {
                 updateError("Photo capture failed: ${e.message}")
+            } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
     
-    private suspend fun captureFilteredPhoto(context: Context) {
+    /**
+     * ✅ Unified photo capture method
+     */
+    private suspend fun capturePhoto(context: Context, useFilter: Boolean) {
         val photoFileResult = takePhotoUseCase()
         if (photoFileResult.isFailure) {
             updateError("Failed to create photo file")
-            _uiState.value = _uiState.value.copy(isLoading = false)
             return
         }
         
         val photoFile = photoFileResult.getOrThrow()
         
-        // Capture filtered frame từ GLSurfaceView
-        glSurfaceView?.captureFilteredImage { bitmap ->
-            viewModelScope.launch {
-                try {
-                    // Save filtered bitmap to file
-                    saveBitmapToFile(bitmap, photoFile)
-                    
-                    // Save to gallery
-                    val saveResult = savePhotoUseCase(photoFile)
-                    if (saveResult.isSuccess) {
-                        val uri = saveResult.getOrThrow()
-                        _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
-                    } else {
-                        updateError("Failed to save photo to gallery")
-                    }
-                } catch (e: Exception) {
-                    updateError("Failed to save filtered photo: ${e.message}")
-                } finally {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                }
-            }
+        if (useFilter) {
+            // Suspend function for filtered capture
+            captureFromGLSurface(photoFile)
+        } else {
+            // Callback-based for normal capture (CameraX API)
+            captureFromCamera(photoFile, context)
         }
     }
     
+    /**
+     * ✅ Simplified filtered capture with proper error handling
+     */
+    private suspend fun captureFromGLSurface(photoFile: File) {
+        val bitmap = gPUPixelHelper?.captureFilteredBitmap() 
+            ?: run {
+                updateError("Failed to capture filtered bitmap")
+                return
+            }
+            
+        saveBitmapToFile(bitmap, photoFile)
+        saveToGallery(photoFile)
+    }
+    
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
-        FileOutputStream(file).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        // Add address overlay if location is enabled and available
+        val location = uiState.value.locationState.locationInfo
+        val finalBitmap = if (showOnPhotos && location != null) {
+            addTextCaptureUseCase.invoke(bitmap, location.address).getOrElse {
+                bitmap
+            }
+        } else {
+            bitmap
         }
-        bitmap.recycle()
+        
+        FileOutputStream(file).use { out ->
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        finalBitmap.recycle()
+        if (finalBitmap != bitmap) {
+            bitmap.recycle()
+        }
     }
 
-    private fun captureImageToFile(context: Context, photoFile: File) {
+    /**
+     * ✅ Normal camera capture - keep original callback style
+     */
+    private fun captureFromCamera(photoFile: File, context: Context) {
         val imageCapture = imageCapture ?: return
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
         imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     viewModelScope.launch {
-                        val saveResult = savePhotoUseCase(photoFile)
-                        if (saveResult.isSuccess) {
-                            val uri = saveResult.getOrThrow()
-                            _uiState.value = _uiState.value.copy(fileUri = uri, isLoading = false)
-                        }
+                        saveToGallery(photoFile)
                     }
                 }
 
@@ -312,6 +441,25 @@ class CameraViewModel(
                 }
             }
         )
+    }
+    
+    /**
+     * ✅ Common save logic to avoid duplication
+     */
+    private suspend fun saveToGallery(photoFile: File) {
+        val saveResult = savePhotoUseCase(photoFile)
+        if (saveResult.isSuccess) {
+            val uri = saveResult.getOrThrow()
+            _uiState.value = _uiState.value.copy(fileUri = uri)
+            
+            // Show success message
+            SnackbarManager.show(
+                message = "Photo saved successfully!",
+                type = SnackbarType.SUCCESS
+            )
+        } else {
+            updateError("Failed to save photo to gallery")
+        }
     }
 
     // ================ OTHER CAMERA FUNCTIONS ================
@@ -327,9 +475,8 @@ class CameraViewModel(
         cameraControl?.enableTorch(newFlashMode == ImageCapture.FLASH_MODE_ON)
     }
 
-    fun setRatioCamera(ratioCamera: RatioCamera, context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
-        _uiState.value = _uiState.value.copy(ratioCamera = ratioCamera)
-        startCamera(context, lifecycleOwner, previewView)
+    fun setRatioCamera(ratioCamera: RatioCamera, context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+        startCamera(context, lifecycleOwner, previewView, ratioCamera)
     }
 
     fun setTimerDelay(timerDelay: TimerDelay) {
@@ -364,6 +511,70 @@ class CameraViewModel(
         startCamera(context, lifecycleOwner, previewView)
     }
 
+    // ================ BEAUTY SETTINGS METHODS ================
+    
+    /**
+     * Toggle beauty adjustment panel visibility
+     */
+    fun toggleBeautyPanel() {
+        _uiState.value = _uiState.value.copy(
+            isBeautyPanelVisible = !_uiState.value.isBeautyPanelVisible
+        )
+    }
+    
+    /**
+     * Update beauty settings and apply to GPU filter
+     */
+    fun updateBeautySettings(newSettings: BeautySettings) {
+        val validatedSettings = newSettings.validate()
+        _uiState.value = _uiState.value.copy(beautySettings = validatedSettings)
+        
+        // Apply settings to GPUPixel filter
+        applyBeautySettingsToFilter(validatedSettings)
+    }
+    
+    /**
+     * Update individual beauty parameter
+     */
+    fun updateSkinSmoothing(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(skinSmoothing = value))
+    }
+    
+    fun updateWhiteness(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(whiteness = value))
+    }
+    
+    fun updateThinFace(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(thinFace = value))
+    }
+    
+    fun updateBigEye(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(bigEye = value))
+    }
+    
+    fun updateBlendLevel(value: Float) {
+        val currentSettings = _uiState.value.beautySettings
+        updateBeautySettings(currentSettings.copy(blendLevel = value))
+    }
+    
+    /**
+     * Reset beauty settings to default values
+     */
+    fun resetBeautySettings() {
+        updateBeautySettings(BeautySettings.default())
+    }
+    
+    /**
+     * Apply beauty settings to GPUPixel filter
+     */
+    private fun applyBeautySettingsToFilter(settings: BeautySettings) {
+        gPUPixelHelper?.updateBeautySettings(settings)
+    }
+
     fun changeZoom(zoomChange: Float) {
         val maxZoom: Float = camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 1f
         val minZoom: Float = camera?.cameraInfo?.zoomState?.value?.minZoomRatio ?: 1f
@@ -384,7 +595,7 @@ class CameraViewModel(
             CameraSelector.LENS_FACING_BACK
         }
         _uiState.value = _uiState.value.copy(lensFacing = lensFacing)
-        glSurfaceView?.changeCamera(lensFacing == CameraSelector.LENS_FACING_FRONT)
+//        glSurfaceView?.changeCamera(lensFacing == CameraSelector.LENS_FACING_FRONT)
         startCamera(context, lifecycleOwner, previewView)
     }
 
@@ -440,8 +651,8 @@ class CameraViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        glSurfaceView?.release()
-        glSurfaceView = null
+        gPUPixelHelper?.onDestroy()
+        stopLocationUpdates()
     }
 
     private fun listenMediaPipe() {
@@ -463,20 +674,166 @@ class CameraViewModel(
     }
 
     private fun updateError(message: String) {
-        _uiState.value = _uiState.value.copy(error = message, isLoading = false)
+        SnackbarManager.show(
+            message = message,
+            type = SnackbarType.FAIL
+        )
+        _uiState.value = _uiState.value.copy(isLoading = false)
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        // No longer needed since we don't use error state
     }
 
-    // TODO: Implement video recording methods with use cases
+    // ================ VIDEO RECORDING METHODS ================
+    
     fun startRecording(context: Context) {
-        // Implementation using RecordVideoUseCase
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                
+                // Create video file
+                val videoFileResult = recordVideoUseCase()
+                if (videoFileResult.isFailure) {
+                    updateError("Failed to create video file")
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    return@launch
+                }
+                
+                val videoFile = videoFileResult.getOrThrow()
+                val hasFilter = true // Always has filter since beauty is always active
+                
+                // Always use filtered recording since beauty filter is always active
+                startFilteredRecording(videoFile)
+                
+            } catch (e: Exception) {
+                updateError("Failed to start recording: ${e.message}")
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                Log.e("CameraViewModel", "Start recording error: ${e.message}")
+            }
+        }
+    }
+
+    private fun startFilteredRecording(videoFile: File) {
+        val gpuPixelHelper = this.gPUPixelHelper
+        val glSurfaceView = gpuPixelHelper?.glSurfaceView
+        if( glSurfaceView == null) {
+            updateError("GL Surface View not initialized")
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            return
+        }
+
+        val textOverlay = {
+            uiState.value.locationState.locationInfo?.address
+        }
+        glSurfaceView.startFilteredVideoRecording(videoFile, textOverlay) { success ->
+            _uiState.value = _uiState.value.copy(
+                isRecording = success,
+                isLoading = false
+            )
+            if (!success) {
+                updateError("Failed to start filtered recording")
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startNormalRecording(videoFile: File, context: Context) {
+        val videoCapture = videoCapture ?: run {
+            updateError("Video capture not initialized")
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            return
+        }
+
+        val outputOptions = androidx.camera.video.FileOutputOptions.Builder(videoFile).build()
+        
+        recording = videoCapture.output
+            .prepareRecording(context, outputOptions)
+            .withAudioEnabled()
+            .start(ContextCompat.getMainExecutor(context)) { recordEvent ->
+                when (recordEvent) {
+                    is androidx.camera.video.VideoRecordEvent.Start -> {
+                        _uiState.value = _uiState.value.copy(
+                            isRecording = true,
+                            isLoading = false
+                        )
+                        Log.d("CameraViewModel", "Normal video recording started")
+                    }
+                    is androidx.camera.video.VideoRecordEvent.Finalize -> {
+                        _uiState.value = _uiState.value.copy(isRecording = false)
+                        if (!recordEvent.hasError()) {
+                            viewModelScope.launch {
+                                saveVideoToGallery(videoFile)
+                            }
+                            Log.d("CameraViewModel", "Video recording completed successfully")
+                        } else {
+                            updateError("Recording error: ${recordEvent.error}")
+                            Log.e("CameraViewModel", "Recording error: ${recordEvent.error}")
+                        }
+                    }
+                }
+            }
     }
 
     fun stopRecording() {
-        recording?.stop()
-        _uiState.value = _uiState.value.copy(isRecording = false)
+        viewModelScope.launch {
+            try {
+                val hasFilter = true // Always has filter since beauty is always active
+                
+                // Always use filtered recording since beauty filter is always active
+                // Stop filtered recording
+                gPUPixelHelper?.let { helper ->
+                    helper.glSurfaceView?.stopFilteredVideoRecording { success: Boolean, videoFile: File? ->
+                        _uiState.value = _uiState.value.copy(isRecording = false)
+                        
+                        if (success && videoFile != null) {
+                            viewModelScope.launch {
+                                // TODO: Add address overlay to video file if needed
+                                // For now, just save the video as-is
+                                saveVideoToGallery(videoFile)
+                            }
+                            Log.d("CameraViewModel", "Filtered recording stopped successfully")
+                        } else {
+                            updateError("Failed to stop filtered recording")
+                            Log.e("CameraViewModel", "Filtered recording stop failed")
+                        }
+                    } ?: run {
+                        _uiState.value = _uiState.value.copy(isRecording = false)
+                        updateError("GL Surface View not initialized")
+                    }
+                } ?: run {
+                    _uiState.value = _uiState.value.copy(isRecording = false)
+                    updateError("Filter helper not initialized")
+                }
+                
+            } catch (e: Exception) {
+                Log.e("CameraViewModel", "Error stopping recording: ${e.message}")
+                updateError("Failed to stop recording: ${e.message}")
+                _uiState.value = _uiState.value.copy(isRecording = false)
+            }
+        }
+    }
+    
+    private suspend fun saveVideoToGallery(videoFile: File) {
+        try {
+            val saveResult = saveVideoUseCase(videoFile)
+            if (saveResult.isSuccess) {
+                val uri = saveResult.getOrThrow()
+                _uiState.value = _uiState.value.copy(fileUri = uri)
+                Log.d("CameraViewModel", "Video saved to gallery successfully")
+                
+                // Show success message
+                SnackbarManager.show(
+                    message = "Video saved successfully!",
+                    type = SnackbarType.SUCCESS
+                )
+            } else {
+                updateError("Failed to save video to gallery")
+                Log.e("CameraViewModel", "Failed to save video to gallery")
+            }
+        } catch (e: Exception) {
+            updateError("Error saving video: ${e.message}")
+            Log.e("CameraViewModel", "Error saving video: ${e.message}")
+        }
     }
 }

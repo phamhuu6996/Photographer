@@ -35,9 +35,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phamhuu.photographer.enums.ImageFilter
+import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
+import com.phamhuu.photographer.presentation.common.BeautyAdjustmentPanel
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.SlideVertically
+
 import com.phamhuu.photographer.presentation.filament.FilamentSurfaceView
 import com.phamhuu.photographer.presentation.utils.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.utils.FilterRenderer
@@ -66,9 +69,10 @@ fun CameraScreen(
     val navController = LocalNavController.current
 
     InitCameraPermission({
-        viewModel.setGLView(filterGLSurfaceView)
+        viewModel.setFilterHelper(filterGLSurfaceView, context)
         viewModel.startCamera(context, lifecycleOwner, previewView)
         viewModel.checkGalleryContent()
+        viewModel.checkLocationPermission(context) // Check location permission after camera permissions granted
     }, context)
 
     DisposableEffect(Unit) {
@@ -94,14 +98,6 @@ fun CameraScreen(
         }
     }
 
-    // Show error message if present
-    uiState.value.error?.let { error ->
-        LaunchedEffect(error) {
-            // You can show toast or snackbar here
-            // For now, just clear the error after showing
-            viewModel.clearError()
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -119,67 +115,24 @@ fun CameraScreen(
             lifecycle = lifecycleOwner.lifecycle,
         )
         
-        // ✅ Improved view switching với loading feedback
-        when {
-            uiState.value.currentFilter != ImageFilter.NONE -> {
-                // Filtered camera preview với ImageAnalyzer data
-                val ratio = uiState.value.ratioCamera.toRatio()// Default ratio if not set
-                AndroidView(
-                    factory = { filterGLSurfaceView },
-                    modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
-                )
-                
-                // ✅ Show loading indicator during filter transition
-                AnimatedVisibility(
-                    visible = uiState.value.isLoading,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.Center)
-                ) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.Black.copy(alpha = 0.7f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "🔄 Applying ${uiState.value.currentFilter.displayName}...",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
-            }
-            else -> {
-                // Normal camera preview
-                AndroidView(
-                    factory = { previewView },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-
-        // Error display
-        uiState.value.error?.let { error ->
-            Text(
-                text = error,
-                color = Color.Red,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-        }
-
-        // Filter indicator ở top center
-        AnimatedVisibility(
-            visible = uiState.value.currentFilter != ImageFilter.NONE && !uiState.value.isLoading,
-            enter = fadeIn() + slideInVertically { -it },
-            exit = fadeOut() + slideOutVertically { -it },
-            modifier = Modifier.align(Alignment.TopCenter)
+        // ✅ Always show filtered camera preview (no more conditional rendering)
+        // Beauty filter is always active
+        val ratio = uiState.value.ratioCamera.toRatio()
+        Box(
+            modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
         ) {
-            FilterIndicator(
-                filter = uiState.value.currentFilter,
-                modifier = Modifier.padding(top = 80.dp)
+            AndroidView(
+                factory = { filterGLSurfaceView },
+                modifier = Modifier.fillMaxSize()
             )
+            
+            // Address Overlay inside camera frame (only show when location enabled)
+            if (uiState.value.isLocationEnabled) {
+                CanvasAddressOverlay(
+                    locationInfo = uiState.value.locationState.locationInfo,
+                    modifier = Modifier.align(Alignment.TopEnd)
+                )
+            }
         }
 
         CameraControls(
@@ -202,22 +155,18 @@ fun CameraScreen(
             flashMode = uiState.value.flashMode,
             timeDelay = uiState.value.timerDelay,
             resolution = uiState.value.ratioCamera,
+            enableLocation = uiState.value.isLocationEnabled,
             onChangeTimeDelay = { viewModel.setTimerDelay(it) },
             onChangeResolution = { 
                 viewModel.setRatioCamera(it, context, lifecycleOwner, previewView)
             },
-            // Bottom navigation callbacks
-            onBeautyEffectSelected = { beautyEffect ->
-                // TODO: Map BeautyEffect to ImageFilter
-            },
-            on3DModelSelected = { model3D ->
-                viewModel.selectModel3D(context, model3D)
-            },
             onImageFilterSelected = { imageFilter ->
-                // ✅ Real OpenGL ES filtering với ImageAnalyzer data!
-                viewModel.setImageFilter(imageFilter)
+                // ✅ Changed: Now opens beauty adjustment panel instead of switching filters
+                viewModel.toggleBeautyPanel()
             },
-            currentFilter = uiState.value.currentFilter
+            onChangeLocationToggle = {
+                viewModel.toggleLocationEnabled() // Handle permission inside
+            }
         )
 
         // Brightness slider with animation
@@ -231,6 +180,20 @@ fun CameraScreen(
                 { brightness -> viewModel.setBrightness(brightness) }
             )
         }
+
+        // Beauty Adjustment Panel
+        BeautyAdjustmentPanel(
+            isVisible = uiState.value.isBeautyPanelVisible,
+            beautySettings = uiState.value.beautySettings,
+            onSkinSmoothingChange = { viewModel.updateSkinSmoothing(it) },
+            onWhitenessChange = { viewModel.updateWhiteness(it) },
+            onThinFaceChange = { viewModel.updateThinFace(it) },
+            onBigEyeChange = { viewModel.updateBigEye(it) },
+            onBlendLevelChange = { viewModel.updateBlendLevel(it) },
+            onResetToDefaults = { viewModel.resetBeautySettings() },
+            onDismiss = { viewModel.toggleBeautyPanel() },
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 

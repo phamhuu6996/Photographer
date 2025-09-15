@@ -6,13 +6,14 @@ import android.opengl.GLSurfaceView
 import android.util.AttributeSet
 import androidx.camera.core.ImageProxy
 import com.phamhuu.photographer.enums.ImageFilter
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 class CameraGLSurfaceView (
     context: Context,
 ) : GLSurfaceView(context) {
 
-    private val filterRenderer: FilterRenderer
+    val filterRenderer: FilterRenderer
 
     init {
         setEGLContextClientVersion(2)
@@ -23,49 +24,32 @@ class CameraGLSurfaceView (
         println("🔥 CameraGLSurfaceView initialized")
     }
 
-    fun changeCamera(isFrontCamera: Boolean) {
-        filterRenderer.changeCamera(isFrontCamera)
-    }
     
-    // ✅ Simplified image update - FilterRenderer handles ImageProxy closing
-    fun updateImage(imageProxy: ImageProxy) {
-        filterRenderer.updateImage(imageProxy)
-        requestRender()
-    }
-    
-    fun setImageFilter(filter: ImageFilter) {
+    /**
+     * Bắt đầu ghi filtered video
+     */
+    fun startFilteredVideoRecording(
+        videoFile: File,
+        textOverlay: (() -> String?)? = null,
+        callback: (Boolean) -> Unit
+    ) {
         queueEvent {
-            try {
-                println("🔥 Setting filter: ${filter.displayName}")
-                filterRenderer.setFilter(filter)
-                requestRender()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                println("❌ Error setting filter: ${e.message}")
+           val success = filterRenderer.startFilteredVideoRecording(videoFile, textOverlay)
+           callback(success)
+        }
+    }
+
+    /**
+     * Dừng ghi filtered video
+     */
+    fun stopFilteredVideoRecording(callback: (Boolean, File?) -> Unit) {
+        queueEvent {
+            filterRenderer.stopFilteredVideoRecording { success, file ->
+                callback(success, file)
             }
         }
     }
-    
-    fun captureFilteredImage(callback: (Bitmap) -> Unit) {
-        queueEvent {
-            try {
-                filterRenderer.captureFilteredImage { bitmap ->
-                    // Post callback to main thread
-                    post { 
-                        try {
-                            callback(bitmap)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                }
-                requestRender()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-    
+
     fun release() {
         queueEvent {
             try {

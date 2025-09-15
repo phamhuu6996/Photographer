@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import com.phamhuu.photographer.enums.SnackbarType
+import com.phamhuu.photographer.presentation.common.SnackbarManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,6 +36,16 @@ fun GalleryScreen(
 ) {
     val navController = LocalNavController.current
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Show error message if present
+    uiState.error?.let { error ->
+        LaunchedEffect(error) {
+            SnackbarManager.show(
+                message = error,
+                type = SnackbarType.FAIL
+            )
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -64,8 +77,8 @@ fun GalleryScreen(
 
                 uiState.error != null -> {
                     Text(
-                        text = "Error: ${uiState.error}",
-                        color = Color.Red,
+                        text = "No images found",
+                        color = Color.Gray,
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .padding(16.dp)

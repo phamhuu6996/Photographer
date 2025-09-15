@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.R
-import com.phamhuu.photographer.enums.BeautyEffect
 import com.phamhuu.photographer.enums.ImageFilter
 import com.phamhuu.photographer.enums.ImageMode
 import com.phamhuu.photographer.enums.RatioCamera
@@ -54,22 +53,28 @@ fun CameraControls(
     flashMode: Int,
     timeDelay: TimerDelay = TimerDelay.OFF,
     resolution: RatioCamera = RatioCamera.RATIO_3_4,
+    enableLocation: Boolean = false,
     onChangeTimeDelay: (TimerDelay) -> Unit,
     onChangeResolution: (RatioCamera) -> Unit,
-    onBeautyEffectSelected: (BeautyEffect) -> Unit = {},
-    on3DModelSelected: (TypeModel3D) -> Unit = {},
     onImageFilterSelected: (ImageFilter) -> Unit = {},
-    currentFilter: ImageFilter = ImageFilter.NONE
+    onChangeLocationToggle: () -> Unit = {},
 ) {
     val timerViewModel: TimerViewModel = viewModel()
     val state = timerViewModel.elapsedTime.collectAsState()
-    val showTimerOptions = remember { mutableStateOf(false) }
-    val currentAspectRatio = remember { mutableStateOf("4:3") }
-    
-    // Popup states
-    val showBeautyPopup = remember { mutableStateOf(false) }
-    val show3DPopup = remember { mutableStateOf(false) }
-    val showFilterPopup = remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val onChangeCameraModifier = remember(onShowGallery) {
+        modifier.clickable {
+            if (onShowGallery != null) {
+                onShowGallery()
+            }
+        }
+    }
+    val uriThumbnails = remember(fileUri) {
+        fileUri.let { Gallery.getResourceUri(context, fileUri) }
+    }
+
+    val iconLocation = if(enableLocation) R.drawable.location_on else R.drawable.location_off
 
     Box(
         modifier = modifier
@@ -110,6 +115,14 @@ fun CameraControls(
                 modifier = Modifier.clickable {
                     onChangeResolution(resolution.next())
                 }
+            )
+
+            // Location toggle button
+            ImageCustom(
+                id = iconLocation,
+                imageMode = ImageMode.MEDIUM,
+                color = Color.White,
+                modifier = Modifier.clickable { onChangeLocationToggle() }
             )
             
             // Camera switch button
@@ -163,12 +176,8 @@ fun CameraControls(
             ) {
                 if (fileUri != null)
                     AsyncImageCustom(
-                        imageSource = Gallery.getResourceUri(LocalContext.current, fileUri),
-                        modifier.clickable {
-                            if (onShowGallery != null) {
-                                onShowGallery()
-                            }
-                        },
+                        imageSource = uriThumbnails,
+                        modifier = onChangeCameraModifier,
                         size = 40.dp,
                     )
                 else
@@ -177,16 +186,6 @@ fun CameraControls(
                         imageMode = ImageMode.MEDIUM,
                         color = Color.White,
                     )
-
-                // Beauty Effects button
-                ImageCustom(
-                    id = R.drawable.ic_beauty_whitening,
-                    imageMode = ImageMode.MEDIUM,
-                    color = Color.White,
-                    modifier = Modifier.clickable { 
-                        showBeautyPopup.value = true
-                    }
-                )
 
                 if (isCapture)
                     ImageCustom(
@@ -211,70 +210,19 @@ fun CameraControls(
                         }
                     )
 
-                // 3D button
+                // Beauty Adjustment button
                 ImageCustom(
-                    id = R.drawable.ic_3d,
+                    id = R.drawable.magic,
                     imageMode = ImageMode.MEDIUM,
-                    color = Color.White,
+                    color = Color.White, // Normal white color since filter is default
                     modifier = Modifier.clickable { 
-                        show3DPopup.value = true
-                    }
-                )
-
-                // Image Filters button với status indicator
-                ImageCustom(
-                    id = R.drawable.ic_effects,
-                    imageMode = ImageMode.MEDIUM,
-                    color = if (currentFilter != ImageFilter.NONE) Color.Yellow else Color.White,
-                    modifier = Modifier.clickable { 
-                        showFilterPopup.value = true
+                        onImageFilterSelected(ImageFilter.BEAUTY) // Triggers beauty panel toggle
                     }
                 )
             }
         }
         
-        // Beauty Effects Popup
-        if (showBeautyPopup.value) {
-            HorizontalScrollablePopup(
-                items = BeautyEffect.entries.map { it.toPopupItemData() },
-                onItemClick = { item ->
-                    val beautyEffect = BeautyEffect.entries[item.id]
-                    onBeautyEffectSelected(beautyEffect)
-                    showBeautyPopup.value = false
-                },
-                onDismiss = { showBeautyPopup.value = false },
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-        
-        // 3D Models Popup
-        if (show3DPopup.value) {
-            HorizontalScrollablePopup(
-                items = TypeModel3D.entries.map { it.toPopupItemData() },
-                onItemClick = { item ->
-                    val model3D = TypeModel3D.entries[item.id]
-                    on3DModelSelected(model3D)
-                    show3DPopup.value = false
-                },
-                onDismiss = { show3DPopup.value = false },
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-        
-        // Image Filters Popup - ✅ REAL OpenGL ES Filters!
-        if (showFilterPopup.value) {
-            HorizontalScrollablePopup(
-                items = ImageFilter.entries.map { it.toPopupItemData() },
-                selectedItemId = currentFilter.ordinal,
-                onItemClick = { item ->
-                    val imageFilter = ImageFilter.entries[item.id]
-                    onImageFilterSelected(imageFilter)
-                    showFilterPopup.value = false
-                },
-                onDismiss = { showFilterPopup.value = false },
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
+        // Filter popup removed - beauty panel is now handled directly in CameraScreen
     }
 }
 
