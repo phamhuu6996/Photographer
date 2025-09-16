@@ -84,6 +84,10 @@ dependencies {
     // Media Pipe
     implementation (libs.tasks.vision)
 
+    // Media3 Video Playback
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+
     // Filament
     implementation (libs.filament.android)
     implementation (libs.filament.utils.android)

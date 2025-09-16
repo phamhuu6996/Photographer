@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,7 +60,7 @@ fun GalleryScreen(
         ) {
             ImageCustom(
                 id = R.drawable.back,
-                imageMode = ImageMode.MEDIUM,
+                imageMode = ImageMode.SMALL,
                 color = Color.White,
                 modifier = Modifier
                     .padding(all = 16.dp)
@@ -89,8 +90,7 @@ fun GalleryScreen(
                         columns = GridCells.Adaptive(minSize = width),
                     ) {
                         items(uiState.images) { galleryItem ->
-                            AsyncImageCustom(
-                                imageSource = galleryItem.resourceUri,
+                            Box(
                                 modifier = Modifier
                                     .padding(4.dp)
                                     .border(width = 1.dp, Color.Gray)
@@ -98,10 +98,27 @@ fun GalleryScreen(
                                         if (galleryItem.resourceUri is Uri) {
                                             val arg = Uri.encode(galleryItem.resourceUri.toString())
                                             navController.navigate("largeImage/${arg}")
+                                        } else {
+                                            val arg = Uri.encode(galleryItem.uri.toString())
+                                            navController.navigate("video/${arg}")
                                         }
-                                    },
-                                size = width
-                            )
+                                    }
+                            ) {
+                                AsyncImageCustom(
+                                    imageSource = galleryItem.resourceUri,
+                                    size = width
+                                )
+                                if (galleryItem.resourceUri !is Uri) {
+                                    Text(
+                                        text = "VIDEO",
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .background(Color(0x66000000))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

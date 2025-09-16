@@ -243,3 +243,72 @@ The current architecture follows MVVM feature-first pattern with state-only View
 - **Dependency Injection**: Koin-based DI with updated module structure
 
 All architectural requirements have been successfully implemented and the codebase is ready for development.
+
+---
+
+## Video Viewer Feature (Compose + Media3)
+
+### Goal
+Add a Video Viewer (trình xem video) using Jetpack Compose with lifecycle-safe playback and gallery/camera integration.
+
+### Proposed Solution
+- Use AndroidX Media3 ExoPlayer for playback
+- Integrate via `AndroidView` hosting `PlayerView`
+- New screen: `VideoPlayerScreen(videoUri: String)`
+- New route: `video/{videoUri}` using encoded URIs
+- Gallery opens images in `largeImage`, videos in `video`
+- Controls: play/pause, seek, mute; show buffering; Snackbar on error
+- Lifecycle: prepare on Start, pause on Stop, release on Dispose
+
+### Tasks
+1) Dependencies
+- Add to `app/build.gradle.kts`:
+  - `androidx.media3:media3-exoplayer`
+  - `androidx.media3:media3-ui`
+  - (Optional) `androidx.media3:media3-session`
+
+2) Navigation
+- Update `AppNavHost` with `composable("video/{videoUri}")`
+- Extract arg and pass to `VideoPlayerScreen`
+
+3) UI: `VideoPlayerScreen`
+- Create `presentation/video/ui/VideoPlayerScreen.kt`
+- `remember` ExoPlayer, set `MediaItem.fromUri(videoUri)`
+- `AndroidView` with `PlayerView`
+- `DisposableEffect` release player; lifecycle pause/resume
+- Overlay: back button (`ImageCustom`), loading, error
+
+4) ViewModel (optional)
+- `VideoPlayerViewModel`: `isBuffering`, `hasError`, `playbackPosition`, `isPlaying`
+- Functions: `onPlayToggle`, `seekTo`, `onError`
+- Register with Koin if needed
+
+5) Gallery integration
+- Load videos in addition to images (MediaStore)
+- Distinguish via MIME/bucket; add video badge overlay
+- On click: Image → `largeImage/{uri}`, Video → `video/{uri}`
+
+7) Permissions
+- Ensure `READ_MEDIA_VIDEO` (Android 13+) or legacy is covered
+
+8) Orientation & fullscreen (optional)
+- Lock landscape or enable immersive mode
+
+9) Error handling
+- On player error, show Snackbar FAIL with Retry
+
+10) Testing
+- Recorded and gallery videos, long videos, rotation
+- Verify back stack and no resource leaks
+
+### Acceptance Criteria
+- Navigating to `video/{videoUri}` plays video with controls
+- Back returns cleanly; camera resumes if returning
+- Gallery opens correct viewer per media type
+- Lifecycle respected; errors surfaced via Snackbar
+
+### Implementation Notes (Video Viewer)
+- Player controller visibility: using `setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility -> controlsVisible = (visibility == View.VISIBLE) })` to drive overlay visibility.
+- Orientation: lock to `SCREEN_ORIENTATION_SENSOR_LANDSCAPE` while viewer is active; restore previous orientation on dispose.
+- Error handling: show Snackbar via `SnackbarManager` on player error and provide a Retry button to reload media.
+- Playback position: persist/playback position via ViewModel; update every 500ms; seek on load; save before release.

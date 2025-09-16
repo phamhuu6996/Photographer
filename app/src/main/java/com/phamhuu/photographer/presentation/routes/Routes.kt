@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import com.phamhuu.photographer.presentation.camera.ui.CameraScreen
 import com.phamhuu.photographer.presentation.gallery.LargeImageScreen
 import com.phamhuu.photographer.presentation.gallery.ui.GalleryScreen
+import com.phamhuu.photographer.presentation.video.ui.VideoPlayerScreen
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
@@ -19,6 +20,10 @@ fun AppNavHost(navController: NavHostController) {
             composable("largeImage/{imageUri}") { backStackEntry ->
                 val imageUri = backStackEntry.arguments?.getString("imageUri") ?: return@composable
                 LargeImageScreen(imageUri = imageUri)
+            }
+            composable("video/{videoUri}") { backStackEntry ->
+                val videoUri = backStackEntry.arguments?.getString("videoUri") ?: return@composable
+                VideoPlayerScreen(videoUri = videoUri)
             }
         }
     }
