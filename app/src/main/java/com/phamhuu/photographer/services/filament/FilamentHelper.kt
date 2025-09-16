@@ -47,8 +47,9 @@ class FilamentHelper {
 
     private val lifecycleObserver = object : DefaultLifecycleObserver {
         override fun onDestroy(owner: LifecycleOwner) {
-            choreographer.removeFrameCallback(frameScheduler)
-            destroy()
+            // không gọi vì đang set singleton
+//            choreographer.removeFrameCallback(frameScheduler)
+//            destroy()
         }
     }
 

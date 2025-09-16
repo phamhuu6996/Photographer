@@ -31,6 +31,7 @@ import com.phamhuu.photographer.presentation.common.AsyncImageCustom
 import com.phamhuu.photographer.presentation.common.ImageCustom
 import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 import org.koin.androidx.compose.koinViewModel
+import singleShotClick
 
 @Composable
 fun GalleryScreen(
@@ -64,7 +65,7 @@ fun GalleryScreen(
                 color = Color.White,
                 modifier = Modifier
                     .padding(all = 16.dp)
-                    .clickable { navController.popBackStack() }
+                    .singleShotClick { navController.popBackStack() }
             )
 
             when {

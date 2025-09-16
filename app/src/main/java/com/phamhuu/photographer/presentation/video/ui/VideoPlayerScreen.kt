@@ -4,6 +4,7 @@ import LocalNavController
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.isActive
+import singleShotClick
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -96,7 +98,10 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
             lifecycleOwner.lifecycle.removeObserver(observer)
             viewModel.updatePosition(player.currentPosition)
             player.release()
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            Log.d("VideoPlayerScreen", "activity?.isFinishing: ${activity?.isChangingConfigurations}")
+            if (activity?.isChangingConfigurations == false) {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
         }
     }
 
@@ -167,7 +172,7 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                     imageMode = ImageMode.SMALL,
                     color = Color.White,
                     modifier = Modifier
-                        .clickable { navController.popBackStack() }
+                        .singleShotClick { navController.popBackStack() }
                 )
                 Spacer(modifier = Modifier.height(0.dp))
                 ImageCustom(
@@ -175,7 +180,7 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                     imageMode = ImageMode.MEDIUM,
                     color = Color.White,
                     modifier = Modifier
-                        .clickable { viewModel.toggleOrientation(activity) }
+                        .singleShotClick { viewModel.toggleOrientation(activity) }
                 )
             }
 

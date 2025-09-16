@@ -21,6 +21,7 @@ import com.phamhuu.photographer.contants.ImageMode
 import com.phamhuu.photographer.presentation.common.AsyncImageCustom
 import com.phamhuu.photographer.presentation.common.ImageCustom
 import com.phamhuu.photographer.presentation.image_view.LargeImageViewModel
+import singleShotClick
 
 @Composable
 fun LargeImageScreen(imageUri: String) {
@@ -49,6 +50,6 @@ fun LargeImageScreen(imageUri: String) {
             modifier = Modifier
                 .padding(all = 16.dp)
                 .align(Alignment.TopStart)
-                .clickable { navController.popBackStack() })
+                .singleShotClick { navController.popBackStack() })
     }
 }
