@@ -1,18 +1,18 @@
 package com.phamhuu.photographer.services.gl
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.opengl.GLSurfaceView
 import java.io.File
 
-class CameraGLSurfaceView (
+@SuppressLint("ViewConstructor")
+class CameraGLSurfaceView(
     context: Context,
-) : GLSurfaceView(context) {
-
     val filterRenderer: FilterRenderer
+) : GLSurfaceView(context) {
 
     init {
         setEGLContextClientVersion(2)
-        filterRenderer = FilterRenderer()
         setRenderer(filterRenderer)
         renderMode = RENDERMODE_WHEN_DIRTY
         println("🔥 CameraGLSurfaceView initialized")

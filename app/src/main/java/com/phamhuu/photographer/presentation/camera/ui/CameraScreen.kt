@@ -43,6 +43,7 @@ import com.phamhuu.photographer.presentation.filament.FilamentSurfaceView
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.context.GlobalContext
 
 @Composable
 fun CameraScreen(
@@ -57,8 +58,8 @@ fun CameraScreen(
         }
     }
     
-    val filterGLSurfaceView = remember { 
-        CameraGLSurfaceView(context)
+    val filterGLSurfaceView = remember {
+        GlobalContext.get().get<CameraGLSurfaceView>()
     }
     
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()

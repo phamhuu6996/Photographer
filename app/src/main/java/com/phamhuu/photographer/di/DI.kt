@@ -20,6 +20,8 @@ import com.phamhuu.photographer.domain.usecase.SaveVideoUseCase
 import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
 import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
 import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
+import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
+import com.phamhuu.photographer.services.gl.FilterRenderer
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.koin.android.ext.koin.androidContext
@@ -47,9 +49,8 @@ val appModule = module {
             Geocoder(androidContext())
         )
     }
-    
-    // Renderers (Data Layer)
-    single { com.phamhuu.photographer.services.renderer.AddTextService }
+    factory { FilterRenderer() }
+    factory { CameraGLSurfaceView(androidContext(), get()) }
     
     // Use Cases
     factory { TakePhotoUseCase(get()) }
