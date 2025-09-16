@@ -16,8 +16,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.phamhuu.photographer.contants.Contants
-import com.phamhuu.photographer.data.renderer.AddTextService
-import com.phamhuu.photographer.models.LocationInfo
+import com.phamhuu.photographer.data.model.LocationInfo
+import com.phamhuu.photographer.services.renderer.AddTextService
 
 @Composable
 fun CanvasAddressText(

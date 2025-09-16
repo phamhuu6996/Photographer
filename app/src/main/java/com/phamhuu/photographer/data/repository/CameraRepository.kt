@@ -4,8 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import com.phamhuu.photographer.contants.Contants
-import com.phamhuu.photographer.data.renderer.AddTextService
-import com.phamhuu.photographer.presentation.utils.Gallery
+import com.phamhuu.photographer.services.renderer.AddTextService
+import com.phamhuu.photographer.services.android.Gallery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

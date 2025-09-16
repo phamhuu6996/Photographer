@@ -2,7 +2,7 @@ package com.phamhuu.photographer.presentation.common
 
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
-import com.phamhuu.photographer.enums.SnackbarType
+import com.phamhuu.photographer.contants.SnackbarType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -60,8 +60,8 @@ object SnackbarManager {
      * @param onActionClick Callback khi user click action button (optional)
      */
     fun show(
-        message: String, 
-        type: SnackbarType, 
+        message: String,
+        type: SnackbarType,
         onActionClick: (() -> Unit)? = null
     ) {
         show(SnackbarData(message, type, onActionClick))

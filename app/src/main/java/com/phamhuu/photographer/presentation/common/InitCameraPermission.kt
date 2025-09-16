@@ -7,7 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.phamhuu.photographer.presentation.utils.Permission
+import com.phamhuu.photographer.services.android.Permission
 
 @Composable
 fun InitCameraPermission(callback: () -> Unit, context: Context) {

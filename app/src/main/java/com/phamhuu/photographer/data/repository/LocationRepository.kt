@@ -1,6 +1,6 @@
 package com.phamhuu.photographer.data.repository
 
-import com.phamhuu.photographer.models.LocationInfo
+import com.phamhuu.photographer.data.model.LocationInfo
 import kotlinx.coroutines.flow.Flow
 
 interface LocationRepository {

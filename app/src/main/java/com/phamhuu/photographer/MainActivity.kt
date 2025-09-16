@@ -13,7 +13,7 @@ import com.phamhuu.photographer.di.appModule
 import com.phamhuu.photographer.presentation.common.AppScaffold
 import com.phamhuu.photographer.presentation.common.FullScreen
 import com.phamhuu.photographer.presentation.common.SnackbarManager
-import com.phamhuu.photographer.routes.AppNavHost
+import com.phamhuu.photographer.presentation.routes.AppNavHost
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext.startKoin
 

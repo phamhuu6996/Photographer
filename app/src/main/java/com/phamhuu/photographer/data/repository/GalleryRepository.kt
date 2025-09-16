@@ -2,7 +2,7 @@ package com.phamhuu.photographer.data.repository
 
 import android.content.Context
 import android.net.Uri
-import com.phamhuu.photographer.presentation.utils.Gallery
+import com.phamhuu.photographer.services.android.Gallery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

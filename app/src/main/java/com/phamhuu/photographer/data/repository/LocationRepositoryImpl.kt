@@ -5,7 +5,7 @@ import android.content.Context
 import android.location.Geocoder
 import android.os.Looper
 import com.google.android.gms.location.*
-import com.phamhuu.photographer.models.LocationInfo
+import com.phamhuu.photographer.data.model.LocationInfo
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow

@@ -3,7 +3,6 @@ package com.phamhuu.photographer.presentation.common
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,9 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phamhuu.photographer.R
-import com.phamhuu.photographer.domain.model.BeautySettings
-import com.phamhuu.photographer.enums.ImageMode
+import com.phamhuu.photographer.contants.BeautySettings
 
 /**
  * BeautyAdjustmentPanel - Panel điều chỉnh các thông số beauty filter

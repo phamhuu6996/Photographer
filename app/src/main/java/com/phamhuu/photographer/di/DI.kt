@@ -2,7 +2,7 @@ package com.phamhuu.photographer.di
 
 import FilamentHelper
 import FilamentViewModel
-import Manager3DHelper
+import com.phamhuu.photographer.services.filament.Manager3DHelper
 import android.location.Geocoder
 import com.google.android.gms.location.LocationServices
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
@@ -18,8 +18,8 @@ import com.phamhuu.photographer.domain.usecase.RecordVideoUseCase
 import com.phamhuu.photographer.domain.usecase.SavePhotoUseCase
 import com.phamhuu.photographer.domain.usecase.SaveVideoUseCase
 import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
-import com.phamhuu.photographer.presentation.camera.CameraViewModel
-import com.phamhuu.photographer.presentation.gallery.GalleryViewModel
+import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
+import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.koin.android.ext.koin.androidContext
@@ -49,7 +49,7 @@ val appModule = module {
     }
     
     // Renderers (Data Layer)
-    single { com.phamhuu.photographer.data.renderer.AddTextService }
+    single { com.phamhuu.photographer.services.renderer.AddTextService }
     
     // Use Cases
     factory { TakePhotoUseCase(get()) }

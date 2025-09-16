@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,13 +27,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.R
-import com.phamhuu.photographer.enums.ImageFilter
-import com.phamhuu.photographer.enums.ImageMode
-import com.phamhuu.photographer.enums.RatioCamera
-import com.phamhuu.photographer.enums.TimerDelay
-import com.phamhuu.photographer.enums.TypeModel3D
+import com.phamhuu.photographer.contants.ImageFilter
+import com.phamhuu.photographer.contants.ImageMode
+import com.phamhuu.photographer.contants.RatioCamera
+import com.phamhuu.photographer.contants.TimerDelay
 import com.phamhuu.photographer.presentation.timer.TimerViewModel
-import com.phamhuu.photographer.presentation.utils.Gallery
+import com.phamhuu.photographer.services.android.Gallery
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -71,7 +69,7 @@ fun CameraControls(
         }
     }
     val uriThumbnails = remember(fileUri) {
-        fileUri.let { Gallery.getResourceUri(context, fileUri) }
+        fileUri?.let { Gallery.getResourceUri(context, fileUri) }
     }
 
     val iconLocation = if(enableLocation) R.drawable.location_on else R.drawable.location_off

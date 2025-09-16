@@ -1,6 +1,5 @@
 package com.phamhuu.photographer.presentation.common
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import com.phamhuu.photographer.enums.ImageMode
+import com.phamhuu.photographer.contants.ImageMode
 
 data class PopupItemData(
     val id: Int,
