@@ -1,15 +1,21 @@
 package com.phamhuu.photographer.services.android
 
+import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.graphics.Bitmap
 import android.media.ThumbnailUtils
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.util.Size
 import androidx.annotation.RequiresApi
+import com.phamhuu.photographer.data.model.GalleryPageModel
 import com.phamhuu.photographer.presentation.common.getFilePathFromUri
 import java.io.File
 import java.io.FileInputStream
@@ -57,9 +63,9 @@ object Gallery {
         return uriFile
     }
 
-    private fun getFirstImageFromGallery(context: Context): Uri? {
+    fun getFirstImageOrVideo(context: Context): Uri? {
         val contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(MediaStore.Images.Media._ID)
+        val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Video.Media._ID)
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         context.contentResolver.query(contentUri, projection, null, null, sortOrder)
             ?.use { cursor ->
@@ -70,62 +76,6 @@ object Gallery {
                 }
             }
         return null
-    }
-
-    private fun getFirstVideoFromGallery(context: Context): Uri? {
-        val contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(MediaStore.Video.Media._ID)
-        val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
-        context.contentResolver.query(contentUri, projection, null, null, sortOrder)
-            ?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                    val videoId = cursor.getLong(idColumn)
-                    return Uri.withAppendedPath(contentUri, videoId.toString())
-                }
-            }
-        return null
-    }
-
-    fun getFirstImageOrVideo(context: Context): Uri? {
-        return getFirstImageFromGallery(context) ?: getFirstVideoFromGallery(context)
-    }
-
-    fun getAllImagesAndVideosFromGallery(context: Context): List<Uri> {
-        val mediaList = mutableListOf<Uri>()
-        val contentUri = MediaStore.Files.getContentUri("external")
-        val projection =
-            arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE)
-        val selection =
-            "${MediaStore.Files.FileColumns.MEDIA_TYPE}=? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE}=?"
-        val selectionArgs = arrayOf(
-            MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
-            MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
-        )
-        val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
-        context.contentResolver.query(contentUri, projection, selection, selectionArgs, sortOrder)
-            ?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
-                val typeColumn =
-                    cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idColumn)
-                    val mediaType = cursor.getInt(typeColumn)
-                    val uri = when (mediaType) {
-                        MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> Uri.withAppendedPath(
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                            id.toString()
-                        )
-                        MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> Uri.withAppendedPath(
-                            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                            id.toString()
-                        )
-                        else -> null
-                    }
-                    uri?.let { mediaList.add(it) }
-                }
-            }
-        return mediaList
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -145,5 +95,77 @@ object Gallery {
             imageSource = loadBitmapFromUri(context, uri)
         }
         return imageSource
+    }
+
+    fun getImagesAndVideos(
+        context: Context,
+        limit: Int,
+        afterId: Long? = null // lastId từ lần trước
+    ): GalleryPageModel {
+        val projection = arrayOf(
+            MediaStore.Files.FileColumns._ID,
+            MediaStore.Files.FileColumns.MEDIA_TYPE,
+            MediaStore.Files.FileColumns.DATE_ADDED
+        )
+
+        val sel =
+            StringBuilder("(${MediaStore.Files.FileColumns.MEDIA_TYPE}=? OR ${MediaStore.Files.FileColumns.MEDIA_TYPE}=? )")
+        val selArgs = mutableListOf(
+            MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+            MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
+        )
+        afterId?.let {
+            sel.append(" AND ${MediaStore.Files.FileColumns._ID} < ?")
+            selArgs.add(it.toString())
+        }
+
+        val args = Bundle().apply {
+            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+            putStringArray(
+                ContentResolver.QUERY_ARG_SORT_COLUMNS,
+                arrayOf(MediaStore.Files.FileColumns._ID)
+            )
+            putInt(
+                ContentResolver.QUERY_ARG_SORT_DIRECTION,
+                ContentResolver.QUERY_SORT_DIRECTION_DESCENDING
+            )
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, sel.toString())
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selArgs.toTypedArray())
+        }
+
+        val uri = MediaStore.Files.getContentUri("external")
+        context.contentResolver.query(uri, projection, args, null)?.use { c ->
+            val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+            val typeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+            val dateCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED)
+
+            val items = mutableListOf<Uri>()
+            var lastId: Long? = null
+            var lastDate: Long? = null
+
+            while (c.moveToNext()) {
+                val id = c.getLong(idCol)
+                val type = c.getInt(typeCol)
+                val date = c.getLong(dateCol)
+                val base = if (type == MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE)
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                else MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+
+                items += ContentUris.withAppendedId(base, id)
+                lastId = id
+                lastDate = date
+            }
+            Log.d(
+                "GalleryViewModel",
+                "Queried ${items.size} items, lastId=$lastId, lastDate=$lastDate"
+            )
+            return GalleryPageModel(
+                items = items,
+                id = lastId,
+                dateAdded = lastDate,
+                canLoadMore = items.isNotEmpty()
+            )
+        }
+        return GalleryPageModel(emptyList(), null, null, false)
     }
 }

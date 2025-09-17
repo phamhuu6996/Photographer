@@ -312,3 +312,40 @@ Add a Video Viewer (trình xem video) using Jetpack Compose with lifecycle-safe 
 - Orientation: lock to `SCREEN_ORIENTATION_SENSOR_LANDSCAPE` while viewer is active; restore previous orientation on dispose.
 - Error handling: show Snackbar via `SnackbarManager` on player error and provide a Retry button to reload media.
 - Playback position: persist/playback position via ViewModel; update every 500ms; seek on load; save before release.
+
+### Gallery - Keyset Pagination: Task List
+1. Repository/Service
+   - Add `getAfter(lastDateAdded: Long, lastId: Long, limit: Int): List<Uri>` in `GalleryRepository` and implement in `GalleryRepositoryImpl`.
+   - Implement MediaStore keyset query in `services/android/Gallery.kt` using:
+     - Sort: `DATE_ADDED DESC, _ID DESC`
+     - Where: `(DATE_ADDED < ?) OR (DATE_ADDED = ? AND _ID < ?)`
+     - Limit: `pageSize`.
+2. ViewModel (`GalleryViewModel`)
+   - Extend `GalleryUiState` with: `isLoadingMore`, `canLoadMore`, `lastDateAdded`, `lastId`, `pageSize`.
+   - Implement `loadInitial(pageSize)` to fetch first page, map to `GalleryItem`, set cursors, set `canLoadMore`.
+   - Implement `loadMore()` with guards (`isLoadingMore`, `canLoadMore`), call repo `getAfter`, append items, update cursors, stop when fewer than `pageSize`.
+   - Error handling: set `error` and trigger Snackbar via existing `SnackbarManager`.
+3. UI (`GalleryScreen`)
+   - Switch to `itemsIndexed` in `LazyVerticalGrid`.
+   - Trigger `viewModel.loadMore()` when `index >= images.size - 4` (prefetch window), rely on VM guards.
+   - Show a small bottom spinner when `isLoadingMore`.
+4. Testing
+   - Validate smooth infinite scroll on large libraries; no duplicates/skips when media changes.
+   - Verify memory remains stable and UI responsive across multiple pages.
+   - Rotation behavior: confirm desired state retention or reset.
+5. Enhancements (optional)
+   - Debounce `loadMore()` triggers to avoid burst calls.
+   - Preload next-page thumbnails asynchronously.
+
+### Gallery Memory Update
+- Models renamed:
+  - `GalleryItem` → `GalleryItemModel` (`data/model/GalleryItem.kt`)
+  - `GalleryPage` → `GalleryPageModel` (`data/model/GalleryPageModel.kt`)
+- Repository API unified:
+  - `GalleryRepository.getImagesAndVideos(limit, after: Pair<Long,Long>?) : GalleryPageModel`
+  - `after = null` → first page; otherwise keyset with `(DATE_ADDED, _ID)`
+- Service (`services/android/Gallery.kt`):
+  - `getImagesAndVideos(context, limit, after)` returns `GalleryQueryResult(items, lastDate, lastId)`
+  - `cursorToUris(...)` maps Files cursor rows to Image/Video content Uris
+  - `getFirstImageOrVideo(context)` present for fetching the most recent media
+- ViewModel (`GalleryViewModel`): uses unified API for `loadInitial`/`loadMore`; tracks `lastDateAdded/lastId`, `isLoadingMore`, `canLoadMore`.

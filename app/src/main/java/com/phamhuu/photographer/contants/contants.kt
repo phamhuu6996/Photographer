@@ -17,4 +17,7 @@ object Contants {
     const val MAX_WIDTH_RATIO = 0.4f // 40% of container width
     const val LINE_HEIGHT_MULTIPLIER = 1.2f
     const val TEXT_SIZE_RATIO = 0.025f // Relative to bitmap width
+
+    // Load more
+    const val MAX_RECORD_LOAD_MORE = 10
 }

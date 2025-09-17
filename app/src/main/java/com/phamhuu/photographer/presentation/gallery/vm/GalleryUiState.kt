@@ -1,14 +1,12 @@
 package com.phamhuu.photographer.presentation.gallery.vm
 
-import android.net.Uri
+import com.phamhuu.photographer.data.model.GalleryItemModel
+import com.phamhuu.photographer.data.model.GalleryPageModel
 
 data class GalleryUiState(
     val isLoading: Boolean = false,
-    val images: List<GalleryItem> = emptyList(),
-    val error: String? = null
-)
-
-data class GalleryItem(
-    val uri: Uri,
-    val resourceUri: Any? = null
+    val images: List<GalleryItemModel> = emptyList(),
+    val error: String? = null,
+    val isLoadingMore: Boolean = false,
+    val galleryPageModel: GalleryPageModel? = null,
 )

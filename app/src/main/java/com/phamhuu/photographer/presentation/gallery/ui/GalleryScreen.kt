@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
@@ -90,7 +90,10 @@ fun GalleryScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = width),
                     ) {
-                        items(uiState.images) { galleryItem ->
+                        itemsIndexed(uiState.images) { index, galleryItem ->
+                            if (index >= uiState.images.size - 4) {
+                                viewModel.loadMore()
+                            }
                             Box(
                                 modifier = Modifier
                                     .padding(4.dp)
@@ -119,6 +122,16 @@ fun GalleryScreen(
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
+                            }
+                        }
+                        if (uiState.isLoadingMore) {
+                            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .padding(12.dp)
+                                        .align(Alignment.CenterHorizontally),
+                                    color = Color.White
+                                )
                             }
                         }
                     }
