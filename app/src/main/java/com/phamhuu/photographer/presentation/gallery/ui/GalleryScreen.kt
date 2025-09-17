@@ -56,86 +56,67 @@ fun GalleryScreen(
     ) {
         val width = maxWidth / 2
 
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box{
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = width),
+                ) {
+                    itemsIndexed(
+                        uiState.images,
+                        key = { _, galleryItem -> galleryItem.uri }
+                    ) { index, galleryItem ->
+                        if (index >= uiState.images.size - 4) {
+                            viewModel.loadMore()
+                        }
+                        Box(
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .border(width = 1.dp, Color.Gray)
+                                .clickable {
+                                    if (galleryItem.resourceUri is Uri) {
+                                        val arg = Uri.encode(galleryItem.resourceUri.toString())
+                                        navController.navigate("largeImage/${arg}")
+                                    } else {
+                                        val arg = Uri.encode(galleryItem.uri.toString())
+                                        navController.navigate("video/${arg}")
+                                    }
+                                }
+                        ) {
+                            AsyncImageCustom(
+                                imageSource = galleryItem.resourceUri,
+                                size = width
+                            )
+                            if (galleryItem.resourceUri !is Uri) {
+                                Text(
+                                    text = "VIDEO",
+                                    color = Color.White,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .background(Color(0x66000000))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             ImageCustom(
                 id = R.drawable.back,
                 imageMode = ImageMode.SMALL,
                 color = Color.White,
                 modifier = Modifier
                     .padding(all = 16.dp)
+                    .align(Alignment.TopStart)
                     .singleShotClick { navController.popBackStack() }
             )
-
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                        color = Color.White
-                    )
-                }
-
-                uiState.error != null -> {
-                    Text(
-                        text = "No images found",
-                        color = Color.Gray,
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(16.dp)
-                    )
-                }
-
-                else -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = width),
-                    ) {
-                        itemsIndexed(uiState.images) { index, galleryItem ->
-                            if (index >= uiState.images.size - 4) {
-                                viewModel.loadMore()
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .border(width = 1.dp, Color.Gray)
-                                    .clickable {
-                                        if (galleryItem.resourceUri is Uri) {
-                                            val arg = Uri.encode(galleryItem.resourceUri.toString())
-                                            navController.navigate("largeImage/${arg}")
-                                        } else {
-                                            val arg = Uri.encode(galleryItem.uri.toString())
-                                            navController.navigate("video/${arg}")
-                                        }
-                                    }
-                            ) {
-                                AsyncImageCustom(
-                                    imageSource = galleryItem.resourceUri,
-                                    size = width
-                                )
-                                if (galleryItem.resourceUri !is Uri) {
-                                    Text(
-                                        text = "VIDEO",
-                                        color = Color.White,
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .background(Color(0x66000000))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                        if (uiState.isLoadingMore) {
-                            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .padding(12.dp)
-                                        .align(Alignment.CenterHorizontally),
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.Center)
+                )
             }
         }
     }

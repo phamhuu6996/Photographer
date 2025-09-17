@@ -4,5 +4,5 @@ import android.net.Uri
 
 data class GalleryItemModel(
     val uri: Uri,
-    val resourceUri: Any? = null
+    val resourceUri: Any? = null,
 )

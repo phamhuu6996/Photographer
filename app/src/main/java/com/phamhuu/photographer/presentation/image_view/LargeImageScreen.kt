@@ -45,7 +45,7 @@ fun LargeImageScreen(imageUri: String) {
                 modifier = Modifier.fillMaxSize()
             )
         ImageCustom(id = R.drawable.back,
-            imageMode = ImageMode.MEDIUM,
+            imageMode = ImageMode.SMALL,
             color = Color.White,
             modifier = Modifier
                 .padding(all = 16.dp)

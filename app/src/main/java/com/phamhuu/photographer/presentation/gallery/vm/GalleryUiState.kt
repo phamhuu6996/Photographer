@@ -7,6 +7,5 @@ data class GalleryUiState(
     val isLoading: Boolean = false,
     val images: List<GalleryItemModel> = emptyList(),
     val error: String? = null,
-    val isLoadingMore: Boolean = false,
     val galleryPageModel: GalleryPageModel? = null,
 )

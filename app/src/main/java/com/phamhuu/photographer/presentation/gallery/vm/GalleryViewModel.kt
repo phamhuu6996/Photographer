@@ -57,12 +57,12 @@ class GalleryViewModel(
                 }
                 val newList = currentState.images + items
                 _uiState.value = currentState.copy(
-                    isLoadingMore = false,
+                    isLoading = false,
                     images = newList,
                     galleryPageModel = page,
                 )
             } catch (e: Exception) {
-                _uiState.value = currentState.copy(isLoadingMore = false)
+                _uiState.value = currentState.copy(isLoading = false)
                 setError(e.message ?: "Unknown error occurred")
             }
         }
