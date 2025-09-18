@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
@@ -54,7 +55,7 @@ fun GalleryScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        val width = maxWidth / 2
+        val width = maxWidth / 3
 
         Box{
             Column(
@@ -105,10 +106,11 @@ fun GalleryScreen(
 
             ImageCustom(
                 id = R.drawable.back,
-                imageMode = ImageMode.SMALL,
+                imageMode = ImageMode.LARGE,
                 color = Color.White,
                 modifier = Modifier
                     .padding(all = 16.dp)
+                    .background(Color.Black, shape = CircleShape)
                     .align(Alignment.TopStart)
                     .singleShotClick { navController.popBackStack() }
             )

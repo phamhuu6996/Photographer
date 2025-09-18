@@ -49,6 +49,7 @@ import androidx.media3.ui.PlayerView
 import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.isActive
 import singleShotClick
@@ -169,14 +170,15 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
             ) {
                 ImageCustom(
                     id = R.drawable.back,
-                    imageMode = ImageMode.SMALL,
+                    imageMode = ImageMode.LARGE,
                     color = Color.White,
                     modifier = Modifier
+                        .background(Color.Black, shape = CircleShape)
                         .singleShotClick { navController.popBackStack() }
                 )
                 Spacer(modifier = Modifier.height(0.dp))
                 ImageCustom(
-                    id = R.drawable.ic_rotate,
+                    id = R.drawable.full_screen,
                     imageMode = ImageMode.MEDIUM,
                     color = Color.White,
                     modifier = Modifier
