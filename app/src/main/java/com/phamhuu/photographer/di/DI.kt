@@ -12,12 +12,6 @@ import com.phamhuu.photographer.data.repository.GalleryRepository
 import com.phamhuu.photographer.data.repository.GalleryRepositoryImpl
 import com.phamhuu.photographer.data.repository.LocationRepository
 import com.phamhuu.photographer.data.repository.LocationRepositoryImpl
-import com.phamhuu.photographer.domain.usecase.AddTextCaptureUseCase
-import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
-import com.phamhuu.photographer.domain.usecase.RecordVideoUseCase
-import com.phamhuu.photographer.domain.usecase.SavePhotoUseCase
-import com.phamhuu.photographer.domain.usecase.SaveVideoUseCase
-import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
 import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
 import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 import com.phamhuu.photographer.presentation.video.vm.VideoPlayerViewModel
@@ -53,17 +47,17 @@ val appModule = module {
     factory { FilterRenderer() }
     factory { CameraGLSurfaceView(androidContext(), get()) }
     
-    // Use Cases
-    factory { TakePhotoUseCase(get()) }
-    factory { SavePhotoUseCase(get()) }
-    factory { RecordVideoUseCase(get()) }
-    factory { SaveVideoUseCase(get()) }
-    factory { GetFirstGalleryItemUseCase(get()) }
-    factory { AddTextCaptureUseCase(get()) }
-    
     // ViewModels
     viewModel { FilamentViewModel(get<FilamentHelper>()) }
-    viewModel { CameraViewModel(get<FaceLandmarkerHelper>(), get<Manager3DHelper>(), get(), get(), get(), get(), get(), get(), get()) }
-    viewModel { GalleryViewModel(get()) }
+    viewModel {
+        CameraViewModel(
+            get<FaceLandmarkerHelper>(),
+            get<Manager3DHelper>(),
+            get<CameraRepository>(),
+            get<GalleryRepository>(),
+            get<LocationRepository>(),
+        )
+    }
+    viewModel { GalleryViewModel(get<GalleryRepository>()) }
     viewModel { VideoPlayerViewModel() }
 }

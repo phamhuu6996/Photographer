@@ -32,11 +32,6 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.contants.BeautySettings
-import com.phamhuu.photographer.domain.usecase.GetFirstGalleryItemUseCase
-import com.phamhuu.photographer.domain.usecase.RecordVideoUseCase
-import com.phamhuu.photographer.domain.usecase.SavePhotoUseCase
-import com.phamhuu.photographer.domain.usecase.SaveVideoUseCase
-import com.phamhuu.photographer.domain.usecase.TakePhotoUseCase
 import com.phamhuu.photographer.contants.ImageFilter
 import com.phamhuu.photographer.contants.RatioCamera
 import com.phamhuu.photographer.contants.SnackbarType
@@ -45,9 +40,10 @@ import com.phamhuu.photographer.presentation.common.SnackbarManager
 import com.phamhuu.photographer.contants.TypeModel3D
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.data.repository.LocationRepository
-import com.phamhuu.photographer.domain.usecase.AddTextCaptureUseCase
 import com.phamhuu.photographer.services.filament.Manager3DHelper
 import com.phamhuu.photographer.services.gpu.GPUPixelHelper
+import com.phamhuu.photographer.data.repository.CameraRepository
+import com.phamhuu.photographer.data.repository.GalleryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
@@ -64,12 +60,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class CameraViewModel(
     private val faceLandmarkerHelper: FaceLandmarkerHelper,
     private val manager3DHelper: Manager3DHelper,
-    private val takePhotoUseCase: TakePhotoUseCase,
-    private val savePhotoUseCase: SavePhotoUseCase,
-    private val getFirstGalleryItemUseCase: GetFirstGalleryItemUseCase,
-    private val recordVideoUseCase: RecordVideoUseCase,
-    private val saveVideoUseCase: SaveVideoUseCase,
-    private val addTextCaptureUseCase: AddTextCaptureUseCase,
+    private val cameraRepository: CameraRepository,
+    private val galleryRepository: GalleryRepository,
     private val locationRepository: LocationRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -329,13 +321,7 @@ class CameraViewModel(
     }
     
     private suspend fun capturePhoto(context: Context, useFilter: Boolean) {
-        val photoFileResult = takePhotoUseCase()
-        if (photoFileResult.isFailure) {
-            updateError("Failed to create photo file")
-            return
-        }
-        
-        val photoFile = photoFileResult.getOrThrow()
+        val photoFile = cameraRepository.createImageFile()
         
         if (useFilter) {
             captureFromGLSurface(photoFile)
@@ -358,9 +344,7 @@ class CameraViewModel(
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
         val location = uiState.value.locationState.locationInfo
         val finalBitmap = if (showOnPhotos && location != null) {
-            addTextCaptureUseCase.invoke(bitmap, location.address).getOrElse {
-                bitmap
-            }
+            cameraRepository.addAddressCapture(bitmap, location.address)
         } else {
             bitmap
         }
@@ -395,11 +379,9 @@ class CameraViewModel(
     }
     
     private suspend fun saveToGallery(photoFile: File) {
-        val saveResult = savePhotoUseCase(photoFile)
-        if (saveResult.isSuccess) {
-            val uri = saveResult.getOrThrow()
+        val uri = cameraRepository.saveImageToGallery(photoFile)
+        if (uri != null) {
             _uiState.value = _uiState.value.copy(fileUri = uri)
-            
             SnackbarManager.show(
                 message = "Photo saved successfully!",
                 type = SnackbarType.SUCCESS
@@ -443,9 +425,8 @@ class CameraViewModel(
 
     fun checkGalleryContent() {
         viewModelScope.launch {
-            val result = getFirstGalleryItemUseCase()
-            if (result.isSuccess) {
-                val uri = result.getOrThrow()
+            val uri = galleryRepository.getFirstImageOrVideo()
+            if (uri != null) {
                 _uiState.value = _uiState.value.copy(fileUri = uri)
             }
         }
@@ -613,16 +594,7 @@ class CameraViewModel(
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 
-                val videoFileResult = recordVideoUseCase()
-                if (videoFileResult.isFailure) {
-                    updateError("Failed to create video file")
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                    return@launch
-                }
-                
-                val videoFile = videoFileResult.getOrThrow()
-                val hasFilter = true 
-                
+                val videoFile = cameraRepository.createVideoFile()
                 startFilteredRecording(videoFile)
                 
             } catch (e: Exception) {
@@ -731,9 +703,8 @@ class CameraViewModel(
     
     private suspend fun saveVideoToGallery(videoFile: File) {
         try {
-            val saveResult = saveVideoUseCase(videoFile)
-            if (saveResult.isSuccess) {
-                val uri = saveResult.getOrThrow()
+            val uri = cameraRepository.saveVideoToGallery(videoFile)
+            if (uri != null) {
                 _uiState.value = _uiState.value.copy(fileUri = uri)
                 Log.d("CameraViewModel", "Video saved to gallery successfully")
                 
