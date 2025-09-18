@@ -67,7 +67,6 @@ fun CameraScreen(
 
     InitCameraPermission({
         viewModel.setFilterHelper(filterGLSurfaceView, context)
-        viewModel.startCamera(context, lifecycleOwner, previewView)
         viewModel.checkGalleryContent()
         viewModel.checkLocationPermission(context)
     }, context)
@@ -102,10 +101,10 @@ fun CameraScreen(
             },
         contentAlignment = Alignment.TopStart
     ) {
-        FilamentSurfaceView(
-            context = context,
-            lifecycle = lifecycleOwner.lifecycle,
-        )
+//        FilamentSurfaceView(
+//            context = context,
+//            lifecycle = lifecycleOwner.lifecycle,
+//        )
         
         val ratio = uiState.value.ratioCamera.toRatio()
         Box(

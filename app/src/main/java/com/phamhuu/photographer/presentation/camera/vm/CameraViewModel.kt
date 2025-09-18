@@ -190,7 +190,9 @@ class CameraViewModel(
     fun  setFilterHelper(glSurfaceView: CameraGLSurfaceView, context: Context) {
         Log.d("CameraViewModel", "Setting up FilterHelper with GLSurfaceView and FilterRenderer")
         this.gPUPixelHelper = GPUPixelHelper().apply {
-            initGpuPixel(context, glSurfaceView)
+            viewModelScope.launch(Dispatchers.Default) {
+                initGpuPixel(context, glSurfaceView)
+            }
         }
     }
 
