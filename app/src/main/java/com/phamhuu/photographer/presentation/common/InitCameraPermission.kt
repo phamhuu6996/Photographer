@@ -7,7 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.phamhuu.photographer.services.android.Permission
+import com.phamhuu.photographer.services.android.PermissionService
 
 @Composable
 fun InitCameraPermission(callback: () -> Unit, context: Context) {
@@ -18,7 +18,7 @@ fun InitCameraPermission(callback: () -> Unit, context: Context) {
             callback()
         } else {
             Toast.makeText(context, "Permissions not granted", Toast.LENGTH_SHORT).show()
-            Permission.openSettings(context)
+            PermissionService.openSettings(context)
         }
     }
 
@@ -30,7 +30,7 @@ fun InitCameraPermission(callback: () -> Unit, context: Context) {
     )
 
     LaunchedEffect(Unit) {
-        if (!Permission.hasPermissions(context, permissions)) {
+        if (!PermissionService.hasPermissions(context, permissions)) {
             permissionLauncher.launch(permissions)
         } else {
             callback()

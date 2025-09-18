@@ -4,7 +4,6 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
-import android.database.Cursor
 import android.graphics.Bitmap
 import android.media.ThumbnailUtils
 import android.net.Uri
@@ -20,7 +19,7 @@ import com.phamhuu.photographer.presentation.common.getFilePathFromUri
 import java.io.File
 import java.io.FileInputStream
 
-object Gallery {
+object GalleryService {
     private fun valuesSaveImage(file: File): ContentValues {
         return ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, file.name)

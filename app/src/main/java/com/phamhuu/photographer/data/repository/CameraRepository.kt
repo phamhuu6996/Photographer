@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import com.phamhuu.photographer.contants.Contants
 import com.phamhuu.photographer.services.renderer.AddTextService
-import com.phamhuu.photographer.services.android.Gallery
+import com.phamhuu.photographer.services.android.GalleryService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -26,7 +26,7 @@ class CameraRepositoryImpl(
 ) : CameraRepository {
     
     override suspend fun saveImageToGallery(photoFile: File): Uri? = withContext(Dispatchers.IO) {
-        Gallery.saveImageToGallery(context, photoFile)
+        GalleryService.saveImageToGallery(context, photoFile)
     }
     
     override suspend fun createImageFile(): File = withContext(Dispatchers.IO) {
@@ -38,7 +38,7 @@ class CameraRepositoryImpl(
     }
     
     override suspend fun saveVideoToGallery(videoFile: File): Uri? = withContext(Dispatchers.IO) {
-        Gallery.saveVideoToGallery(context, videoFile)
+        GalleryService.saveVideoToGallery(context, videoFile)
     }
     
     private fun createFile(extension: String, prefix: String): File {

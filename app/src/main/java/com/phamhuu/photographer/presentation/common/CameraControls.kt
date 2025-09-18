@@ -32,7 +32,7 @@ import com.phamhuu.photographer.contants.ImageMode
 import com.phamhuu.photographer.contants.RatioCamera
 import com.phamhuu.photographer.contants.TimerDelay
 import com.phamhuu.photographer.presentation.timer.TimerViewModel
-import com.phamhuu.photographer.services.android.Gallery
+import com.phamhuu.photographer.services.android.GalleryService
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -69,7 +69,7 @@ fun CameraControls(
         }
     }
     val uriThumbnails = remember(fileUri) {
-        fileUri?.let { Gallery.getResourceUri(context, fileUri) }
+        fileUri?.let { GalleryService.getResourceUri(context, fileUri) }
     }
 
     val iconLocation = if(enableLocation) R.drawable.location_on else R.drawable.location_off

@@ -7,9 +7,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 
-const val REQUEST_CODE_PERMISSIONS = 10
-
-object Permission {
+object PermissionService {
     fun hasPermissions(context: Context, permissions: Array<String>): Boolean {
         return permissions.all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED

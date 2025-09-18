@@ -3,7 +3,7 @@ package com.phamhuu.photographer.data.repository
 import android.content.Context
 import android.net.Uri
 import com.phamhuu.photographer.data.model.GalleryPageModel
-import com.phamhuu.photographer.services.android.Gallery
+import com.phamhuu.photographer.services.android.GalleryService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -19,14 +19,14 @@ class GalleryRepositoryImpl(
 ) : GalleryRepository {
     
     override suspend fun getFirstImageOrVideo(): Uri? = withContext(Dispatchers.IO) {
-        Gallery.getFirstImageOrVideo(context)
+        GalleryService.getFirstImageOrVideo(context)
     }
     
     override suspend fun getResourceUri(imageUri: Uri): Any? = withContext(Dispatchers.IO) {
-        Gallery.getResourceUri(context, imageUri)
+        GalleryService.getResourceUri(context, imageUri)
     }
 
     override suspend fun getImagesAndVideos(limit: Int, after: Long?): GalleryPageModel = withContext(Dispatchers.IO) {
-        Gallery.getImagesAndVideos(context, limit, after)
+        GalleryService.getImagesAndVideos(context, limit, after)
     }
 } 
