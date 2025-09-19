@@ -3,16 +3,17 @@ package com.phamhuu.photographer.presentation.video.ui
 import LocalNavController
 import android.app.Activity
 import android.content.pm.ActivityInfo
-import android.net.Uri
 import android.util.Log
+import android.view.View
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -31,27 +32,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.phamhuu.photographer.R
-import com.phamhuu.photographer.contants.ImageMode
-import com.phamhuu.photographer.contants.SnackbarType
-import com.phamhuu.photographer.presentation.common.ImageCustom
-import com.phamhuu.photographer.presentation.common.SnackbarManager
-import com.phamhuu.photographer.presentation.video.vm.VideoPlayerViewModel
-import kotlinx.coroutines.delay
-import org.koin.androidx.compose.koinViewModel
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import android.view.View
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.CircleShape
-import androidx.lifecycle.Lifecycle
+import com.phamhuu.photographer.R
+import com.phamhuu.photographer.contants.ImageMode
+import com.phamhuu.photographer.contants.SnackbarType
+import com.phamhuu.photographer.presentation.common.BackImageCustom
+import com.phamhuu.photographer.presentation.common.ImageCustom
+import com.phamhuu.photographer.presentation.common.SnackbarManager
+import com.phamhuu.photographer.presentation.video.vm.VideoPlayerViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.koin.androidx.compose.koinViewModel
 import singleShotClick
 
 @OptIn(UnstableApi::class)
@@ -168,14 +166,9 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                     .fillMaxWidth()
                     .padding(top = 50.dp, start = 16.dp, end = 16.dp, bottom = 30.dp),
             ) {
-                ImageCustom(
-                    id = R.drawable.back,
-                    imageMode = ImageMode.LARGE,
-                    color = Color.White,
-                    modifier = Modifier
-                        .background(Color.Black, shape = CircleShape)
-                        .singleShotClick { navController.popBackStack() }
-                )
+                BackImageCustom {
+                    navController.popBackStack()
+                }
                 Spacer(modifier = Modifier.height(0.dp))
                 ImageCustom(
                     id = R.drawable.full_screen,

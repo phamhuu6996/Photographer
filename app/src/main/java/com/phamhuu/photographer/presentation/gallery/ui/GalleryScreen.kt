@@ -3,7 +3,6 @@ package com.phamhuu.photographer.presentation.gallery.ui
 import LocalNavController
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,13 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
-import com.phamhuu.photographer.contants.SnackbarType
-import com.phamhuu.photographer.presentation.common.SnackbarManager
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -28,11 +23,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.ImageMode
+import com.phamhuu.photographer.contants.SnackbarType
 import com.phamhuu.photographer.presentation.common.AsyncImageCustom
+import com.phamhuu.photographer.presentation.common.BackImageCustom
 import com.phamhuu.photographer.presentation.common.ImageCustom
+import com.phamhuu.photographer.presentation.common.SnackbarManager
 import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 import org.koin.androidx.compose.koinViewModel
-import singleShotClick
 
 @Composable
 fun GalleryScreen(
@@ -74,7 +71,6 @@ fun GalleryScreen(
                         Box(
                             modifier = Modifier
                                 .padding(4.dp)
-                                .border(width = 1.dp, Color.Gray)
                                 .clickable {
                                     if (galleryItem.resourceUri is Uri) {
                                         val arg = Uri.encode(galleryItem.resourceUri.toString())
@@ -90,13 +86,12 @@ fun GalleryScreen(
                                 size = width
                             )
                             if (galleryItem.resourceUri !is Uri) {
-                                Text(
-                                    text = "VIDEO",
-                                    color = Color.White,
+                                ImageCustom(
+                                    id = R.drawable.video,
                                     modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .background(Color(0x66000000))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .align(Alignment.Center),
+                                    imageMode = ImageMode.MEDIUM,
+                                    color = Color.White
                                 )
                             }
                         }
@@ -104,16 +99,10 @@ fun GalleryScreen(
                 }
             }
 
-            ImageCustom(
-                id = R.drawable.back,
-                imageMode = ImageMode.LARGE,
-                color = Color.White,
-                modifier = Modifier
-                    .padding(all = 16.dp)
-                    .background(Color.Black, shape = CircleShape)
-                    .align(Alignment.TopStart)
-                    .singleShotClick { navController.popBackStack() }
-            )
+            BackImageCustom(modifier = Modifier.align(Alignment.TopStart)) {
+                navController.popBackStack()
+            }
+
             if (uiState.isLoading) {
                 CircularProgressIndicator(
                     color = Color.White,
