@@ -87,7 +87,7 @@ fun GalleryScreen(
                             )
                             if (galleryItem.resourceUri !is Uri) {
                                 ImageCustom(
-                                    id = R.drawable.video,
+                                    id = R.drawable.start_record,
                                     modifier = Modifier
                                         .align(Alignment.Center),
                                     imageMode = ImageMode.MEDIUM,

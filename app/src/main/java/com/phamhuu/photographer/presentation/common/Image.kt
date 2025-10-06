@@ -3,6 +3,7 @@ package com.phamhuu.photographer.presentation.common
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -78,11 +79,16 @@ fun BackImageCustom(
     modifier: Modifier? = Modifier,
     callBack : () -> Unit = {},
 ) {
-    ImageCustom(id = R.drawable.back,
-        imageMode = ImageMode.LARGE,
-        color = Color.White,
+    Box(
         modifier = (modifier ?: Modifier)
             .padding(all = 16.dp)
-            .background(Color.Black.copy(0.2f), shape = CircleShape)
-            .singleShotClick { callBack() } )
+            .background(Color.Black.copy(0.3f), shape = RoundedCornerShape(10, 10, 10, 10))
+    ){
+        ImageCustom(id = R.drawable.back,
+            imageMode = ImageMode.MEDIUM,
+            color = Color.White,
+            modifier = Modifier
+                .padding(all = 4.dp)
+                .singleShotClick { callBack() } )
+    }
 }
