@@ -9,19 +9,6 @@ enum class ImageMode(val size: Int) {
     SMALL(20), MEDIUM(30), LARGE(40)
 }
 
-enum class TypeModel3D(val displayName: String, val iconRes: Int) {
-    GLASSES("Kính", R.drawable.ic_glasses),
-    HAT("Mũ", R.drawable.ic_hat);
-    
-    fun toPopupItemData(): PopupItemData {
-        return PopupItemData(
-            id = ordinal,
-            title = displayName,
-            iconRes = iconRes
-        )
-    }
-}
-
 enum class ImageFilter(
     val displayName: String, 
     val iconRes: Int,

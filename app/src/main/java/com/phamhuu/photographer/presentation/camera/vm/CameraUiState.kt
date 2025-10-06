@@ -3,7 +3,6 @@ package com.phamhuu.photographer.presentation.camera.vm
 import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.CameraSelector
-import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.contants.BeautySettings
 import com.phamhuu.photographer.contants.ImageFilter
 import com.phamhuu.photographer.contants.RatioCamera
@@ -24,7 +23,6 @@ data class CameraUiState(
     val fileUri: Uri? = null,
     val ratioCamera: RatioCamera = RatioCamera.RATIO_3_4,
     val timerDelay: TimerDelay = TimerDelay.OFF,
-    val landmarkResult: FaceLandmarkerHelper.ResultBundle? = null,
     val isLoading: Boolean = false,
     val currentFilter: ImageFilter = ImageFilter.BEAUTY,
     val beautySettings: BeautySettings = BeautySettings.default(),

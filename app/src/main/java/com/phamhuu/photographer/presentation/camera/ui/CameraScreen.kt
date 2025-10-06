@@ -39,7 +39,6 @@ import com.phamhuu.photographer.presentation.common.BeautyAdjustmentPanel
 import com.phamhuu.photographer.presentation.common.CameraControls
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.SlideVertically
-import com.phamhuu.photographer.presentation.filament.FilamentSurfaceView
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -72,14 +71,10 @@ fun CameraScreen(
     }, context)
 
     DisposableEffect(Unit) {
-        viewModel.setupMediaPipe()
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.startCamera(context, lifecycleOwner, previewView)
-                }
-                Lifecycle.Event.ON_PAUSE -> {
-                    viewModel.onPause()
                 }
                 else -> {}
             }

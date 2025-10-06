@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -30,7 +31,8 @@ fun AsyncImageCustom(
     modifier: Modifier = Modifier,
     size: Dp? = null,
     color: Color = Color.Black,
-    contentScale: ContentScale = ContentScale.FillWidth
+    contentScale: ContentScale = ContentScale.FillWidth,
+    isDecoration: Boolean = true,
 ) {
     var customModifier = modifier
     if (size != null)
@@ -44,7 +46,7 @@ fun AsyncImageCustom(
             .crossfade(true)
             .build(),
         contentDescription = "Image from source",
-        modifier = customModifier
+        modifier = if (!isDecoration) customModifier else customModifier
             .clip(shape)
             .background(color)
             .border(width = 1.dp, Color.Gray, shape),

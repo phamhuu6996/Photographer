@@ -36,7 +36,8 @@ fun LargeImageScreen(imageUri: String) {
             AsyncImageCustom(
                 imageSource = state.imageUri,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                isDecoration = false
             )
 
         BackImageCustom(modifier = Modifier.align(Alignment.TopStart)) {

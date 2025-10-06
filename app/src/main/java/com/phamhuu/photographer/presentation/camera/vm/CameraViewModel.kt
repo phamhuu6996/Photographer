@@ -30,17 +30,14 @@ import androidx.lifecycle.viewModelScope
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
 import com.phamhuu.photographer.contants.BeautySettings
 import com.phamhuu.photographer.contants.ImageFilter
 import com.phamhuu.photographer.contants.RatioCamera
 import com.phamhuu.photographer.contants.SnackbarType
 import com.phamhuu.photographer.contants.TimerDelay
 import com.phamhuu.photographer.presentation.common.SnackbarManager
-import com.phamhuu.photographer.contants.TypeModel3D
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.data.repository.LocationRepository
-import com.phamhuu.photographer.services.filament.Manager3DHelper
 import com.phamhuu.photographer.services.gpu.GPUPixelHelper
 import com.phamhuu.photographer.data.repository.CameraRepository
 import com.phamhuu.photographer.data.repository.GalleryRepository
@@ -58,8 +55,6 @@ import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 
 class CameraViewModel(
-    private val faceLandmarkerHelper: FaceLandmarkerHelper,
-    private val manager3DHelper: Manager3DHelper,
     private val cameraRepository: CameraRepository,
     private val galleryRepository: GalleryRepository,
     private val locationRepository: LocationRepository,
@@ -80,10 +75,6 @@ class CameraViewModel(
     private var gPUPixelHelper: GPUPixelHelper? = null
 
     private val isProcessingImage = AtomicBoolean(false)
-
-    init {
-        listenMediaPipe()
-    }
 
     @OptIn(ExperimentalCamera2Interop::class)
     fun getCameraId(): String? {
@@ -525,59 +516,10 @@ class CameraViewModel(
             changePan(0f)
         }
     }
-
-    private fun detectFace(imageProxy: ImageProxy) {
-        if (faceLandmarkerHelper.isClose()) {
-            return
-        }
-        try {
-            faceLandmarkerHelper.detectLiveStream(
-                imageProxy = imageProxy,
-                isFrontCamera = uiState.value.lensFacing == CameraSelector.LENS_FACING_FRONT
-            )
-        } catch (e: Exception) {
-        }
-    }
-
-    fun setupMediaPipe() {
-        viewModelScope.launch {
-            faceLandmarkerHelper.setupFaceLandmarker()
-        }
-    }
-
-    fun onResume(context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
-        if (faceLandmarkerHelper.isClose()) {
-            startCamera(context, lifecycleOwner, previewView)
-            faceLandmarkerHelper.setupFaceLandmarker()
-        }
-    }
-
-    fun onPause() {
-        faceLandmarkerHelper.clearFaceLandmarker()
-    }
-
     override fun onCleared() {
         super.onCleared()
         gPUPixelHelper?.onDestroy()
         stopLocationUpdates()
-    }
-
-    private fun listenMediaPipe() {
-        viewModelScope.launch {
-            faceLandmarkerHelper.resultFlow.collect { state ->
-                if (state?.result == null) {
-                    manager3DHelper.updateModelWithLandmark(null)
-                    _uiState.value = _uiState.value.copy(landmarkResult = null)
-                } else {
-                    manager3DHelper.updateModelWithLandmark(state.result)
-                    _uiState.value = _uiState.value.copy(landmarkResult = state)
-                }
-            }
-        }
-    }
-
-    fun selectModel3D(context: Context, typeModel3D: TypeModel3D = TypeModel3D.GLASSES) {
-        manager3DHelper.selectModel3D(context, typeModel3D)
     }
 
     private fun updateError(message: String) {
