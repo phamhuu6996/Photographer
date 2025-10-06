@@ -4,10 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
-import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import com.phamhuu.photographer.contants.Contants
+import com.phamhuu.photographer.contants.Constants
 
 /**
  * AddTextService - Handles text rendering for both photo capture and video recording
@@ -63,7 +62,7 @@ object AddTextService {
             lines.add(currentLine)
         }
         
-        return lines.take(Contants.MAX_LINES).ifEmpty { listOf(text) }
+        return lines.take(Constants.MAX_LINES).ifEmpty { listOf(text) }
     }
     
     /**
@@ -95,15 +94,15 @@ object AddTextService {
         address: String,
         bitmapWidth: Int,
     ) {
-        val textSizePx = bitmapWidth * Contants.TEXT_SIZE_RATIO
+        val textSizePx = bitmapWidth * Constants.TEXT_SIZE_RATIO
         val textPaint = createTextPaint(textSizePx)
 
-        val maxWidth = bitmapWidth * Contants.MAX_WIDTH_RATIO
+        val maxWidth = bitmapWidth * Constants.MAX_WIDTH_RATIO
         val formattedAddress = formatAddress(address)
         val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
         
         val padding = bitmapWidth * 0.02f
-        val lineHeight = textSizePx * Contants.LINE_HEIGHT_MULTIPLIER
+        val lineHeight = textSizePx * Constants.LINE_HEIGHT_MULTIPLIER
         
         // TOP_RIGHT positioning
         val startX = bitmapWidth - padding  // Right edge position
@@ -147,7 +146,7 @@ object AddTextService {
         val formattedAddress = formatAddress(address)
         val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
         
-        val lineHeight = textSizePx * Contants.LINE_HEIGHT_MULTIPLIER
+        val lineHeight = textSizePx * Constants.LINE_HEIGHT_MULTIPLIER
         
         // TOP_RIGHT positioning for preview - position text within canvas bounds
         // startX should be where the RIGHT edge of text should be, not where text starts

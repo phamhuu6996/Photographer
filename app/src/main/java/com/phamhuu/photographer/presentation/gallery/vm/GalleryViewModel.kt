@@ -1,9 +1,8 @@
 package com.phamhuu.photographer.presentation.gallery.vm
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.phamhuu.photographer.contants.Contants
+import com.phamhuu.photographer.contants.Constants
 import com.phamhuu.photographer.data.repository.GalleryRepository
 import com.phamhuu.photographer.data.model.GalleryItemModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +28,7 @@ class GalleryViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                val page = galleryRepository.getImagesAndVideos(limit = Contants.MAX_RECORD_LOAD_MORE, after = null)
+                val page = galleryRepository.getImagesAndVideos(limit = Constants.MAX_RECORD_LOAD_MORE, after = null)
                 val items = page.items.map { uri ->
                     GalleryItemModel(uri = uri, resourceUri = galleryRepository.getResourceUri(uri))
                 }
@@ -51,7 +50,7 @@ class GalleryViewModel(
         viewModelScope.launch {
             _uiState.value = currentState.copy(isLoading = true)
             try {
-                val page = galleryRepository.getImagesAndVideos(limit = Contants.MAX_RECORD_LOAD_MORE, after = _uiState.value.galleryPageModel?.id)
+                val page = galleryRepository.getImagesAndVideos(limit = Constants.MAX_RECORD_LOAD_MORE, after = _uiState.value.galleryPageModel?.id)
                 val items = page.items.map { uri ->
                     GalleryItemModel(uri = uri, resourceUri = galleryRepository.getResourceUri(uri))
                 }

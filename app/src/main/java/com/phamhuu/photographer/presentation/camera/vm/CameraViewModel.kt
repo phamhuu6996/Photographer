@@ -31,6 +31,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.phamhuu.photographer.contants.BeautySettings
+import com.phamhuu.photographer.contants.Constants
 import com.phamhuu.photographer.contants.ImageFilter
 import com.phamhuu.photographer.contants.RatioCamera
 import com.phamhuu.photographer.contants.SnackbarType
@@ -42,6 +43,7 @@ import com.phamhuu.photographer.services.gpu.GPUPixelHelper
 import com.phamhuu.photographer.data.repository.CameraRepository
 import com.phamhuu.photographer.data.repository.GalleryRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,6 +77,8 @@ class CameraViewModel(
     private var gPUPixelHelper: GPUPixelHelper? = null
 
     private val isProcessingImage = AtomicBoolean(false)
+    private var hideZoomJob: Job? = null
+    private var hideBrightnessJob: Job? = null
 
     @OptIn(ExperimentalCamera2Interop::class)
     fun getCameraId(): String? {
@@ -375,10 +379,6 @@ class CameraViewModel(
         val uri = cameraRepository.saveImageToGallery(photoFile)
         if (uri != null) {
             _uiState.value = _uiState.value.copy(fileUri = uri)
-            SnackbarManager.show(
-                message = "Photo saved successfully!",
-                type = SnackbarType.SUCCESS
-            )
         } else {
             updateError("Failed to save photo to gallery")
         }
@@ -404,16 +404,13 @@ class CameraViewModel(
     }
 
     fun setBrightness(brightness: Float) {
+
         _uiState.value = _uiState.value.copy(brightness = brightness)
         cameraControl?.let { control ->
             val range = camera?.cameraInfo?.exposureState?.exposureCompensationRange ?: return
             val index = (brightness * (range.upper - range.lower)).toInt() + range.lower
             control.setExposureCompensationIndex(index)
         }
-    }
-
-    fun changeShowBrightness(isBrightnessVisible: Boolean) {
-        _uiState.value = _uiState.value.copy(isBrightnessVisible = isBrightnessVisible)
     }
 
     fun checkGalleryContent() {
@@ -484,8 +481,14 @@ class CameraViewModel(
         } else if (zoomDetector < minZoom) {
             zoomDetector = minZoom
         }
-        _uiState.value = _uiState.value.copy(zoomState = zoomDetector)
+        if(zoomDetector == uiState.value.zoomState) return
+        _uiState.value = _uiState.value.copy(zoomState = zoomDetector, isZoomVisible = true)
         cameraControl?.setZoomRatio(zoomDetector)
+        hideZoomJob?.cancel()
+        hideZoomJob = viewModelScope.launch {
+            delay(Constants.HIDE_SYSTEM_UI_DELAY)
+            _uiState.value = _uiState.value.copy(isZoomVisible = false)
+        }
     }
 
     fun changeCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
@@ -498,23 +501,22 @@ class CameraViewModel(
         startCamera(context, lifecycleOwner, previewView)
     }
 
-    private fun changePan(value: Float) {
+    private fun changeShowBrightness(value: Float) {
+        if(_uiState.value.isBrightnessVisible) return
         _uiState.value = _uiState.value.copy(offsetY = value)
+        if (uiState.value.offsetY <= Constants.PAN_TOP) {
+            _uiState.value = _uiState.value.copy(isBrightnessVisible = true)
+        }
+        hideBrightnessJob?.cancel()
+        hideBrightnessJob = viewModelScope.launch {
+            delay(Constants.HIDE_SYSTEM_UI_DELAY)
+            _uiState.value = _uiState.value.copy(offsetY = 0f, isBrightnessVisible = false)
+        }
     }
 
     fun getCameraPointerInput(centroid: Offset, pan: Offset, zoomChange: Float, rotation: Float) {
         changeZoom(zoomChange)
-        changePan(pan.y)
-        
-        if (uiState.value.offsetY <= -50f) {
-            changeShowBrightness(true)
-            changePan(0f)
-        }
-
-        if (uiState.value.offsetY >= 50f) {
-            changeShowBrightness(false)
-            changePan(0f)
-        }
+        changeShowBrightness(pan.y)
     }
     override fun onCleared() {
         super.onCleared()
@@ -651,11 +653,6 @@ class CameraViewModel(
             if (uri != null) {
                 _uiState.value = _uiState.value.copy(fileUri = uri)
                 Log.d("CameraViewModel", "Video saved to gallery successfully")
-                
-                SnackbarManager.show(
-                    message = "Video saved successfully!",
-                    type = SnackbarType.SUCCESS
-                )
             } else {
                 updateError("Failed to save video to gallery")
                 Log.e("CameraViewModel", "Failed to save video to gallery")

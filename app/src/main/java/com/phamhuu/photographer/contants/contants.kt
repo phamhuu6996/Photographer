@@ -1,9 +1,8 @@
 package com.phamhuu.photographer.contants
 
-import android.media.AudioFormat
 import androidx.compose.ui.unit.sp
 
-object Contants {
+object Constants {
     const val DATE_TIME_FORMAT = "yyyyMMdd_HHmmss"
     const val IMG_PREFIX = "IMG_"
     const val VID_PREFIX = "VID_"
@@ -20,4 +19,9 @@ object Contants {
 
     // Load more
     const val MAX_RECORD_LOAD_MORE = 10
+
+    // Hide system UI
+    const val HIDE_SYSTEM_UI_DELAY = 3000L // milliseconds
+
+    const val PAN_TOP = -50f
 }

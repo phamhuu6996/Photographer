@@ -19,6 +19,7 @@ data class CameraUiState(
     val color: Float = 1f,
     val contrast: Float = 1f,
     val zoomState: Float = 1f,
+    val isZoomVisible: Boolean = false,
     val lensFacing: Int = CameraSelector.LENS_FACING_FRONT,
     val fileUri: Uri? = null,
     val ratioCamera: RatioCamera = RatioCamera.RATIO_3_4,

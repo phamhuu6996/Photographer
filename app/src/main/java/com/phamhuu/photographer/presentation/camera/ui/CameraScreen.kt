@@ -10,6 +10,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,12 +30,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.ImageFilter
+import com.phamhuu.photographer.contants.ImageMode
 import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
 import com.phamhuu.photographer.presentation.common.BeautyAdjustmentPanel
 import com.phamhuu.photographer.presentation.common.CameraControls
@@ -41,6 +46,8 @@ import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.SlideVertically
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
+import com.phamhuu.photographer.presentation.common.DetectGestures
+import com.phamhuu.photographer.presentation.common.ImageCustom
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.context.GlobalContext
 
@@ -94,16 +101,13 @@ fun CameraScreen(
                     viewModel.getCameraPointerInput(centroid, pan, zoomChange, rotation)
                 }
             },
-        contentAlignment = Alignment.TopStart
+        contentAlignment = Alignment.Center
     ) {
-//        FilamentSurfaceView(
-//            context = context,
-//            lifecycle = lifecycleOwner.lifecycle,
-//        )
-        
         val ratio = uiState.value.ratioCamera.toRatio()
         Box(
-            modifier = Modifier.aspectRatio(ratio).align(Alignment.Center)
+            modifier = Modifier
+                .aspectRatio(ratio)
+                .align(Alignment.Center)
         ) {
             AndroidView(
                 factory = { filterGLSurfaceView },
@@ -150,16 +154,13 @@ fun CameraScreen(
             }
         )
 
-        AnimatedVisibility(
-            visible = uiState.value.isBrightnessVisible,
-            enter = fadeIn() + slideInVertically { it },
-            exit = fadeOut() + slideOutVertically { it },
-        ) {
-            SlideVertically(
-                uiState.value.brightness,
-                { brightness -> viewModel.setBrightness(brightness) }
-            )
-        }
+        DetectGestures(
+            isBrightnessVisible = uiState.value.isBrightnessVisible,
+            brightness = uiState.value.brightness,
+            changeBrightness = { brightness -> viewModel.setBrightness(brightness) },
+            isZoomVisible = uiState.value.isZoomVisible,
+            zoomState = uiState.value.zoomState
+        )
 
         BeautyAdjustmentPanel(
             isVisible = uiState.value.isBeautyPanelVisible,

@@ -3,7 +3,7 @@ package com.phamhuu.photographer.presentation.timer
 import android.annotation.SuppressLint
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.phamhuu.photographer.contants.Contants
+import com.phamhuu.photographer.contants.Constants
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +17,7 @@ class TimerViewModel : ViewModel() {
 
     @SuppressLint("DefaultLocale")
     fun timeDisplayRecord(time: Int): String =
-        String.format(Contants.FORMAT_TIME, time / 60, time % 60)
+        String.format(Constants.FORMAT_TIME, time / 60, time % 60)
 
 
     fun startTimer() {
