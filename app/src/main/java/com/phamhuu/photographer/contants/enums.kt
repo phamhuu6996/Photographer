@@ -51,21 +51,18 @@ enum class TimerDelay(val millisecond: Long) {
 }
 
 enum class RatioCamera(val ratio: AspectRatioStrategy) {
-    RATIO_1_1(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY),
     RATIO_9_16(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY),
     RATIO_3_4(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY);
 
     fun next(): RatioCamera {
         return when (this) {
-            RATIO_1_1 -> RATIO_9_16
+            RATIO_3_4 -> RATIO_9_16
             RATIO_9_16 -> RATIO_3_4
-            RATIO_3_4 -> RATIO_1_1
         }
     }
 
     fun toIcon(): Int {
         return when (this) {
-            RATIO_1_1 -> R.drawable.resolution11
             RATIO_9_16 -> R.drawable.resolution916
             RATIO_3_4 -> R.drawable.resolution34
         }
@@ -73,7 +70,6 @@ enum class RatioCamera(val ratio: AspectRatioStrategy) {
 
     fun toRatio() : Float {
         return when (this) {
-            RATIO_1_1 -> 1f
             RATIO_9_16 -> 9f / 16f
             RATIO_3_4 -> 3f / 4f
         }
