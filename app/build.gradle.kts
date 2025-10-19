@@ -25,6 +25,15 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("photographer-key.jks")
+            storePassword = "pvh123456"
+            keyAlias = "photographer"
+            keyPassword = "pvh123456"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
