@@ -93,17 +93,9 @@ dependencies {
     // Image
     implementation(libs.coil.compose)
 
-    // Media Pipe
-    implementation (libs.tasks.vision)
-
     // Media3 Video Playback
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
-
-    // Filament
-    implementation (libs.filament.android)
-    implementation (libs.filament.utils.android)
-    implementation (libs.gltfio.android)
 
     implementation(libs.koin.android)
     implementation (libs.koin.androidx.compose)
