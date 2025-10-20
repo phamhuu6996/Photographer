@@ -8,7 +8,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
-import com.google.android.filament.utils.Utils
 import com.phamhuu.photographer.di.appModule
 import com.phamhuu.photographer.presentation.common.AppScaffold
 import com.phamhuu.photographer.presentation.common.FullScreen
@@ -30,12 +29,6 @@ class Photographer : Application() {
 }
 
 class MainActivity : ComponentActivity() {
-
-    companion object {
-        init {
-            Utils.init()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
