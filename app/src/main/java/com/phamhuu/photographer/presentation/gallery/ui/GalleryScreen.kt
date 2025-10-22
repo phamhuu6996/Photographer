@@ -1,6 +1,7 @@
 package com.phamhuu.photographer.presentation.gallery.ui
 
 import LocalNavController
+import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -50,14 +52,18 @@ fun GalleryScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color.White) // hoặc màu khác bạn muốn
+
     ) {
-        val width = maxWidth / 3
+        val width = this.maxWidth / 3
 
         Box{
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
+                BackImageCustom {
+                    navController.popBackStack()
+                }
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = width),
                 ) {
@@ -97,10 +103,6 @@ fun GalleryScreen(
                         }
                     }
                 }
-            }
-
-            BackImageCustom(modifier = Modifier.align(Alignment.TopStart)) {
-                navController.popBackStack()
             }
 
             if (uiState.isLoading) {

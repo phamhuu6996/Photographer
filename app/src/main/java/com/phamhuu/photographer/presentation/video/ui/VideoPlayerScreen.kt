@@ -166,7 +166,9 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                     .fillMaxWidth()
                     .padding(top = 50.dp, start = 16.dp, end = 16.dp, bottom = 30.dp),
             ) {
-                BackImageCustom {
+                BackImageCustom (
+                    color = Color.White
+                ){
                     navController.popBackStack()
                 }
                 Spacer(modifier = Modifier.height(0.dp))

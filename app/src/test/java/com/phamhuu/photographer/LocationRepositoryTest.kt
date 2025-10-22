@@ -3,8 +3,8 @@ package com.phamhuu.photographer
 import android.content.Context
 import android.location.Geocoder
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.phamhuu.photographer.data.model.LocationInfo
 import com.phamhuu.photographer.data.repository.LocationRepositoryImpl
-import com.phamhuu.photographer.models.LocationInfo
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test

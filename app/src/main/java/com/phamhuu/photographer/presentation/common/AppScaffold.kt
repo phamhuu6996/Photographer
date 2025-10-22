@@ -1,5 +1,6 @@
 package com.phamhuu.photographer.presentation.common
 
+import android.annotation.SuppressLint
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
  * @version 1.0
  * @since 2024
  */
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun AppScaffold(
     content: @Composable () -> Unit
@@ -25,7 +27,7 @@ fun AppScaffold(
             snackbarHost = {
                 SnackbarManager.snackbarHostState?.let { SnackbarHost(hostState = it) }
             },
-        ) { _ ->
+        ) {  padding ->
             content()
         }
 }

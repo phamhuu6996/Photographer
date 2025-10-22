@@ -77,16 +77,16 @@ fun ImageCustom(
 @Composable
 fun BackImageCustom(
     modifier: Modifier? = Modifier,
+    color: Color? = null,
     callBack : () -> Unit = {},
 ) {
     Box(
         modifier = (modifier ?: Modifier)
             .padding(all = 16.dp)
-            .background(Color.Black.copy(0.3f), shape = RoundedCornerShape(10, 10, 10, 10))
     ){
         ImageCustom(id = R.drawable.back,
             imageMode = ImageMode.MEDIUM,
-            color = Color.White,
+            color = color ?: Color.Black,
             modifier = Modifier
                 .padding(all = 4.dp)
                 .singleShotClick { callBack() } )

@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.ThumbnailUtils
 import android.net.Uri
 import android.os.Build
@@ -18,6 +19,7 @@ import com.phamhuu.photographer.data.model.GalleryPageModel
 import com.phamhuu.photographer.presentation.common.getFilePathFromUri
 import java.io.File
 import java.io.FileInputStream
+import androidx.core.graphics.scale
 
 object GalleryService {
     private fun valuesSaveImage(file: File): ContentValues {
@@ -77,13 +79,15 @@ object GalleryService {
         return null
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             context.contentResolver.loadThumbnail(uri, Size(200, 200), null)
         } else {
             val filePath = getFilePathFromUri(context, uri)
-            ThumbnailUtils.createImageThumbnail(filePath, MediaStore.Images.Thumbnails.MINI_KIND)
+            val bitmap = BitmapFactory.decodeFile(filePath)
+            val bitmapScale = bitmap.scale(200, 200)
+            bitmap.recycle()
+            bitmapScale
         }
     }
 

@@ -30,7 +30,7 @@ fun LargeImageScreen(imageUri: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color.White)
     ) {
         if (state.imageUri != null)
             AsyncImageCustom(
