@@ -193,16 +193,6 @@ private fun BeautySlider(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
-                
-                // Face detection indicator for face-dependent sliders
-                if (requiresFace) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "👤",
-                        fontSize = 8.sp,
-                        color = Color.Gray.copy(alpha = 0.7f)
-                    )
-                }
             }
             
             Text(

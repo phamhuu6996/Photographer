@@ -8,4 +8,6 @@ data class GalleryUiState(
     val images: List<GalleryItemModel> = emptyList(),
     val error: String? = null,
     val galleryPageModel: GalleryPageModel? = null,
+    val isSelectionMode: Boolean = false,
+    val selectedItems: Set<String> = emptySet(),
 )

@@ -61,6 +61,10 @@ object GalleryService {
         values.clear()
         values.put(MediaStore.Images.Media.IS_PENDING, 0)
         resolver.update(uriFile, values, null, null)
+        try {
+            file.delete()
+        } catch (_: Exception) {
+        }
         return uriFile
     }
 

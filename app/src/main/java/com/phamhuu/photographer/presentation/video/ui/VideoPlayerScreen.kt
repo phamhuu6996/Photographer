@@ -7,17 +7,14 @@ import android.util.Log
 import android.view.View
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -43,14 +41,14 @@ import androidx.media3.ui.PlayerView
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.ImageMode
 import com.phamhuu.photographer.contants.SnackbarType
-import com.phamhuu.photographer.presentation.common.BackImageCustom
+import com.phamhuu.photographer.presentation.common.DetailViewerAppBar
 import com.phamhuu.photographer.presentation.common.ImageCustom
 import com.phamhuu.photographer.presentation.common.SnackbarManager
+import com.phamhuu.photographer.services.android.ShareService
 import com.phamhuu.photographer.presentation.video.vm.VideoPlayerViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.koin.androidx.compose.koinViewModel
-import singleShotClick
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -159,28 +157,29 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 50.dp, start = 16.dp, end = 16.dp, bottom = 30.dp),
-            ) {
-                BackImageCustom (
-                    color = Color.White
-                ){
-                    navController.popBackStack()
+            // AppBar with Share button
+            DetailViewerAppBar(
+                title = "Video",
+                onBackClick = { navController.popBackStack() },
+                onShareClick = {
+                    // Share the video
+                    ShareService.multiShare(context, listOf(videoUri.toUri()))
+                },
+                titleColor = Color.White,
+                actions = {
+                    // Full screen toggle button
+                    IconButton(onClick = {
+                        viewModel.toggleOrientation(activity)
+                    }) {
+                        ImageCustom(
+                            id = R.drawable.full_screen,
+                            imageMode = ImageMode.MEDIUM,
+                            color = Color.White,
+                            modifier = Modifier
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(0.dp))
-                ImageCustom(
-                    id = R.drawable.full_screen,
-                    imageMode = ImageMode.MEDIUM,
-                    color = Color.White,
-                    modifier = Modifier
-                        .singleShotClick { viewModel.toggleOrientation(activity) }
-                )
-            }
-
+            )
         }
     }
 }

@@ -3,6 +3,7 @@ package com.phamhuu.photographer.data.repository
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Environment
 import com.phamhuu.photographer.contants.Constants
 import com.phamhuu.photographer.services.renderer.AddTextService
 import com.phamhuu.photographer.services.android.GalleryService

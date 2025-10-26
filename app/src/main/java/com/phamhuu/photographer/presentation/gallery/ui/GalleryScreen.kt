@@ -1,16 +1,12 @@
 package com.phamhuu.photographer.presentation.gallery.ui
 
 import LocalNavController
-import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -22,13 +18,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import com.phamhuu.photographer.R
-import com.phamhuu.photographer.contants.ImageMode
+import androidx.compose.ui.platform.LocalContext
 import com.phamhuu.photographer.contants.SnackbarType
-import com.phamhuu.photographer.presentation.common.AsyncImageCustom
-import com.phamhuu.photographer.presentation.common.BackImageCustom
-import com.phamhuu.photographer.presentation.common.ImageCustom
+import com.phamhuu.photographer.presentation.common.GalleryAppBar
+import com.phamhuu.photographer.presentation.common.GalleryItem
 import com.phamhuu.photographer.presentation.common.SnackbarManager
 import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 import org.koin.androidx.compose.koinViewModel
@@ -38,6 +31,7 @@ fun GalleryScreen(
     viewModel: GalleryViewModel = koinViewModel<GalleryViewModel>()
 ) {
     val navController = LocalNavController.current
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     
     uiState.error?.let { error ->
@@ -55,15 +49,23 @@ fun GalleryScreen(
             .background(Color.White) // hoặc màu khác bạn muốn
 
     ) {
-        val width = this.maxWidth / 3
+        val width = this.maxWidth / 2
 
         Box{
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                BackImageCustom {
-                    navController.popBackStack()
-                }
+                GalleryAppBar(
+                    isSelectionMode = uiState.isSelectionMode,
+                    onBackClick = { navController.popBackStack() },
+                    onCancel = { viewModel.exitSelectionMode() },
+                    selectedCount = uiState.selectedItems.size,
+                    onSelectAll = { viewModel.selectAllItems() },
+                    onUnSelectAll = { viewModel.clearSelection() },
+                    onShare = { viewModel.shareSelectedItems(context) },
+                    onDelete = { viewModel.deleteSelectedItems(context) }
+                )
+
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = width),
                 ) {
@@ -74,33 +76,35 @@ fun GalleryScreen(
                         if (index >= uiState.images.size - 4) {
                             viewModel.loadMore()
                         }
-                        Box(
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .clickable {
+
+                        val itemKey = galleryItem.uri.toString()
+                        val isSelected = uiState.selectedItems.contains(itemKey)
+
+                        GalleryItem(
+                            galleryItem = galleryItem.resourceUri,
+                            isSelectionMode = uiState.isSelectionMode,
+                            isSelected = isSelected,
+                            onItemClick = {
+                                if (uiState.isSelectionMode) {
+                                    // Trong selection mode, click vào item sẽ toggle selection
+                                    viewModel.toggleItemSelection(itemKey)
+                                } else {
+                                    // Normal mode, click để mở chi tiết
                                     if (galleryItem.resourceUri is Uri) {
-                                        val arg = Uri.encode(galleryItem.resourceUri.toString())
+                                        val arg = Uri.encode(galleryItem.uri.toString())
                                         navController.navigate("largeImage/${arg}")
                                     } else {
                                         val arg = Uri.encode(galleryItem.uri.toString())
                                         navController.navigate("video/${arg}")
                                     }
                                 }
-                        ) {
-                            AsyncImageCustom(
-                                imageSource = galleryItem.resourceUri,
-                                size = width
-                            )
-                            if (galleryItem.resourceUri !is Uri) {
-                                ImageCustom(
-                                    id = R.drawable.start_record,
-                                    modifier = Modifier
-                                        .align(Alignment.Center),
-                                    imageMode = ImageMode.MEDIUM,
-                                    color = Color.White
-                                )
-                            }
-                        }
+                            },
+                            onLongPress = {
+                                // Toggle selection (sẽ tự động bắt đầu selection mode nếu chưa có)
+                                viewModel.toggleItemSelection(itemKey)
+                            },
+                            width = width
+                        )
                     }
                 }
             }
