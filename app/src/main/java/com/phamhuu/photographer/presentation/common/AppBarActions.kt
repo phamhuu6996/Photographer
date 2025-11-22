@@ -7,7 +7,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,9 +28,9 @@ import com.phamhuu.photographer.contants.ImageMode
 @Composable
 fun ShareActionButton(
     onClick: () -> Unit,
-    tint: Color = Color.Black
+    tint: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    IconButton(onClick = onClick) {
+    PressableContent(onClick = onClick) {
         Icon(
             imageVector = Icons.Default.Share,
             contentDescription = "Share",
@@ -45,9 +45,9 @@ fun ShareActionButton(
 @Composable
 fun DeleteActionButton(
     onClick: () -> Unit,
-    tint: Color = Color.Black
+    tint: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    IconButton(onClick = onClick) {
+    PressableContent(onClick = onClick) {
         Icon(
             imageVector = Icons.Default.Delete,
             contentDescription = "Delete",
@@ -62,9 +62,9 @@ fun DeleteActionButton(
 @Composable
 fun MoreActionMenuButton(
     onOpenMenu: () -> Unit,
-    tint: Color = Color.Black
+    tint: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    IconButton(onClick = onOpenMenu) {
+    PressableContent(onClick = onOpenMenu) {
         Icon(
             imageVector = Icons.Default.MoreVert,
             contentDescription = "More options",

@@ -73,7 +73,7 @@ fun BeautyAdjustmentPanel(
                     .align(Alignment.BottomCenter)
                     .clickable(enabled = false) { }, // Prevent click through
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.Black.copy(alpha = 0.5f) // Giảm từ 0.9f xuống 0.5f (50% trong suốt)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -90,7 +90,7 @@ fun BeautyAdjustmentPanel(
                     ) {
                         Text(
                             text = "Beauty Adjustment",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -99,7 +99,7 @@ fun BeautyAdjustmentPanel(
                             // Reset button (using text for now)
                             Text(
                                 text = "Reset",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 12.sp,
                                 modifier = Modifier
                                     .clickable { onResetToDefaults() }
@@ -109,7 +109,7 @@ fun BeautyAdjustmentPanel(
                             // Close button (using text for now)
                             Text(
                                 text = "✕",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 14.sp,
                                 modifier = Modifier
                                     .clickable { onDismiss() }
@@ -189,7 +189,7 @@ private fun BeautySlider(
             ) {
                 Text(
                     text = label,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -197,7 +197,7 @@ private fun BeautySlider(
             
             Text(
                 text = String.format("%.2f", value),
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 textAlign = TextAlign.End
             )
@@ -236,8 +236,8 @@ private fun BeautySlideHorizontal(
         CustomPaintSlider(
             width = 200, // Chiều rộng slider
             height = 8,  // Chiều cao track tăng lên 8
-            firstColor = Color.Gray.copy(alpha = 0.3f),
-            lastColor = Color.White.copy(alpha = 0.8f)
+            firstColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+            lastColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
         )
         
         // Custom slider
@@ -251,7 +251,7 @@ private fun BeautySlideHorizontal(
             width = 200,        // Match paint width
             height = 8,         // Track height tăng lên 8
             widthThumb = 16,    // Small thumb
-            thumbColor = Color.White
+            thumbColor = MaterialTheme.colorScheme.primary
         )
     }
 }

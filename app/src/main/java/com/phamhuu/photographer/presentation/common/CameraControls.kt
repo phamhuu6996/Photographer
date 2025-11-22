@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -82,60 +84,68 @@ fun CameraControls(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.5F))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5F))
                 .padding(top = 50.dp, start = 16.dp, end = 16.dp, bottom = 30.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Flash button
+            // Flash button - dùng primary khi active (không phải OFF)
             ImageCustom(
                 id = flashModeToIcon(flashMode),
                 imageMode = ImageMode.MEDIUM,
-                color = Color.White,
-                modifier = Modifier.clickable { onChangeFlashMode() }
+                color = if (flashMode != ImageCapture.FLASH_MODE_OFF) 
+                    MaterialTheme.colorScheme.primary 
+                else 
+                    MaterialTheme.colorScheme.onSurface,
+                onClick = { onChangeFlashMode() }
             )
 
-            // Timer button
+            // Timer button - dùng primary khi active (không phải OFF)
             ImageCustom(
                 id = timeDelay.toIcon(),
                 imageMode = ImageMode.MEDIUM,
-                color = Color.White,
-                modifier = Modifier.clickable {
-                    onChangeTimeDelay(timeDelay.next())
-                }
+                color = if (timeDelay != TimerDelay.OFF) 
+                    MaterialTheme.colorScheme.primary 
+                else 
+                    MaterialTheme.colorScheme.onSurface,
+                onClick = { onChangeTimeDelay(timeDelay.next()) }
             )
             
-            // Aspect ratio button
+            // Aspect ratio button - chỉ 16:9 mới dùng màu, 3:4 dùng mặc định
             ImageCustom(
                 id = resolution.toIcon(),
                 imageMode = ImageMode.MEDIUM,
-                color = Color.White,
-                modifier = Modifier.clickable {
-                    onChangeResolution(resolution.next())
-                }
+                color = if (resolution == RatioCamera.RATIO_9_16) 
+                    MaterialTheme.colorScheme.primary 
+                else 
+                    MaterialTheme.colorScheme.onSurface,
+                onClick = { onChangeResolution(resolution.next()) }
             )
 
-            // Location toggle button
+            // Location toggle button - dùng primary khi enabled
             ImageCustom(
                 id = iconLocation,
                 imageMode = ImageMode.MEDIUM,
-                color = Color.White,
-                modifier = Modifier.clickable { onChangeLocationToggle() }
+                color = if (enableLocation) 
+                    MaterialTheme.colorScheme.primary 
+                else 
+                    MaterialTheme.colorScheme.onSurface,
+                onClick = { onChangeLocationToggle() }
             )
             
             // Camera switch button
             ImageCustom(
                 id = R.drawable.change_camera,
                 imageMode = ImageMode.MEDIUM,
-                color = Color.White,
-                modifier = Modifier.clickable { onChangeCamera() }
+                color = MaterialTheme.colorScheme.onSurface,
+                onClick = { onChangeCamera() }
             )
         }
 
         if (isRecording) {
             Text(
                 text = timerViewModel.timeDisplayRecord(state.value),
-                color = Color.Red,
+                color = MaterialTheme.colorScheme.error,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(16.dp)
@@ -145,7 +155,7 @@ fun CameraControls(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .background(Color.Black.copy(alpha = 0.5F))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5F))
         ) {
             Spacer(modifier = Modifier.height(5.dp))
             Row(
@@ -170,7 +180,8 @@ fun CameraControls(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (fileUri != null)
                     AsyncImageCustom(
@@ -182,22 +193,23 @@ fun CameraControls(
                     ImageCustom(
                         id = R.drawable.ic_album,
                         imageMode = ImageMode.MEDIUM,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
 
                 if (isCapture)
                     ImageCustom(
                         id = R.drawable.capture,
                         imageMode = ImageMode.LARGE,
-                        color = Color.White,
-                        modifier = Modifier.clickable { onCaptureClick() }
+                        color = MaterialTheme.colorScheme.primary,
+                        onClick = { onCaptureClick() },
+                        modifier = Modifier.size(70.dp)
                     )
                 else
                     ImageCustom(
                         id = if (isRecording) R.drawable.stop_record else R.drawable.start_record,
                         imageMode = ImageMode.LARGE,
-                        color = Color.White,
-                        modifier = Modifier.clickable {
+                        color = MaterialTheme.colorScheme.primary,
+                        onClick = {
                             if (isRecording) {
                                 onStopRecord()
                                 timerViewModel.stopTimer()
@@ -205,15 +217,16 @@ fun CameraControls(
                                 onVideoClick()
                                 timerViewModel.startTimer()
                             }
-                        }
+                        },
+                        modifier = Modifier.size(70.dp)
                     )
 
                 // Beauty Adjustment button
                 ImageCustom(
                     id = R.drawable.magic,
                     imageMode = ImageMode.MEDIUM,
-                    color = Color.White, // Normal white color since filter is default
-                    modifier = Modifier.clickable { 
+                    color = MaterialTheme.colorScheme.onSurface,
+                    onClick = { 
                         onImageFilterSelected(ImageFilter.BEAUTY) // Triggers beauty panel toggle
                     }
                 )
@@ -234,7 +247,10 @@ fun CameraExtensionControl(
     Text(
         text = title,
         modifier = Modifier.clickable { callBack() },
-        color = Color.White,
+        color = if (selected) 
+            MaterialTheme.colorScheme.primary 
+        else 
+            MaterialTheme.colorScheme.onSurface,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
     )
 }

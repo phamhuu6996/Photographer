@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark Theme Colors -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FFD0BCFF</color>
+    <color name="purple_700">#FF4F378B</color>
+    <color name="teal_200">#FF80CBC4</color>
+    <color name="teal_700">#FF004D40</color>
+    
+    <!-- Material3 Dark Theme - Ban đêm: Nền đen, Chữ trắng -->
+    <!-- Primary: Màu thương hiệu vàng/gold cho app chụp ảnh -->
+    <color name="md_theme_dark_primary">#FFC107</color>
+    <color name="md_theme_dark_onPrimary">#000000</color>
+    <color name="md_theme_dark_primaryContainer">#F57F17</color>
+    <color name="md_theme_dark_onPrimaryContainer">#FFF9C4</color>
+    <color name="md_theme_dark_secondary">#BDBDBD</color>
+    <color name="md_theme_dark_onSecondary">#000000</color>
+    <color name="md_theme_dark_secondaryContainer">#616161</color>
+    <color name="md_theme_dark_onSecondaryContainer">#FFFFFF</color>
+    <color name="md_theme_dark_tertiary">#9E9E9E</color>
+    <color name="md_theme_dark_onTertiary">#000000</color>
+    <color name="md_theme_dark_tertiaryContainer">#757575</color>
+    <color name="md_theme_dark_onTertiaryContainer">#FFFFFF</color>
+    <color name="md_theme_dark_error">#FFB4AB</color>
+    <color name="md_theme_dark_onError">#690005</color>
+    <color name="md_theme_dark_errorContainer">#93000A</color>
+    <color name="md_theme_dark_onErrorContainer">#FFDAD6</color>
+    <color name="md_theme_dark_background">#000000</color>
+    <color name="md_theme_dark_onBackground">#FFFFFF</color>
+    <color name="md_theme_dark_surface">#000000</color>
+    <color name="md_theme_dark_onSurface">#FFFFFF</color>
+    <color name="md_theme_dark_surfaceVariant">#1A1A1A</color>
+    <color name="md_theme_dark_onSurfaceVariant">#FFFFFF</color>
+    <color name="md_theme_dark_outline">#757575</color>
+    <color name="md_theme_dark_outlineVariant">#424242</color>
+    
+    <!-- Common colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
+

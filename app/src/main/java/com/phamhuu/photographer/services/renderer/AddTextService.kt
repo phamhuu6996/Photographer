@@ -22,15 +22,18 @@ object AddTextService {
     /**
      * Creates text paint for address rendering
      */
-    fun createTextPaint(textSizePx: Float, color: Int = Color.White.toArgb()): Paint {
+    fun createTextPaint(
+        textSizePx: Float, 
+        color: Int = Color.White.toArgb(),
+        shadowColor: Int = Color.Black.toArgb()
+    ): Paint {
         return Paint().apply {
             this.color = color
             textSize = textSizePx
             typeface = Typeface.DEFAULT_BOLD
             isAntiAlias = true
             textAlign = Paint.Align.RIGHT  // Use RIGHT align for automatic positioning
-            setShadowLayer(6f, 0f, 0f, Color.Black.toArgb())
-
+            setShadowLayer(6f, 0f, 0f, shadowColor)
         }
     }
     /**
@@ -139,9 +142,15 @@ object AddTextService {
         canvas: Canvas,
         address: String,
         canvasWidth: Float,
-        textSizePx: Float
+        textSizePx: Float,
+        textColor: Int? = null,
+        shadowColor: Int? = null
     ) {
-        val textPaint = createTextPaint(textSizePx)
+        val textPaint = createTextPaint(
+            textSizePx,
+            color = textColor ?: Color.White.toArgb(),
+            shadowColor = shadowColor ?: Color.Black.toArgb()
+        )
         val maxWidth = canvasWidth * 0.9f
         val formattedAddress = formatAddress(address)
         val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)

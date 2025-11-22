@@ -1,6 +1,7 @@
 package com.phamhuu.photographer.presentation.common
 
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -32,8 +33,8 @@ import androidx.compose.ui.unit.sp
 fun BaseAppBar(
     title: String,
     onBackClick: (() -> Unit)? = null,
-    backgroundColor: Color = Color.Black.copy(alpha = 0.1f),
-    titleColor: Color = Color.Black,
+    backgroundColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
     actions: @Composable (() -> Unit)? = null
 ) {
     TopAppBar(
@@ -135,13 +136,15 @@ fun DetailViewerAppBar(
     title: String,
     onBackClick: () -> Unit,
     onShareClick: () -> Unit,
-    titleColor: Color = Color.Black,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    backgroundColor: Color? = null, // null = dùng default, có thể override cho video/camera
     actions: @Composable (() -> Unit)? = null
 ) {
     BaseAppBar(
         title = title,
         onBackClick = onBackClick,
         titleColor = titleColor,
+        backgroundColor = backgroundColor ?: MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
         actions = {
             ShareActionButton(onClick = onShareClick, tint = titleColor)
             actions?.invoke()

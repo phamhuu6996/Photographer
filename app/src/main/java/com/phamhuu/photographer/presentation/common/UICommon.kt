@@ -15,6 +15,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -28,8 +29,8 @@ import com.phamhuu.photographer.R
 fun SlideHorizontal(
     value: Float,
     onExposureChange: (Float) -> Unit,
-    firstColor: Color = Color.Gray,
-    lastColor: Color = Color.LightGray,
+    firstColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    lastColor: Color = MaterialTheme.colorScheme.primary,
 ) {
 
     Column(
@@ -69,8 +70,8 @@ fun SlideHorizontal(
 fun SlideVertically(
     value: Float,
     onExposureChange: (Float) -> Unit,
-    firstColor: Color = Color.Gray,
-    lastColor: Color = Color.LightGray,
+    firstColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    lastColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     Box(modifier = Modifier.rotate(270f)) {
         SlideHorizontal(
@@ -90,7 +91,7 @@ fun CustomSlider(
     width: Int = 50,
     height: Int = 10,
     widthThumb: Int = 24,
-    thumbColor: Color = Color.White,
+    thumbColor: Color = MaterialTheme.colorScheme.primary,
     activeTrackColor: Color = Color.Transparent,
     inactiveTrackColor: Color = Color.Transparent,
 ) {

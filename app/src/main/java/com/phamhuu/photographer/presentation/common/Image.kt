@@ -3,6 +3,9 @@ package com.phamhuu.photographer.presentation.common
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,7 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -24,14 +30,47 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.ImageMode
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import singleShotClick
+
+/**
+ * Composable chung cho hiệu ứng press (lún xuống khi click)
+ * Có thể dùng cho cả ImageCustom và Icon
+ */
+@Composable
+fun PressableContent(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    content: @Composable () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed = interactionSource.collectIsPressedAsState().value
+    
+    Box(
+        modifier = modifier
+            .size(size)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .scale(if (isPressed) 0.9f else 1f),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
 
 @Composable
 fun AsyncImageCustom(
     imageSource: Any?, // Can be a URL, File, or URI
     modifier: Modifier = Modifier,
     size: Dp? = null,
-    color: Color = Color.Black,
+    color: Color = MaterialTheme.colorScheme.surface,
     contentScale: ContentScale = ContentScale.FillWidth,
     isDecoration: Boolean = true,
 ) {
@@ -50,7 +89,7 @@ fun AsyncImageCustom(
         modifier = if (!isDecoration) customModifier else customModifier
             .clip(shape)
             .background(color)
-            .border(width = 1.dp, Color.Gray, shape),
+            .border(width = 1.dp, MaterialTheme.colorScheme.outline, shape),
         contentScale = contentScale
     )
 }
@@ -62,16 +101,32 @@ fun ImageCustom(
     id: Int,
     contentDescription: String? = null,
     imageMode: ImageMode = ImageMode.MEDIUM,
-    color: Color = Color.Black,
+    color: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: (() -> Unit)? = null,
 ) {
-    Image(
-        painter = painterResource(id = id),
-        contentDescription = contentDescription,
-        modifier = modifier
-            .size(imageMode.size.dp)
-            .fillMaxSize(),
-        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color)
-    )
+    if (onClick != null) {
+        PressableContent(
+            onClick = onClick,
+            size = imageMode.size.dp,
+            modifier = modifier
+        ) {
+            Image(
+                painter = painterResource(id = id),
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color)
+            )
+        }
+    } else {
+        Image(
+            painter = painterResource(id = id),
+            contentDescription = contentDescription,
+            modifier = modifier
+                .size(imageMode.size.dp)
+                .fillMaxSize(),
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color)
+        )
+    }
 }
 
 @Composable
@@ -86,9 +141,9 @@ fun BackImageCustom(
     ){
         ImageCustom(id = R.drawable.back,
             imageMode = ImageMode.MEDIUM,
-            color = color ?: Color.Black,
+            color = color ?: MaterialTheme.colorScheme.onSurface,
+            onClick = callBack,
             modifier = Modifier
-                .padding(all = 4.dp)
-                .singleShotClick { callBack() } )
+                .padding(all = 4.dp) )
     }
 }

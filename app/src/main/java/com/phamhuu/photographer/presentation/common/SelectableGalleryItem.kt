@@ -5,17 +5,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,7 +48,7 @@ fun GalleryItem(
 ) {
     Box(
         modifier = Modifier
-            .padding(8.dp)
+            .aspectRatio(1f)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onItemClick() },
@@ -60,14 +62,18 @@ fun GalleryItem(
             size = width
         )
         
-        // Video indicator
+        // Video indicator - Icon với background để contrast cao trên ảnh
         if (galleryItem !is Uri) {
-            ImageCustom(
-                id = R.drawable.start_record,
-                modifier = Modifier.align(Alignment.Center),
-                imageMode = ImageMode.MEDIUM,
-                color = Color.White
-            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+            ) {
+                ImageCustom(
+                    id = R.drawable.start_record,
+                    imageMode = ImageMode.MEDIUM,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
         
         // Selection checkbox - chỉ hiển thị khi ở selection mode
@@ -79,11 +85,11 @@ fun GalleryItem(
                     .size(24.dp)
                     .clip(CircleShape)
                     .background(
-                        if (isSelected) Color.Blue else Color.White.copy(alpha = 0.7f)
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
                     )
                     .border(
                         width = 2.dp,
-                        color = if (isSelected) Color.Blue else Color.Gray,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                         shape = CircleShape
                     )
             ) {
@@ -91,7 +97,7 @@ fun GalleryItem(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(16.dp).align(Alignment.Center)
                     )
                 }

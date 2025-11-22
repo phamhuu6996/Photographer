@@ -3,9 +3,11 @@ package com.phamhuu.photographer.presentation.common
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.phamhuu.photographer.contants.Constants
@@ -32,7 +34,7 @@ fun CanvasAddressText(
     ) {
         val canvas = drawContext.canvas.nativeCanvas
         
-        // Use AddTextService for preview rendering
+        // Use AddTextService for preview rendering with theme colors
         AddTextService.renderAddressForPreview(
             canvas = canvas,
             address = text,

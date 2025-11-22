@@ -95,7 +95,7 @@ fun CameraScreen(
 
     Box(
         modifier = Modifier
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
             .pointerInput(Unit) {
                 detectTransformGestures(panZoomLock = true) { centroid, pan, zoomChange, rotation ->
                     viewModel.getCameraPointerInput(centroid, pan, zoomChange, rotation)
@@ -185,13 +185,13 @@ fun FilterIndicator(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
-            containerColor = Color.Black.copy(alpha = 0.7f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
         ),
         shape = RoundedCornerShape(20.dp)
     ) {
         Text(
             text = "🎨 ${filter.displayName}",
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

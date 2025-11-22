@@ -3,6 +3,7 @@ package com.phamhuu.photographer.presentation.video.ui
 import LocalNavController
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.content.res.Resources
 import android.util.Log
 import android.view.View
 import androidx.annotation.OptIn
@@ -23,9 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -124,7 +127,7 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         AndroidView(
             factory = {
@@ -146,10 +149,10 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
         if (controlsVisible) {
             Column(modifier = Modifier.align(Alignment.Center)) {
                 if (state.isBuffering) {
-                    CircularProgressIndicator(color = Color.White)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
                 }
                 if (state.hasError) {
-                    Text(text = state.errorMessage ?: "Playback error", color = Color.Red)
+                    Text(text = state.errorMessage ?: "Playback error", color = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { viewModel.load(player, videoUri) }) {
                         Text(text = "Retry")
@@ -165,7 +168,8 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                     // Share the video
                     ShareService.multiShare(context, listOf(videoUri.toUri()))
                 },
-                titleColor = Color.White,
+                titleColor = MaterialTheme.colorScheme.onBackground,
+                backgroundColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
                 actions = {
                     // Full screen toggle button
                     IconButton(onClick = {
@@ -174,7 +178,7 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                         ImageCustom(
                             id = R.drawable.full_screen,
                             imageMode = ImageMode.MEDIUM,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier
                         )
                     }

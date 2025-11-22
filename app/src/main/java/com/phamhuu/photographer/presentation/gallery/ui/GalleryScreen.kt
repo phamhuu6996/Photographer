@@ -3,10 +3,13 @@ package com.phamhuu.photographer.presentation.gallery.ui
 import LocalNavController
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -15,10 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.phamhuu.photographer.contants.SnackbarType
 import com.phamhuu.photographer.presentation.common.GalleryAppBar
 import com.phamhuu.photographer.presentation.common.GalleryItem
@@ -46,7 +50,7 @@ fun GalleryScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White) // hoặc màu khác bạn muốn
+            .background(MaterialTheme.colorScheme.background)
 
     ) {
         val width = this.maxWidth / 2
@@ -67,7 +71,11 @@ fun GalleryScreen(
                 )
 
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = width),
+                    columns = GridCells.Fixed(3),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(4.dp),
+                    modifier = Modifier.padding(8.dp)
                 ) {
                     itemsIndexed(
                         uiState.images,
@@ -111,7 +119,7 @@ fun GalleryScreen(
 
             if (uiState.isLoading) {
                 CircularProgressIndicator(
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
