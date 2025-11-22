@@ -1,0 +1,35 @@
+<resources>
+    <string name="app_name">Photographer</string>
+    
+    <!-- Common -->
+    <string name="gallery">Gallery</string>
+    <string name="image">Image</string>
+    <string name="video">Video</string>
+    <string name="photo">Photo</string>
+    <string name="retry">Retry</string>
+    <string name="close">✕</string>
+    
+    <!-- Gallery -->
+    <string name="selected_count">%1$d selected</string>
+    <string name="select_all">Select All</string>
+    <string name="unselect_all">Unselect All</string>
+    
+    <!-- Camera -->
+    <string name="beauty_adjustment">Beauty Adjustment</string>
+    <string name="reset">Reset</string>
+    <string name="filter_indicator">🎨 %1$s</string>
+    
+    <!-- Video Player -->
+    <string name="playback_error">Playback error</string>
+    
+    <!-- Permissions -->
+    <string name="permissions_not_granted">Permissions not granted</string>
+    
+    <!-- Beauty Adjustment Labels -->
+    <string name="skin_smoothing">Skin Smoothing</string>
+    <string name="whiteness">Whiteness</string>
+    <string name="thin_face">Thin Face</string>
+    <string name="big_eye">Big Eye</string>
+    <string name="blend_level">Blend Level</string>
+</resources>
+
