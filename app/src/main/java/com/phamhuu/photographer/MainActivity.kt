@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
+import com.google.android.gms.ads.MobileAds
 import com.phamhuu.photographer.di.appModule
 import com.phamhuu.photographer.presentation.common.AppScaffold
 import com.phamhuu.photographer.presentation.common.FullScreen
@@ -25,6 +26,9 @@ class Photographer : Application() {
             androidContext(this@Photographer)
             modules(appModule)
         }
+
+        // Khởi tạo AdMob SDK
+        MobileAds.initialize(this) {}
     }
 }
 

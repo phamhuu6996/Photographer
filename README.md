@@ -1,4 +1,4 @@
-# Photographer
+# BeautyCam
 
 A modern Android camera app with real-time OpenGL ES filters, 3D models, and advanced video recording capabilities.
 

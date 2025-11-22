@@ -38,6 +38,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phamhuu.photographer.R
+import com.phamhuu.photographer.contants.AdMobConstants
 import com.phamhuu.photographer.contants.ImageFilter
 import com.phamhuu.photographer.contants.ImageMode
 import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
@@ -49,6 +50,7 @@ import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
 import com.phamhuu.photographer.presentation.common.DetectGestures
 import com.phamhuu.photographer.presentation.common.ImageCustom
+import com.phamhuu.photographer.presentation.common.ads.InterstitialAdWrapper
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.context.GlobalContext
 
@@ -93,8 +95,18 @@ fun CameraScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
-    Box(
+    
+    // Wrap content with Interstitial Ad Wrapper
+    InterstitialAdWrapper(
+        showAd = uiState.value.shouldShowInterstitialAd,
+        onAdDismissed = {
+            viewModel.onInterstitialAdShown()
+        },
+        onAdFailedToShow = {
+            viewModel.onInterstitialAdShown()
+        }
+    ) {
+        Box(
         modifier = Modifier
             .background(MaterialTheme.colorScheme.background)
             .pointerInput(Unit) {
@@ -175,6 +187,7 @@ fun CameraScreen(
             onDismiss = { viewModel.toggleBeautyPanel() },
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+        }
     }
 }
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -23,10 +24,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.phamhuu.photographer.contants.AdMobConstants
 import com.phamhuu.photographer.contants.SnackbarType
 import com.phamhuu.photographer.presentation.common.GalleryAppBar
 import com.phamhuu.photographer.presentation.common.GalleryItem
 import com.phamhuu.photographer.presentation.common.SnackbarManager
+import com.phamhuu.photographer.presentation.common.ads.BannerAd
 import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -124,5 +127,12 @@ fun GalleryScreen(
                 )
             }
         }
+        
+        // Banner Ad at the bottom - outside Box, fixed at bottom
+        BannerAd(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+        )
     }
 }

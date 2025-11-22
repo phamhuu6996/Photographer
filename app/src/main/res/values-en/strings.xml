@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Photographer</string>
+    <string name="app_name">BeautyCam</string>
     
     <!-- Common -->
     <string name="gallery">Gallery</string>
@@ -31,5 +31,10 @@
     <string name="thin_face">Thin Face</string>
     <string name="big_eye">Big Eye</string>
     <string name="blend_level">Blend Level</string>
+    
+    <!-- AdMob Ad Unit IDs -->
+    <string name="ad_unit_id_banner">ca-app-pub-6216323825050683/3249879246</string>
+    <string name="ad_unit_id_interstitial">ca-app-pub-6216323825050683/6309612261</string>
+    <string name="ad_unit_id_rewarded">ca-app-pub-6216323825050683/9486439947</string>
 </resources>
 

@@ -61,6 +61,10 @@ class CameraViewModel(
     private val galleryRepository: GalleryRepository,
     private val locationRepository: LocationRepository,
 ) : ViewModel() {
+    companion object {
+        const val INTERSTITIAL_AD_FREQUENCY = 5
+    }
+    
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState = _uiState.asStateFlow()
     
@@ -378,10 +382,26 @@ class CameraViewModel(
     private suspend fun saveToGallery(photoFile: File) {
         val uri = cameraRepository.saveImageToGallery(photoFile)
         if (uri != null) {
+            incrementMediaCount()
             _uiState.value = _uiState.value.copy(fileUri = uri)
         } else {
             updateError("Failed to save photo to gallery")
         }
+    }
+    
+    private fun incrementMediaCount() {
+        val newCount = _uiState.value.mediaCount + 1
+        val shouldShowAd = newCount % INTERSTITIAL_AD_FREQUENCY == 0
+        _uiState.update { 
+            it.copy(
+                mediaCount = newCount,
+                shouldShowInterstitialAd = shouldShowAd
+            )
+        }
+    }
+    
+    fun onInterstitialAdShown() {
+        _uiState.update { it.copy(shouldShowInterstitialAd = false) }
     }
 
     fun setFlashMode() {
@@ -651,6 +671,7 @@ class CameraViewModel(
         try {
             val uri = cameraRepository.saveVideoToGallery(videoFile)
             if (uri != null) {
+                incrementMediaCount()
                 _uiState.value = _uiState.value.copy(fileUri = uri)
                 Log.d("CameraViewModel", "Video saved to gallery successfully")
             } else {
