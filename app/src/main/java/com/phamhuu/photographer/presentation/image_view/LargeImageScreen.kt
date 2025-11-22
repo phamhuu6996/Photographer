@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.phamhuu.photographer.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phamhuu.photographer.presentation.common.AsyncImageCustom
 import com.phamhuu.photographer.presentation.common.DetailViewerAppBar
@@ -38,7 +40,7 @@ fun LargeImageScreen(imageUri: String) {
     ) {
         // AppBar with Share button
         DetailViewerAppBar(
-            title = "Image",
+            title = stringResource(R.string.image),
             onBackClick = { navController.popBackStack() },
             onShareClick = {
                 // Share the image

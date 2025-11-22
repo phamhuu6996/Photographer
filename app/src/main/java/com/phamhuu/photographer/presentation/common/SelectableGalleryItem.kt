@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
@@ -69,7 +68,7 @@ fun GalleryItem(
                     .align(Alignment.Center)
             ) {
                 ImageCustom(
-                    id = R.drawable.start_record,
+                    id = R.drawable.video,
                     imageMode = ImageMode.MEDIUM,
                     color = MaterialTheme.colorScheme.onSurface
                 )

@@ -7,8 +7,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.phamhuu.photographer.R
 
 // ============================================================================
 // BASE COMPONENT - Component cơ bản có thể tái sử dụng
@@ -92,12 +94,12 @@ fun GalleryAppBar(
     onUnSelectAll: (() -> Unit)? = null,
     onShare: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
-    title: String = "Gallery"
+    title: String = stringResource(R.string.gallery)
 ) {
     if (isSelectionMode) {
         BaseAppBar(
             onBackClick = onCancel,
-            title = "$selectedCount đã chọn",
+            title = stringResource(R.string.selected_count, selectedCount),
             actions = {
                 if (selectedCount > 0) {
                     onShare?.let { ShareActionButton(onClick = it) }

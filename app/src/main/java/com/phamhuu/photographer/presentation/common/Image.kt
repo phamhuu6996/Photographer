@@ -30,11 +30,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.ImageMode
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
-import singleShotClick
 
 /**
  * Composable chung cho hiệu ứng press (lún xuống khi click)
@@ -102,6 +98,7 @@ fun ImageCustom(
     contentDescription: String? = null,
     imageMode: ImageMode = ImageMode.MEDIUM,
     color: Color = MaterialTheme.colorScheme.onSurface,
+    filter: Boolean = true,
     onClick: (() -> Unit)? = null,
 ) {
     if (onClick != null) {
@@ -114,7 +111,7 @@ fun ImageCustom(
                 painter = painterResource(id = id),
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color)
+                colorFilter = if (filter) androidx.compose.ui.graphics.ColorFilter.tint(color) else null
             )
         }
     } else {

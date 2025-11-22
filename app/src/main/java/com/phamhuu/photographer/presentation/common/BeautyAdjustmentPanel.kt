@@ -11,10 +11,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.BeautySettings
 
 /**
@@ -89,7 +91,7 @@ fun BeautyAdjustmentPanel(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Beauty Adjustment",
+                            text = stringResource(R.string.beauty_adjustment),
                             color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
@@ -98,7 +100,7 @@ fun BeautyAdjustmentPanel(
                         Row {
                             // Reset button (using text for now)
                             Text(
-                                text = "Reset",
+                                text = stringResource(R.string.reset),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 12.sp,
                                 modifier = Modifier
@@ -108,7 +110,7 @@ fun BeautyAdjustmentPanel(
                             
                             // Close button (using text for now)
                             Text(
-                                text = "✕",
+                                text = stringResource(R.string.close),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 14.sp,
                                 modifier = Modifier
@@ -122,21 +124,21 @@ fun BeautyAdjustmentPanel(
                     
                     // Beauty sliders
                     BeautySlider(
-                        label = "Skin Smoothing",
+                        label = stringResource(R.string.skin_smoothing),
                         value = beautySettings.skinSmoothing,
                         valueRange = BeautySettings.SKIN_SMOOTHING_MIN..BeautySettings.SKIN_SMOOTHING_MAX,
                         onValueChange = onSkinSmoothingChange
                     )
                     
                     BeautySlider(
-                        label = "Whiteness",
+                        label = stringResource(R.string.whiteness),
                         value = beautySettings.whiteness,
                         valueRange = BeautySettings.WHITENESS_MIN..BeautySettings.WHITENESS_MAX,
                         onValueChange = onWhitenessChange
                     )
                     
                     BeautySlider(
-                        label = "Thin Face",
+                        label = stringResource(R.string.thin_face),
                         value = beautySettings.thinFace,
                         valueRange = BeautySettings.THIN_FACE_MIN..BeautySettings.THIN_FACE_MAX,
                         onValueChange = onThinFaceChange,
@@ -144,7 +146,7 @@ fun BeautyAdjustmentPanel(
                     )
                     
                     BeautySlider(
-                        label = "Big Eye",
+                        label = stringResource(R.string.big_eye),
                         value = beautySettings.bigEye,
                         valueRange = BeautySettings.BIG_EYE_MIN..BeautySettings.BIG_EYE_MAX,
                         onValueChange = onBigEyeChange,
@@ -152,7 +154,7 @@ fun BeautyAdjustmentPanel(
                     )
                     
                     BeautySlider(
-                        label = "Blend Level",
+                        label = stringResource(R.string.blend_level),
                         value = beautySettings.blendLevel,
                         valueRange = BeautySettings.BLEND_LEVEL_MIN..BeautySettings.BLEND_LEVEL_MAX,
                         onValueChange = onBlendLevelChange,

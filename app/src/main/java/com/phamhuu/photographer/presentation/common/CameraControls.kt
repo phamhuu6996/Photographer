@@ -23,8 +23,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -165,13 +165,13 @@ fun CameraControls(
                     .padding(16.dp),
             ) {
                 CameraExtensionControl(
-                    title = "Ảnh",
+                    title = stringResource(R.string.photo),
                     callBack = { onChangeCaptureOrVideo(true) },
                     selected = isCapture
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 CameraExtensionControl(
-                    title = "Video",
+                    title = stringResource(R.string.video),
                     callBack = { onChangeCaptureOrVideo(false) },
                     selected = !isCapture
                 )
@@ -200,7 +200,7 @@ fun CameraControls(
                     ImageCustom(
                         id = R.drawable.capture,
                         imageMode = ImageMode.LARGE,
-                        color = MaterialTheme.colorScheme.primary,
+                        filter = false,
                         onClick = { onCaptureClick() },
                         modifier = Modifier.size(70.dp)
                     )
@@ -208,7 +208,7 @@ fun CameraControls(
                     ImageCustom(
                         id = if (isRecording) R.drawable.stop_record else R.drawable.start_record,
                         imageMode = ImageMode.LARGE,
-                        color = MaterialTheme.colorScheme.primary,
+                        filter = false,
                         onClick = {
                             if (isRecording) {
                                 onStopRecord()

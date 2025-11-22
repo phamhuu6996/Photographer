@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
@@ -152,17 +153,17 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
                 }
                 if (state.hasError) {
-                    Text(text = state.errorMessage ?: "Playback error", color = MaterialTheme.colorScheme.error)
+                    Text(text = state.errorMessage ?: stringResource(R.string.playback_error), color = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { viewModel.load(player, videoUri) }) {
-                        Text(text = "Retry")
+                        Text(text = stringResource(R.string.retry))
                     }
                 }
             }
 
             // AppBar with Share button
             DetailViewerAppBar(
-                title = "Video",
+                title = stringResource(R.string.video),
                 onBackClick = { navController.popBackStack() },
                 onShareClick = {
                     // Share the video

@@ -1,3 +1,34 @@
 <resources>
     <string name="app_name">Photographer</string>
+    
+    <!-- Common -->
+    <string name="gallery">Thư viện</string>
+    <string name="image">Hình ảnh</string>
+    <string name="video">Video</string>
+    <string name="photo">Ảnh</string>
+    <string name="retry">Thử lại</string>
+    <string name="close">✕</string>
+    
+    <!-- Gallery -->
+    <string name="selected_count">%1$d đã chọn</string>
+    <string name="select_all">Chọn tất cả</string>
+    <string name="unselect_all">Bỏ tất cả</string>
+    
+    <!-- Camera -->
+    <string name="beauty_adjustment">Điều chỉnh làm đẹp</string>
+    <string name="reset">Đặt lại</string>
+    <string name="filter_indicator">🎨 %1$s</string>
+    
+    <!-- Video Player -->
+    <string name="playback_error">Lỗi phát video</string>
+    
+    <!-- Permissions -->
+    <string name="permissions_not_granted">Quyền truy cập chưa được cấp</string>
+    
+    <!-- Beauty Adjustment Labels -->
+    <string name="skin_smoothing">Làm mịn da</string>
+    <string name="whiteness">Làm trắng</string>
+    <string name="thin_face">Gầy mặt</string>
+    <string name="big_eye">Mắt to</string>
+    <string name="blend_level">Mức độ hòa trộn</string>
 </resources>

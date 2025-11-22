@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.ImageMode
 
@@ -90,7 +91,7 @@ fun SelectionDropdownMenu(
         onDismissRequest = { showMenu = false }
     ) {
         DropdownMenuItem(
-            text = { Text("Chọn tất cả") },
+            text = { Text(stringResource(R.string.select_all)) },
             leadingIcon = {
                 ImageCustom(
                     id = R.drawable.check_all,
@@ -104,7 +105,7 @@ fun SelectionDropdownMenu(
         )
         
         DropdownMenuItem(
-            text = { Text("Bỏ tất cả") },
+            text = { Text(stringResource(R.string.unselect_all)) },
             leadingIcon = {
                 ImageCustom(
                     id = R.drawable.uncheck_all,
