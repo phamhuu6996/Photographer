@@ -3,7 +3,6 @@ package com.phamhuu.photographer.presentation.video.ui
 import LocalNavController
 import android.app.Activity
 import android.content.pm.ActivityInfo
-import android.content.res.Resources
 import android.util.Log
 import android.view.View
 import androidx.annotation.OptIn
@@ -16,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -24,11 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -48,8 +45,8 @@ import com.phamhuu.photographer.contants.SnackbarType
 import com.phamhuu.photographer.presentation.common.DetailViewerAppBar
 import com.phamhuu.photographer.presentation.common.ImageCustom
 import com.phamhuu.photographer.presentation.common.SnackbarManager
-import com.phamhuu.photographer.services.android.ShareService
 import com.phamhuu.photographer.presentation.video.vm.VideoPlayerViewModel
+import com.phamhuu.photographer.services.android.ShareService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.koin.androidx.compose.koinViewModel
@@ -88,9 +85,11 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                 Lifecycle.Event.ON_START -> {
                     player.playWhenReady = state.isPlaying
                 }
+
                 Lifecycle.Event.ON_STOP -> {
                     player.playWhenReady = false
                 }
+
                 else -> {}
             }
         }
@@ -99,7 +98,10 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
             lifecycleOwner.lifecycle.removeObserver(observer)
             viewModel.updatePosition(player.currentPosition)
             player.release()
-            Log.d("VideoPlayerScreen", "activity?.isFinishing: ${activity?.isChangingConfigurations}")
+            Log.d(
+                "VideoPlayerScreen",
+                "activity?.isFinishing: ${activity?.isChangingConfigurations}"
+            )
             if (activity?.isChangingConfigurations == false) {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
@@ -112,12 +114,17 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
             override fun onIsLoadingChanged(isLoading: Boolean) {
                 viewModel.setBuffering(isLoading)
             }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 viewModel.setPlaying(isPlaying)
             }
+
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 viewModel.setError(error.message)
-                SnackbarManager.show(message = error.message ?: "Playback error", type = SnackbarType.FAIL)
+                SnackbarManager.show(
+                    message = error.message ?: "Playback error",
+                    type = SnackbarType.FAIL
+                )
             }
         }
         player.addListener(listener)
@@ -153,7 +160,10 @@ fun VideoPlayerScreen(videoUri: String, viewModel: VideoPlayerViewModel = koinVi
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
                 }
                 if (state.hasError) {
-                    Text(text = state.errorMessage ?: stringResource(R.string.playback_error), color = MaterialTheme.colorScheme.error)
+                    Text(
+                        text = state.errorMessage ?: stringResource(R.string.playback_error),
+                        color = MaterialTheme.colorScheme.error
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { viewModel.load(player, videoUri) }) {
                         Text(text = stringResource(R.string.retry))

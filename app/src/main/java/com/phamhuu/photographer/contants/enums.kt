@@ -10,11 +10,11 @@ enum class ImageMode(val size: Int) {
 }
 
 enum class ImageFilter(
-    val displayName: String, 
+    val displayName: String,
     val iconRes: Int,
 ) {
     BEAUTY("Beauty", R.drawable.magic);
-    
+
     fun toPopupItemData(): PopupItemData {
         return PopupItemData(
             id = ordinal,
@@ -68,7 +68,7 @@ enum class RatioCamera(val ratio: AspectRatioStrategy) {
         }
     }
 
-    fun toRatio() : Float {
+    fun toRatio(): Float {
         return when (this) {
             RATIO_9_16 -> 9f / 16f
             RATIO_3_4 -> 3f / 4f

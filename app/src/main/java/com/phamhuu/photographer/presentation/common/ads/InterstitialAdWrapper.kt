@@ -9,7 +9,7 @@ import com.phamhuu.photographer.contants.AdMobConstants
 /**
  * Interstitial Ad Wrapper Component
  * Wraps content and manages Interstitial Ad lifecycle
- * 
+ *
  * Usage:
  * ```
  * InterstitialAdWrapper(
@@ -21,7 +21,7 @@ import com.phamhuu.photographer.contants.AdMobConstants
  *     YourScreenContent()
  * }
  * ```
- * 
+ *
  * @param adUnitId Ad Unit ID for interstitial ad
  * @param showAd Trigger to show ad (set to true when you want to show ad)
  * @param onAdDismissed Callback when ad is dismissed
@@ -43,7 +43,7 @@ fun InterstitialAdWrapper(
     LaunchedEffect(adsId) {
         interstitialAdManager.loadAd(adsId)
     }
-    
+
     // Show ad when trigger is true
     LaunchedEffect(showAd) {
         if (showAd && interstitialAdManager.isAdLoaded()) {
@@ -61,7 +61,7 @@ fun InterstitialAdWrapper(
             )
         }
     }
-    
+
     // Render content
     content()
 }

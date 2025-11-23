@@ -17,16 +17,17 @@ interface GalleryRepository {
 class GalleryRepositoryImpl(
     private val context: Context
 ) : GalleryRepository {
-    
+
     override suspend fun getFirstImageOrVideo(): Uri? = withContext(Dispatchers.IO) {
         GalleryService.getFirstImageOrVideo(context)
     }
-    
+
     override suspend fun getResourceUri(imageUri: Uri): Any? = withContext(Dispatchers.IO) {
         GalleryService.getResourceUri(context, imageUri)
     }
 
-    override suspend fun getImagesAndVideos(limit: Int, after: Long?): GalleryPageModel = withContext(Dispatchers.IO) {
-        GalleryService.getImagesAndVideos(context, limit, after)
-    }
+    override suspend fun getImagesAndVideos(limit: Int, after: Long?): GalleryPageModel =
+        withContext(Dispatchers.IO) {
+            GalleryService.getImagesAndVideos(context, limit, after)
+        }
 } 

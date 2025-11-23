@@ -5,14 +5,24 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -21,17 +31,16 @@ import androidx.compose.ui.unit.sp
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.BeautySettings
 import com.phamhuu.photographer.contants.ImageMode
-import com.phamhuu.photographer.presentation.common.ImageCustom
 
 /**
  * BeautyAdjustmentPanel - Panel điều chỉnh các thông số beauty filter
- * 
+ *
  * Chức năng:
  * - 5 slider cho skin_smoothing, whiteness, thin_face, big_eye, blend_level
  * - Real-time preview updates
  * - Reset to defaults button
  * - Smooth animations
- * 
+ *
  * @param isVisible Panel visibility state
  * @param beautySettings Current beauty settings
  * @param onSkinSmoothingChange Callback for skin smoothing changes
@@ -41,7 +50,7 @@ import com.phamhuu.photographer.presentation.common.ImageCustom
  * @param onBlendLevelChange Callback for blend level changes
  * @param onResetToDefaults Callback to reset all values to defaults
  * @param onDismiss Callback to close the panel
- * 
+ *
  * @author Pham Huu
  * @version 1.0
  * @since 2024
@@ -105,7 +114,7 @@ fun BeautyAdjustmentPanel(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        
+
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -119,7 +128,7 @@ fun BeautyAdjustmentPanel(
                                     .clickable { onResetToDefaults() }
                                     .padding(vertical = 4.dp, horizontal = 8.dp)
                             )
-                            
+
                             // Close button với icon
                             ImageCustom(
                                 id = R.drawable.ic_close,
@@ -130,9 +139,9 @@ fun BeautyAdjustmentPanel(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     // Beauty sliders
                     BeautySlider(
                         label = stringResource(R.string.skin_smoothing),
@@ -140,14 +149,14 @@ fun BeautyAdjustmentPanel(
                         valueRange = BeautySettings.SKIN_SMOOTHING_MIN..BeautySettings.SKIN_SMOOTHING_MAX,
                         onValueChange = onSkinSmoothingChange
                     )
-                    
+
                     BeautySlider(
                         label = stringResource(R.string.whiteness),
                         value = beautySettings.whiteness,
                         valueRange = BeautySettings.WHITENESS_MIN..BeautySettings.WHITENESS_MAX,
                         onValueChange = onWhitenessChange
                     )
-                    
+
                     BeautySlider(
                         label = stringResource(R.string.thin_face),
                         value = beautySettings.thinFace,
@@ -155,7 +164,7 @@ fun BeautyAdjustmentPanel(
                         onValueChange = onThinFaceChange,
                         requiresFace = true
                     )
-                    
+
                     BeautySlider(
                         label = stringResource(R.string.big_eye),
                         value = beautySettings.bigEye,
@@ -163,7 +172,7 @@ fun BeautyAdjustmentPanel(
                         onValueChange = onBigEyeChange,
                         requiresFace = true
                     )
-                    
+
                     BeautySlider(
                         label = stringResource(R.string.blend_level),
                         value = beautySettings.blendLevel,
@@ -207,7 +216,7 @@ private fun BeautySlider(
                     fontWeight = FontWeight.Medium
                 )
             }
-            
+
             Text(
                 text = String.format("%.2f", value),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -215,16 +224,16 @@ private fun BeautySlider(
                 textAlign = TextAlign.End
             )
         }
-        
+
         Spacer(modifier = Modifier.height(4.dp))
-        
+
         // Wrapper cho SlideHorizontal với value normalization
         BeautySlideHorizontal(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange
         )
-        
+
         Spacer(modifier = Modifier.height(6.dp))
     }
 }
@@ -240,7 +249,7 @@ private fun BeautySlideHorizontal(
 ) {
     // Normalize value to 0.0-1.0 range for SlideHorizontal
     val normalizedValue = (value - valueRange.start) / (valueRange.endInclusive - valueRange.start)
-    
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.fillMaxWidth()
@@ -252,13 +261,14 @@ private fun BeautySlideHorizontal(
             firstColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
             lastColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
         )
-        
+
         // Custom slider
         CustomSlider(
             value = normalizedValue,
             onExposureChange = { normalizedVal ->
                 // Convert back to actual value range
-                val actualValue = valueRange.start + (normalizedVal * (valueRange.endInclusive - valueRange.start))
+                val actualValue =
+                    valueRange.start + (normalizedVal * (valueRange.endInclusive - valueRange.start))
                 onValueChange(actualValue)
             },
             width = 200,        // Match paint width

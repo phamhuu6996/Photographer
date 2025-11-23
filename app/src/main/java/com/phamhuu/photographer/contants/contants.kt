@@ -9,7 +9,7 @@ object Constants {
     const val EXT_IMG = "jpg"
     const val EXT_VID = "mp4"
     const val FORMAT_TIME = "%02d:%02d"
-    
+
     // Address overlay constants
     val TEXT_SIZE = 12.sp
     const val MAX_LINES = 3

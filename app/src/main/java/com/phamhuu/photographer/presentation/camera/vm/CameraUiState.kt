@@ -1,8 +1,8 @@
 package com.phamhuu.photographer.presentation.camera.vm
 
 import android.net.Uri
-import androidx.camera.core.ImageCapture
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
 import com.phamhuu.photographer.contants.BeautySettings
 import com.phamhuu.photographer.contants.ImageFilter
 import com.phamhuu.photographer.contants.RatioCamera
@@ -31,7 +31,7 @@ data class CameraUiState(
 
     val locationState: LocationState = LocationState(),
     val isLocationEnabled: Boolean = true,
-    
+
     // Ad tracking
     val mediaCount: Int = 0,
     val shouldShowInterstitialAd: Boolean = false

@@ -13,18 +13,16 @@ import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 import com.phamhuu.photographer.presentation.video.vm.VideoPlayerViewModel
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.services.gl.FilterRenderer
-
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
-    
+
     // Repositories
     single<GalleryRepository> { GalleryRepositoryImpl(androidContext()) }
     single<CameraRepository> { CameraRepositoryImpl(androidContext()) }
-    single<LocationRepository> { 
+    single<LocationRepository> {
         LocationRepositoryImpl(
             androidContext(),
             LocationServices.getFusedLocationProviderClient(androidContext()),
@@ -33,7 +31,7 @@ val appModule = module {
     }
     factory { FilterRenderer() }
     factory { CameraGLSurfaceView(androidContext(), get()) }
-    
+
     // ViewModels
     viewModel {
         CameraViewModel(

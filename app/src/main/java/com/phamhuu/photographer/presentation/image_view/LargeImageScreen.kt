@@ -5,22 +5,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import com.phamhuu.photographer.R
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.phamhuu.photographer.R
 import com.phamhuu.photographer.presentation.common.AsyncImageCustom
 import com.phamhuu.photographer.presentation.common.DetailViewerAppBar
-import com.phamhuu.photographer.services.android.ShareService
 import com.phamhuu.photographer.presentation.image_view.LargeImageViewModel
-import androidx.core.net.toUri
+import com.phamhuu.photographer.services.android.ShareService
 
 @Composable
 fun LargeImageScreen(imageUri: String) {
@@ -47,7 +47,7 @@ fun LargeImageScreen(imageUri: String) {
                 ShareService.multiShare(context, listOf(imageUri.toUri()))
             }
         )
-        
+
         // Image content
         Box(
             modifier = Modifier

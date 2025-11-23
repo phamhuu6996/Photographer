@@ -83,9 +83,9 @@ fun SelectionDropdownMenu(
     onUnSelectAll: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    
+
     MoreActionMenuButton(onOpenMenu = { showMenu = true })
-    
+
     DropdownMenu(
         expanded = showMenu,
         onDismissRequest = { showMenu = false }
@@ -103,7 +103,7 @@ fun SelectionDropdownMenu(
                 onSelectAll()
             }
         )
-        
+
         DropdownMenuItem(
             text = { Text(stringResource(R.string.unselect_all)) },
             leadingIcon = {
@@ -126,9 +126,9 @@ fun SelectionDropdownMenu(
 @Composable
 fun GalleryDropdownMenu() {
     var showMenu by remember { mutableStateOf(false) }
-    
+
     MoreActionMenuButton(onOpenMenu = { showMenu = true })
-    
+
     DropdownMenu(
         expanded = showMenu,
         onDismissRequest = { showMenu = false }

@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
- import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -74,7 +74,7 @@ fun CameraControls(
         fileUri?.let { GalleryService.getResourceUri(context, fileUri) }
     }
 
-    val iconLocation = if(enableLocation) R.drawable.location_on else R.drawable.location_off
+    val iconLocation = if (enableLocation) R.drawable.location_on else R.drawable.location_off
 
     Box(
         modifier = modifier
@@ -93,9 +93,9 @@ fun CameraControls(
             ImageCustom(
                 id = flashModeToIcon(flashMode),
                 imageMode = ImageMode.MEDIUM,
-                color = if (flashMode != ImageCapture.FLASH_MODE_OFF) 
-                    MaterialTheme.colorScheme.primary 
-                else 
+                color = if (flashMode != ImageCapture.FLASH_MODE_OFF)
+                    MaterialTheme.colorScheme.primary
+                else
                     MaterialTheme.colorScheme.onSurface,
                 onClick = { onChangeFlashMode() }
             )
@@ -104,20 +104,20 @@ fun CameraControls(
             ImageCustom(
                 id = timeDelay.toIcon(),
                 imageMode = ImageMode.MEDIUM,
-                color = if (timeDelay != TimerDelay.OFF) 
-                    MaterialTheme.colorScheme.primary 
-                else 
+                color = if (timeDelay != TimerDelay.OFF)
+                    MaterialTheme.colorScheme.primary
+                else
                     MaterialTheme.colorScheme.onSurface,
                 onClick = { onChangeTimeDelay(timeDelay.next()) }
             )
-            
+
             // Aspect ratio button - chỉ 16:9 mới dùng màu, 3:4 dùng mặc định
             ImageCustom(
                 id = resolution.toIcon(),
                 imageMode = ImageMode.MEDIUM,
-                color = if (resolution == RatioCamera.RATIO_9_16) 
-                    MaterialTheme.colorScheme.primary 
-                else 
+                color = if (resolution == RatioCamera.RATIO_9_16)
+                    MaterialTheme.colorScheme.primary
+                else
                     MaterialTheme.colorScheme.onSurface,
                 onClick = { onChangeResolution(resolution.next()) }
             )
@@ -126,13 +126,13 @@ fun CameraControls(
             ImageCustom(
                 id = iconLocation,
                 imageMode = ImageMode.MEDIUM,
-                color = if (enableLocation) 
-                    MaterialTheme.colorScheme.primary 
-                else 
+                color = if (enableLocation)
+                    MaterialTheme.colorScheme.primary
+                else
                     MaterialTheme.colorScheme.onSurface,
                 onClick = { onChangeLocationToggle() }
             )
-            
+
             // Camera switch button
             ImageCustom(
                 id = R.drawable.change_camera,
@@ -226,13 +226,13 @@ fun CameraControls(
                     id = R.drawable.magic,
                     imageMode = ImageMode.MEDIUM,
                     color = MaterialTheme.colorScheme.onSurface,
-                    onClick = { 
+                    onClick = {
                         onImageFilterSelected(ImageFilter.BEAUTY) // Triggers beauty panel toggle
                     }
                 )
             }
         }
-        
+
         // Filter popup removed - beauty panel is now handled directly in CameraScreen
     }
 }
@@ -247,9 +247,9 @@ fun CameraExtensionControl(
     Text(
         text = title,
         modifier = Modifier.clickable { callBack() },
-        color = if (selected) 
-            MaterialTheme.colorScheme.primary 
-        else 
+        color = if (selected)
+            MaterialTheme.colorScheme.primary
+        else
             MaterialTheme.colorScheme.onSurface,
         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
     )

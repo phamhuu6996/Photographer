@@ -3,6 +3,7 @@ package com.phamhuu.photographer.presentation.common
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+
 fun getFilePathFromUri(context: Context, uri: Uri): String {
     val projection = arrayOf(MediaStore.Images.Media.DATA)
     context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->

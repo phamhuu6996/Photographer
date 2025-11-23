@@ -15,14 +15,14 @@ import kotlinx.coroutines.launch
 class GalleryViewModel(
     private val galleryRepository: GalleryRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(GalleryUiState())
     val uiState = _uiState.asStateFlow()
-    
+
     init {
         loadInitial()
     }
-    
+
     private fun setError(message: String?) {
         _uiState.value = _uiState.value.copy(error = message)
     }
@@ -31,7 +31,10 @@ class GalleryViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                val page = galleryRepository.getImagesAndVideos(limit = Constants.MAX_RECORD_LOAD_MORE, after = null)
+                val page = galleryRepository.getImagesAndVideos(
+                    limit = Constants.MAX_RECORD_LOAD_MORE,
+                    after = null
+                )
                 val items = page.items.map { uri ->
                     GalleryItemModel(uri = uri, resourceUri = galleryRepository.getResourceUri(uri))
                 }
@@ -53,7 +56,10 @@ class GalleryViewModel(
         viewModelScope.launch {
             _uiState.value = currentState.copy(isLoading = true)
             try {
-                val page = galleryRepository.getImagesAndVideos(limit = Constants.MAX_RECORD_LOAD_MORE, after = _uiState.value.galleryPageModel?.id)
+                val page = galleryRepository.getImagesAndVideos(
+                    limit = Constants.MAX_RECORD_LOAD_MORE,
+                    after = _uiState.value.galleryPageModel?.id
+                )
                 val items = page.items.map { uri ->
                     GalleryItemModel(uri = uri, resourceUri = galleryRepository.getResourceUri(uri))
                 }
@@ -69,7 +75,7 @@ class GalleryViewModel(
             }
         }
     }
-    
+
     fun refreshGallery() {
         loadInitial()
     }

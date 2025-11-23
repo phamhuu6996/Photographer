@@ -51,11 +51,12 @@ class VideoPlayerViewModel : ViewModel() {
     }
 
     fun toggleOrientation(activity: Activity?) {
-        val newOrientation = if (_state.value.orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
+        val newOrientation =
+            if (_state.value.orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
         setOrientation(newOrientation, activity)
     }
 

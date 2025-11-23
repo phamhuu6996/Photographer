@@ -15,16 +15,15 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.phamhuu.photographer.contants.AdMobConstants
 import com.phamhuu.photographer.contants.SnackbarType
 import com.phamhuu.photographer.presentation.common.GalleryAppBar
 import com.phamhuu.photographer.presentation.common.GalleryItem
@@ -40,7 +39,7 @@ fun GalleryScreen(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    
+
     uiState.error?.let { error ->
         LaunchedEffect(error) {
             SnackbarManager.show(
@@ -58,7 +57,7 @@ fun GalleryScreen(
     ) {
         val width = this.maxWidth / 2
 
-        Box{
+        Box {
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -127,7 +126,7 @@ fun GalleryScreen(
                 )
             }
         }
-        
+
         // Banner Ad at the bottom - outside Box, fixed at bottom
         BannerAd(
             modifier = Modifier

@@ -6,20 +6,21 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.phamhuu.photographer.data.model.LocationInfo
 import com.phamhuu.photographer.data.repository.LocationRepositoryImpl
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
-import org.junit.Assert.*
 
 class LocationRepositoryTest {
 
     @Mock
     private lateinit var context: Context
-    
+
     @Mock
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    
+
     @Mock
     private lateinit var geocoder: Geocoder
 

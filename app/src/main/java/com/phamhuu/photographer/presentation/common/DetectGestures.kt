@@ -11,7 +11,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.ImageMode
@@ -43,7 +42,7 @@ fun DetectGestures(
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically,) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 ImageCustom(
                     id = R.drawable.zoom,
                     imageMode = ImageMode.MEDIUM,

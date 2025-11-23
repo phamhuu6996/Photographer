@@ -105,7 +105,7 @@ fun GalleryAppBar(
                     onShare?.let { ShareActionButton(onClick = it) }
                     onDelete?.let { DeleteActionButton(onClick = it) }
                 }
-                
+
                 if (onSelectAll != null && onUnSelectAll != null) {
                     SelectionDropdownMenu(
                         onSelectAll = onSelectAll,

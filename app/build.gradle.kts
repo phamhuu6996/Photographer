@@ -89,7 +89,7 @@ dependencies {
 
     // Permissions
     implementation(libs.androidx.activity.compose)
-    implementation (libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     // Image
     implementation(libs.coil.compose)
@@ -99,7 +99,7 @@ dependencies {
     implementation(libs.androidx.media3.ui)
 
     implementation(libs.koin.android)
-    implementation (libs.koin.androidx.compose)
+    implementation(libs.koin.androidx.compose)
 
     // Location
     implementation(libs.play.services.location)

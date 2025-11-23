@@ -2,16 +2,9 @@ package com.phamhuu.photographer.presentation.camera.ui
 
 import LocalNavController
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -25,32 +18,26 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.phamhuu.photographer.R
-import com.phamhuu.photographer.contants.AdMobConstants
 import com.phamhuu.photographer.contants.ImageFilter
-import com.phamhuu.photographer.contants.ImageMode
-import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
+import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
 import com.phamhuu.photographer.presentation.common.BeautyAdjustmentPanel
 import com.phamhuu.photographer.presentation.common.CameraControls
-import com.phamhuu.photographer.presentation.common.InitCameraPermission
-import com.phamhuu.photographer.presentation.common.SlideVertically
-import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
-import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
+import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
 import com.phamhuu.photographer.presentation.common.DetectGestures
-import com.phamhuu.photographer.presentation.common.ImageCustom
+import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.ads.InterstitialAdWrapper
+import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.context.GlobalContext
 
@@ -60,17 +47,17 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
-    
+
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FIT_CENTER
         }
     }
-    
+
     val filterGLSurfaceView = remember {
         GlobalContext.get().get<CameraGLSurfaceView>()
     }
-    
+
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
 
@@ -86,6 +73,7 @@ fun CameraScreen(
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.startCamera(context, lifecycleOwner, previewView)
                 }
+
                 else -> {}
             }
         }
@@ -95,7 +83,7 @@ fun CameraScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-    
+
     // Wrap content with Interstitial Ad Wrapper
     InterstitialAdWrapper(
         showAd = uiState.value.shouldShowInterstitialAd,
@@ -107,86 +95,86 @@ fun CameraScreen(
         }
     ) {
         Box(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.background)
-            .pointerInput(Unit) {
-                detectTransformGestures(panZoomLock = true) { centroid, pan, zoomChange, rotation ->
-                    viewModel.getCameraPointerInput(centroid, pan, zoomChange, rotation)
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        val ratio = uiState.value.ratioCamera.toRatio()
-        Box(
             modifier = Modifier
-                .aspectRatio(ratio)
-                .align(Alignment.Center)
+                .background(MaterialTheme.colorScheme.background)
+                .pointerInput(Unit) {
+                    detectTransformGestures(panZoomLock = true) { centroid, pan, zoomChange, rotation ->
+                        viewModel.getCameraPointerInput(centroid, pan, zoomChange, rotation)
+                    }
+                },
+            contentAlignment = Alignment.Center
         ) {
-            AndroidView(
-                factory = { filterGLSurfaceView },
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            if (uiState.value.isLocationEnabled) {
-                CanvasAddressOverlay(
-                    locationInfo = uiState.value.locationState.locationInfo,
-                    modifier = Modifier.align(Alignment.TopEnd)
+            val ratio = uiState.value.ratioCamera.toRatio()
+            Box(
+                modifier = Modifier
+                    .aspectRatio(ratio)
+                    .align(Alignment.Center)
+            ) {
+                AndroidView(
+                    factory = { filterGLSurfaceView },
+                    modifier = Modifier.fillMaxSize()
                 )
+
+                if (uiState.value.isLocationEnabled) {
+                    CanvasAddressOverlay(
+                        locationInfo = uiState.value.locationState.locationInfo,
+                        modifier = Modifier.align(Alignment.TopEnd)
+                    )
+                }
             }
-        }
 
-        CameraControls(
-            onCaptureClick = { viewModel.takePhoto(context) },
-            onVideoClick = { viewModel.startRecording(context) },
-            onStopRecord = { viewModel.stopRecording() },
-            onChangeCamera = { 
-                viewModel.changeCamera(context, lifecycleOwner, previewView)
-            },
-            onChangeCaptureOrVideo = { value ->
-                viewModel.changeCaptureOrVideo(value, context, lifecycleOwner, previewView)
-            },
-            onChangeFlashMode = { viewModel.setFlashMode() },
-            onShowGallery = { navController.navigate("gallery") },
-            isCapture = uiState.value.setupCapture,
-            isRecording = uiState.value.isRecording,
-            modifier = Modifier.align(Alignment.BottomCenter),
-            fileUri = uiState.value.fileUri,
-            flashMode = uiState.value.flashMode,
-            timeDelay = uiState.value.timerDelay,
-            resolution = uiState.value.ratioCamera,
-            enableLocation = uiState.value.isLocationEnabled,
-            onChangeTimeDelay = { viewModel.setTimerDelay(it) },
-            onChangeResolution = { 
-                viewModel.setRatioCamera(it, context, lifecycleOwner, previewView)
-            },
-            onImageFilterSelected = { _ ->
-                viewModel.toggleBeautyPanel()
-            },
-            onChangeLocationToggle = {
-                viewModel.toggleLocationEnabled()
-            }
-        )
+            CameraControls(
+                onCaptureClick = { viewModel.takePhoto(context) },
+                onVideoClick = { viewModel.startRecording(context) },
+                onStopRecord = { viewModel.stopRecording() },
+                onChangeCamera = {
+                    viewModel.changeCamera(context, lifecycleOwner, previewView)
+                },
+                onChangeCaptureOrVideo = { value ->
+                    viewModel.changeCaptureOrVideo(value, context, lifecycleOwner, previewView)
+                },
+                onChangeFlashMode = { viewModel.setFlashMode() },
+                onShowGallery = { navController.navigate("gallery") },
+                isCapture = uiState.value.setupCapture,
+                isRecording = uiState.value.isRecording,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                fileUri = uiState.value.fileUri,
+                flashMode = uiState.value.flashMode,
+                timeDelay = uiState.value.timerDelay,
+                resolution = uiState.value.ratioCamera,
+                enableLocation = uiState.value.isLocationEnabled,
+                onChangeTimeDelay = { viewModel.setTimerDelay(it) },
+                onChangeResolution = {
+                    viewModel.setRatioCamera(it, context, lifecycleOwner, previewView)
+                },
+                onImageFilterSelected = { _ ->
+                    viewModel.toggleBeautyPanel()
+                },
+                onChangeLocationToggle = {
+                    viewModel.toggleLocationEnabled()
+                }
+            )
 
-        DetectGestures(
-            isBrightnessVisible = uiState.value.isBrightnessVisible,
-            brightness = uiState.value.brightness,
-            changeBrightness = { brightness -> viewModel.setBrightness(brightness) },
-            isZoomVisible = uiState.value.isZoomVisible,
-            zoomState = uiState.value.zoomState
-        )
+            DetectGestures(
+                isBrightnessVisible = uiState.value.isBrightnessVisible,
+                brightness = uiState.value.brightness,
+                changeBrightness = { brightness -> viewModel.setBrightness(brightness) },
+                isZoomVisible = uiState.value.isZoomVisible,
+                zoomState = uiState.value.zoomState
+            )
 
-        BeautyAdjustmentPanel(
-            isVisible = uiState.value.isBeautyPanelVisible,
-            beautySettings = uiState.value.beautySettings,
-            onSkinSmoothingChange = { viewModel.updateSkinSmoothing(it) },
-            onWhitenessChange = { viewModel.updateWhiteness(it) },
-            onThinFaceChange = { viewModel.updateThinFace(it) },
-            onBigEyeChange = { viewModel.updateBigEye(it) },
-            onBlendLevelChange = { viewModel.updateBlendLevel(it) },
-            onResetToDefaults = { viewModel.resetBeautySettings() },
-            onDismiss = { viewModel.toggleBeautyPanel() },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            BeautyAdjustmentPanel(
+                isVisible = uiState.value.isBeautyPanelVisible,
+                beautySettings = uiState.value.beautySettings,
+                onSkinSmoothingChange = { viewModel.updateSkinSmoothing(it) },
+                onWhitenessChange = { viewModel.updateWhiteness(it) },
+                onThinFaceChange = { viewModel.updateThinFace(it) },
+                onBigEyeChange = { viewModel.updateBigEye(it) },
+                onBlendLevelChange = { viewModel.updateBlendLevel(it) },
+                onResetToDefaults = { viewModel.resetBeautySettings() },
+                onDismiss = { viewModel.toggleBeautyPanel() },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

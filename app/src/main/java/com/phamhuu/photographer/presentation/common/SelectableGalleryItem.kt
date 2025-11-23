@@ -25,13 +25,13 @@ import com.phamhuu.photographer.contants.ImageMode
 
 /**
  * GalleryItem - Component gallery item có thể sử dụng cho cả normal mode và selection mode
- * 
+ *
  * Chức năng:
  * 1. Hiển thị ảnh/video với hoặc không có checkbox selection
  * 2. Hỗ trợ tap và long press gestures
  * 3. Visual feedback khi được chọn (nếu ở selection mode)
  * 4. Tự động ẩn/hiện checkbox dựa trên mode
- * 
+ *
  * @author Pham Huu
  * @version 2.0
  * @since 2024
@@ -60,7 +60,7 @@ fun GalleryItem(
             imageSource = galleryItem,
             size = width
         )
-        
+
         // Video indicator - Icon với background để contrast cao trên ảnh
         if (galleryItem !is Uri) {
             Box(
@@ -74,7 +74,7 @@ fun GalleryItem(
                 )
             }
         }
-        
+
         // Selection checkbox - chỉ hiển thị khi ở selection mode
         if (isSelectionMode) {
             Box(
@@ -84,7 +84,9 @@ fun GalleryItem(
                     .size(24.dp)
                     .clip(CircleShape)
                     .background(
-                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(
+                            alpha = 0.7f
+                        )
                     )
                     .border(
                         width = 2.dp,
@@ -97,7 +99,9 @@ fun GalleryItem(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(16.dp).align(Alignment.Center)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.Center)
                     )
                 }
             }

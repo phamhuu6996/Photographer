@@ -24,8 +24,8 @@ class CameraGLSurfaceView(
         callback: (Boolean) -> Unit
     ) {
         queueEvent {
-           val success = filterRenderer.startFilteredVideoRecording(videoFile, textOverlay)
-           callback(success)
+            val success = filterRenderer.startFilteredVideoRecording(videoFile, textOverlay)
+            callback(success)
         }
     }
 

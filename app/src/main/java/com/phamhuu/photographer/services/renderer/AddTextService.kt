@@ -10,7 +10,7 @@ import com.phamhuu.photographer.contants.Constants
 
 /**
  * AddTextService - Handles text rendering for both photo capture and video recording
- * 
+ *
  * This service provides:
  * 1. Canvas-based text rendering with Paint objects
  * 2. Text wrapping and positioning calculations
@@ -18,12 +18,12 @@ import com.phamhuu.photographer.contants.Constants
  * 4. Support for both bitmap (photos) and video frame rendering
  */
 object AddTextService {
-    
+
     /**
      * Creates text paint for address rendering
      */
     fun createTextPaint(
-        textSizePx: Float, 
+        textSizePx: Float,
         color: Int = Color.White.toArgb(),
         shadowColor: Int = Color.Black.toArgb()
     ): Paint {
@@ -36,6 +36,7 @@ object AddTextService {
             setShadowLayer(6f, 0f, 0f, shadowColor)
         }
     }
+
     /**
      * Wraps text to fit within specified width using Paint measurement
      */
@@ -47,7 +48,7 @@ object AddTextService {
         for (word in words) {
             val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
             val textWidth = paint.measureText(testLine)
-            
+
             if (textWidth <= maxWidth) {
                 currentLine = testLine
             } else {
@@ -60,14 +61,14 @@ object AddTextService {
                 }
             }
         }
-        
+
         if (currentLine.isNotEmpty()) {
             lines.add(currentLine)
         }
-        
+
         return lines.take(Constants.MAX_LINES).ifEmpty { listOf(text) }
     }
-    
+
     /**
      * Draws address text with border on canvas (shared logic for both photo and video)
      */
@@ -80,7 +81,7 @@ object AddTextService {
         lineHeight: Float
     ) {
         var currentY = startY
-        
+
         lines.forEach { line ->
             // When using Paint.Align.RIGHT, startX is where the right edge should be
             // No need for manual calculation since Paint handles the alignment
@@ -88,7 +89,7 @@ object AddTextService {
             currentY += lineHeight
         }
     }
-    
+
     /**
      * Complete address rendering for photo capture (bitmap output)
      */
@@ -103,14 +104,14 @@ object AddTextService {
         val maxWidth = bitmapWidth * Constants.MAX_WIDTH_RATIO
         val formattedAddress = formatAddress(address)
         val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
-        
+
         val padding = bitmapWidth * 0.02f
         val lineHeight = textSizePx * Constants.LINE_HEIGHT_MULTIPLIER
-        
+
         // TOP_RIGHT positioning
         val startX = bitmapWidth - padding  // Right edge position
         val startY = padding + textSizePx
-        
+
         drawAddressText(
             canvas = canvas,
             lines = wrappedLines,
@@ -120,7 +121,7 @@ object AddTextService {
             lineHeight = lineHeight,
         )
     }
-    
+
     /**
      * Complete address rendering for video recording (frame-by-frame)
      * Similar to photo but optimized for video frame processing
@@ -133,7 +134,7 @@ object AddTextService {
         // Use same logic as photo for consistency
         renderAddressToPhoto(canvas, address, frameWidth)
     }
-    
+
     /**
      * Render address for preview (Compose Canvas)
      * Used by CanvasAddressText composable
@@ -154,16 +155,16 @@ object AddTextService {
         val maxWidth = canvasWidth * 0.9f
         val formattedAddress = formatAddress(address)
         val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
-        
+
         val lineHeight = textSizePx * Constants.LINE_HEIGHT_MULTIPLIER
-        
+
         // TOP_RIGHT positioning for preview - position text within canvas bounds
         // startX should be where the RIGHT edge of text should be, not where text starts
         val padding = canvasWidth * 0.02f
         val rightPadding = canvasWidth * 0.05f  // More padding for preview
         val startX = canvasWidth - rightPadding  // Right edge position with extra padding
         val startY = padding + textSizePx
-        
+
         drawAddressText(
             canvas = canvas,
             lines = wrappedLines,

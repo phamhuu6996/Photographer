@@ -62,19 +62,19 @@ fun PopupItem(
             ImageCustom(
                 id = item.iconRes,
                 imageMode = ImageMode.MEDIUM,
-                color = if (isSelected) 
-                    MaterialTheme.colorScheme.primary 
-                else 
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.primary
+                else
                     MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             // Text - dùng primary khi selected
             Text(
                 text = item.title,
-                color = if (isSelected) 
-                    MaterialTheme.colorScheme.primary 
-                else 
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.primary
+                else
                     MaterialTheme.colorScheme.onSurface,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,

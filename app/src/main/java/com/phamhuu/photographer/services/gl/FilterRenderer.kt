@@ -9,8 +9,8 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
-import javax.microedition.khronos.egl.EGLConfig as EGLConfigLegacy
 import javax.microedition.khronos.opengles.GL10
+import javax.microedition.khronos.egl.EGLConfig as EGLConfigLegacy
 
 class FilterRenderer() : GLSurfaceView.Renderer {
     private var mTextureID = -1
@@ -211,7 +211,7 @@ void main() {
 
     override fun onDrawFrame(gl: GL10?) {
         Log.d("TAG", "onDrawFrame called")
-        
+
         synchronized(mLock) {
             if (mTextureNeedsUpdate && mTextureData != null) {
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextureID)
@@ -256,7 +256,13 @@ void main() {
         GLES20.glDisableVertexAttribArray(mTextureCoordHandle)
     }
 
-    fun updateTextureData(data: ByteArray, width: Int, height: Int, isFrontCamera: Boolean, rotation: Int) {
+    fun updateTextureData(
+        data: ByteArray,
+        width: Int,
+        height: Int,
+        isFrontCamera: Boolean,
+        rotation: Int
+    ) {
         synchronized(mLock) {
             val sizeChanged =
                 mTextureWidth != width || mTextureHeight != height
@@ -301,7 +307,7 @@ void main() {
         return shader
     }
 
-    fun captureFilteredImage() : Bitmap {
+    fun captureFilteredImage(): Bitmap {
         val bufferSize = mViewWidth * mViewHeight * 4
         val byteBuffer = ByteBuffer.allocateDirect(bufferSize).order(ByteOrder.nativeOrder())
         GLES20.glReadPixels(
@@ -339,14 +345,17 @@ void main() {
 
         if (sizeChanged || textChanged) {
             val canvas = mOverlayCanvasCache ?: return
-            canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
+            canvas.drawColor(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.PorterDuff.Mode.CLEAR
+            )
             AddTextService.renderAddressToVideo(canvas, textOverlay, width)
             mOverlayLastText = textOverlay
         }
 
         mOverlayBitmapCache?.let { renderBitmapOverlay(it) }
     }
-    
+
     fun renderBitmapOverlay(bitmap: Bitmap) {
         val overlayTexture = IntArray(1)
         GLES20.glGenTextures(1, overlayTexture, 0)
@@ -354,15 +363,30 @@ void main() {
         android.opengl.GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_S,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
+        GLES20.glTexParameteri(
+            GLES20.GL_TEXTURE_2D,
+            GLES20.GL_TEXTURE_WRAP_T,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
         GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         GLES20.glUseProgram(mProgramHandle)
         GLES20.glVertexAttribPointer(mPositionHandle, 2, GLES20.GL_FLOAT, false, 0, mVertexBuffer)
         GLES20.glEnableVertexAttribArray(mPositionHandle)
         val overlayTexCoordBuffer = createTexCoordBuffer(TEXTURE_COORDS_0)
-        GLES20.glVertexAttribPointer(mTextureCoordHandle, 2, GLES20.GL_FLOAT, false, 0, overlayTexCoordBuffer)
+        GLES20.glVertexAttribPointer(
+            mTextureCoordHandle,
+            2,
+            GLES20.GL_FLOAT,
+            false,
+            0,
+            overlayTexCoordBuffer
+        )
         GLES20.glEnableVertexAttribArray(mTextureCoordHandle)
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, overlayTexture[0])
@@ -373,7 +397,7 @@ void main() {
         GLES20.glDisable(GLES20.GL_BLEND)
         GLES20.glDeleteTextures(1, overlayTexture, 0)
     }
-    
+
     private fun createTexCoordBuffer(texCoords: FloatArray): FloatBuffer {
         val bb = ByteBuffer.allocateDirect(texCoords.size * 4)
         bb.order(ByteOrder.nativeOrder())
@@ -382,17 +406,17 @@ void main() {
         buffer.position(0)
         return buffer
     }
-    
+
     fun startFilteredVideoRecording(
         videoFile: File,
         textOverlay: (() -> String?)? = null,
-    ) : Boolean {
+    ): Boolean {
         mVideoFile = videoFile
         mTextOverlay = textOverlay
         mIsRecording = true
         return recordingManager.startFilteredVideoRecording(videoFile, mViewWidth, mViewHeight)
     }
-    
+
     fun stopFilteredVideoRecording(callback: (Boolean, File?) -> Unit) {
         mIsRecording = false
         recordingManager.stopFilteredVideoRecording(callback)
@@ -406,7 +430,7 @@ void main() {
         mOverlayBitmapCache = null
         mOverlayCanvasCache = null
         mOverlayLastText = null
-        
+
         if (mProgramHandle != 0) {
             GLES20.glDeleteProgram(mProgramHandle)
             mProgramHandle = 0

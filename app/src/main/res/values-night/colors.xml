@@ -6,7 +6,7 @@
     <color name="purple_700">#FF4F378B</color>
     <color name="teal_200">#FF80CBC4</color>
     <color name="teal_700">#FF004D40</color>
-    
+
     <!-- Material3 Dark Theme - Ban đêm: Nền đen, Chữ trắng -->
     <!-- Primary: Màu thương hiệu vàng/gold cho app chụp ảnh -->
     <color name="md_theme_dark_primary">#FFC107</color>
@@ -33,7 +33,7 @@
     <color name="md_theme_dark_onSurfaceVariant">#FFFFFF</color>
     <color name="md_theme_dark_outline">#757575</color>
     <color name="md_theme_dark_outlineVariant">#424242</color>
-    
+
     <!-- Common colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>

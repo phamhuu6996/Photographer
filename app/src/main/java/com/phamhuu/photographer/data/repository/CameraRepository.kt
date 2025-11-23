@@ -3,10 +3,9 @@ package com.phamhuu.photographer.data.repository
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Environment
 import com.phamhuu.photographer.contants.Constants
-import com.phamhuu.photographer.services.renderer.AddTextService
 import com.phamhuu.photographer.services.android.GalleryService
+import com.phamhuu.photographer.services.renderer.AddTextService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -25,32 +24,33 @@ interface CameraRepository {
 class CameraRepositoryImpl(
     private val context: Context,
 ) : CameraRepository {
-    
+
     override suspend fun saveImageToGallery(photoFile: File): Uri? = withContext(Dispatchers.IO) {
         GalleryService.saveImageToGallery(context, photoFile)
     }
-    
+
     override suspend fun createImageFile(): File = withContext(Dispatchers.IO) {
         createFile(Constants.EXT_IMG, Constants.IMG_PREFIX)
     }
-    
+
     override suspend fun createVideoFile(): File = withContext(Dispatchers.IO) {
         createFile(Constants.EXT_VID, Constants.VID_PREFIX)
     }
-    
+
     override suspend fun saveVideoToGallery(videoFile: File): Uri? = withContext(Dispatchers.IO) {
         GalleryService.saveVideoToGallery(context, videoFile)
     }
-    
+
     private fun createFile(extension: String, prefix: String): File {
-        val timeStamp = SimpleDateFormat(Constants.DATE_TIME_FORMAT, Locale.getDefault()).format(Date())
+        val timeStamp =
+            SimpleDateFormat(Constants.DATE_TIME_FORMAT, Locale.getDefault()).format(Date())
         val fileName = "$prefix$timeStamp.$extension"
         return File(context.getExternalFilesDir(null), fileName)
     }
 
     override suspend fun addAddressCapture(bitmap: Bitmap, address: String): Bitmap {
-       return withContext(Dispatchers.IO) {
-           AddTextService.addTextOverlay(bitmap, address)
+        return withContext(Dispatchers.IO) {
+            AddTextService.addTextOverlay(bitmap, address)
         }
     }
 } 

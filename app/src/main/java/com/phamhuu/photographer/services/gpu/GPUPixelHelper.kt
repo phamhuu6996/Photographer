@@ -41,7 +41,7 @@ class GPUPixelHelper {
     }
 
     fun handleImageAnalytic(imageProxy: ImageProxy, isFrontCamera: Boolean) {
-        if(glSurfaceView == null) return
+        if (glSurfaceView == null) return
         val rotation = imageProxy.imageInfo.rotationDegrees
         val width = imageProxy.width
         val height = imageProxy.height
@@ -75,7 +75,13 @@ class GPUPixelHelper {
         if (processedRgba != null) {
             val rgbaWidth = mSinkRawData!!.GetWidth()
             val rgbaHeight = mSinkRawData!!.GetHeight()
-            glSurfaceView?.filterRenderer?.updateTextureData(processedRgba, rgbaWidth, rgbaHeight, isFrontCamera, 0)
+            glSurfaceView?.filterRenderer?.updateTextureData(
+                processedRgba,
+                rgbaWidth,
+                rgbaHeight,
+                isFrontCamera,
+                0
+            )
             glSurfaceView?.requestRender()
         }
     }
@@ -118,12 +124,12 @@ class GPUPixelHelper {
         }
         glSurfaceView?.release()
     }
-    
+
     fun updateBeautySettings(settings: BeautySettings) {
         currentBeautySettings = settings
         applyBeautySettings(settings)
     }
-    
+
     private fun applyBeautySettings(settings: BeautySettings) {
         try {
             mBeautyFilter?.SetProperty("skin_smoothing", settings.skinSmoothing)
@@ -140,6 +146,6 @@ class GPUPixelHelper {
         } catch (e: Exception) {
         }
     }
-    
+
     fun isFaceDetected(): Boolean = hasFaceDetected
 }

@@ -6,7 +6,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.ThumbnailUtils
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,12 +13,11 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
-import androidx.annotation.RequiresApi
+import androidx.core.graphics.scale
 import com.phamhuu.photographer.data.model.GalleryPageModel
 import com.phamhuu.photographer.presentation.common.getFilePathFromUri
 import java.io.File
 import java.io.FileInputStream
-import androidx.core.graphics.scale
 
 object GalleryService {
     private fun valuesSaveImage(file: File): ContentValues {

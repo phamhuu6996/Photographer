@@ -2,14 +2,14 @@ package com.phamhuu.photographer.contants
 
 /**
  * BeautySettings - Data class cho các thông số beauty filter
- * 
+ *
  * Chứa 5 thông số chính:
  * - skinSmoothing: Làm mịn da (0.0 - 1.0)
- * - whiteness: Làm trắng da (0.0 - 1.0)  
+ * - whiteness: Làm trắng da (0.0 - 1.0)
  * - thinFace: Thu gọn mặt (0.0 - 0.1)
  * - bigEye: To mắt (0.0 - 0.2)
  * - blendLevel: Độ pha trộn son môi (0.0 - 1.0)
- * 
+ *
  * @author Pham Huu
  * @version 1.0
  * @since 2024
@@ -33,13 +33,13 @@ data class BeautySettings(
             blendLevel = blendLevel.coerceIn(0f, 1f)
         )
     }
-    
+
     /**
      * Reset về default values
      */
     companion object {
         fun default() = BeautySettings()
-        
+
         // Min/Max ranges for UI sliders
         const val SKIN_SMOOTHING_MIN = 0f
         const val SKIN_SMOOTHING_MAX = 1f

@@ -48,14 +48,21 @@ class RecordingManager {
     private var mAudioRecordingActive = AtomicBoolean(false)
     private var mAudioEncoderReady = false
 
-    fun startFilteredVideoRecording(videoFile: File, textureWidth: Int, textureHeight: Int): Boolean {
+    fun startFilteredVideoRecording(
+        videoFile: File,
+        textureWidth: Int,
+        textureHeight: Int
+    ): Boolean {
         try {
             mVideoFile = videoFile
             val recordWidth = if (textureWidth > 0) textureWidth else 1920
             val recordHeight = if (textureHeight > 0) textureHeight else 1080
             mRecordingWidth = (recordWidth + 1) and 0xFFFFFFFE.toInt()
             mRecordingHeight = (recordHeight + 1) and 0xFFFFFFFE.toInt()
-            Log.d("RecordingManager", "Starting filtered recording: ${mRecordingWidth}x${mRecordingHeight}")
+            Log.d(
+                "RecordingManager",
+                "Starting filtered recording: ${mRecordingWidth}x${mRecordingHeight}"
+            )
             setupVideoEncoder()
             setupAudioEncoder()
             startAudioRecording()
@@ -68,9 +75,13 @@ class RecordingManager {
             return false
         }
     }
-    
+
     private fun setupVideoEncoder() {
-        val format = MediaFormat.createVideoFormat(RecordingConstants.VIDEO_MIME_TYPE, mRecordingWidth, mRecordingHeight).apply {
+        val format = MediaFormat.createVideoFormat(
+            RecordingConstants.VIDEO_MIME_TYPE,
+            mRecordingWidth,
+            mRecordingHeight
+        ).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, RecordingConstants.VIDEO_COLOR_FORMAT)
             setInteger(MediaFormat.KEY_BIT_RATE, videoQuality.bitRate)
             setInteger(MediaFormat.KEY_FRAME_RATE, videoQuality.frameRate)
@@ -81,11 +92,18 @@ class RecordingManager {
         mEncoderSurface = mVideoEncoder?.createInputSurface()
         setupEncoderEGL()
         mVideoEncoder?.start()
-        Log.d("RecordingManager", "MediaCodec video encoder started (${videoQuality.description}: ${mRecordingWidth}x${mRecordingHeight})")
+        Log.d(
+            "RecordingManager",
+            "MediaCodec video encoder started (${videoQuality.description}: ${mRecordingWidth}x${mRecordingHeight})"
+        )
     }
-    
+
     private fun setupAudioEncoder() {
-        val format = MediaFormat.createAudioFormat(RecordingConstants.AUDIO_MIME_TYPE, audioQuality.sampleRate, audioQuality.channelCount).apply {
+        val format = MediaFormat.createAudioFormat(
+            RecordingConstants.AUDIO_MIME_TYPE,
+            audioQuality.sampleRate,
+            audioQuality.channelCount
+        ).apply {
             setInteger(MediaFormat.KEY_AAC_PROFILE, audioQuality.aacProfile)
             setInteger(MediaFormat.KEY_BIT_RATE, audioQuality.bitRate)
             setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 0)
@@ -97,12 +115,13 @@ class RecordingManager {
         mAudioEncoder?.start()
         Log.d("RecordingManager", "MediaCodec audio encoder started (${audioQuality.description})")
     }
-    
+
     private fun setupMediaMuxer(videoFile: File) {
-        mMediaMuxer = MediaMuxer(videoFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        mMediaMuxer =
+            MediaMuxer(videoFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
         Log.d("RecordingManager", "MediaMuxer created for: ${videoFile.absolutePath}")
     }
-    
+
     private fun setupEncoderEGL() {
         val display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
         EGL14.eglInitialize(display, null, 0, null, 0)
@@ -118,7 +137,7 @@ class RecordingManager {
         )
         EGL14.eglChooseConfig(display, attributes, 0, configs, 0, configs.size, numConfigs, 0)
         val context = EGL14.eglCreateContext(
-            display, configs[0], EGL14.eglGetCurrentContext(), 
+            display, configs[0], EGL14.eglGetCurrentContext(),
             intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE), 0
         )
         mEncoderEGLSurface = EGL14.eglCreateWindowSurface(
@@ -131,7 +150,11 @@ class RecordingManager {
 
     @SuppressLint("MissingPermission")
     private fun startAudioRecording() {
-        val bufferSize = AudioRecord.getMinBufferSize(audioQuality.sampleRate, audioQuality.channelConfig, RecordingConstants.AUDIO_FORMAT)
+        val bufferSize = AudioRecord.getMinBufferSize(
+            audioQuality.sampleRate,
+            audioQuality.channelConfig,
+            RecordingConstants.AUDIO_FORMAT
+        )
         mAudioRecord = AudioRecord(
             MediaRecorder.AudioSource.CAMCORDER,
             audioQuality.sampleRate,
@@ -146,7 +169,7 @@ class RecordingManager {
         }
         Log.d("RecordingManager", "AudioRecord started (${audioQuality.description})")
     }
-    
+
     private suspend fun processAudioData() {
         val buffer = ByteArray(audioQuality.processingBufferSize)
         while (mAudioRecordingActive.get()) {
@@ -161,7 +184,13 @@ class RecordingManager {
                         inputBuffer?.clear()
                         inputBuffer?.put(buffer, 0, bytesRead)
                         val presentationTimeUs = System.nanoTime() / 1000
-                        audioEncoder.queueInputBuffer(inputBufferIndex, 0, bytesRead, presentationTimeUs, 0)
+                        audioEncoder.queueInputBuffer(
+                            inputBufferIndex,
+                            0,
+                            bytesRead,
+                            presentationTimeUs,
+                            0
+                        )
                     }
                     drainAudioEncoder()
                 } else if (bytesRead == 0) {
@@ -183,10 +212,10 @@ class RecordingManager {
         val inputBufferIndex = encoder.dequeueInputBuffer(10000)
         if (inputBufferIndex >= 0) {
             encoder.queueInputBuffer(
-                inputBufferIndex, 
-                0, 
-                0, 
-                System.nanoTime() / 1000, 
+                inputBufferIndex,
+                0,
+                0,
+                System.nanoTime() / 1000,
                 MediaCodec.BUFFER_FLAG_END_OF_STREAM
             )
             Log.d("RecordingManager", "Audio end of stream buffer queued")
@@ -210,6 +239,7 @@ class RecordingManager {
                         checkAndStartMuxer()
                     }
                 }
+
                 encoderStatus >= 0 -> {
                     val encodedData = encoder.getOutputBuffer(encoderStatus)
                     if (encodedData != null && mMuxerStarted && mAudioTrackIndex >= 0) {
@@ -264,6 +294,7 @@ class RecordingManager {
                         checkAndStartMuxer()
                     }
                 }
+
                 encoderStatus >= 0 -> {
                     val encodedData = encoder.getOutputBuffer(encoderStatus)
                     if (encodedData != null && mMuxerStarted && mVideoTrackIndex >= 0) {
@@ -274,7 +305,7 @@ class RecordingManager {
             }
         }
     }
-    
+
     fun stopFilteredVideoRecording(callback: (Boolean, File?) -> Unit) {
         try {
             if (!mIsRecording) {
@@ -357,7 +388,12 @@ class RecordingManager {
         val currentContext = EGL14.eglGetCurrentContext()
         val currentDrawSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_DRAW)
         val currentReadSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_READ)
-        EGL14.eglMakeCurrent(mEncoderEGLDisplay, mEncoderEGLSurface, mEncoderEGLSurface, mEncoderEGLContext)
+        EGL14.eglMakeCurrent(
+            mEncoderEGLDisplay,
+            mEncoderEGLSurface,
+            mEncoderEGLSurface,
+            mEncoderEGLContext
+        )
         renderFunction(mRecordingWidth, mRecordingHeight)
         EGL14.eglSwapBuffers(mEncoderEGLDisplay, mEncoderEGLSurface)
         EGL14.eglMakeCurrent(currentDisplay, currentDrawSurface, currentReadSurface, currentContext)

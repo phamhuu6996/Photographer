@@ -8,18 +8,18 @@ import kotlinx.coroutines.launch
 
 /**
  * SnackbarManager - Singleton quản lý Snackbar global
- * 
+ *
  * Chức năng:
  * 1. Singleton pattern để truy cập từ bất cứ đâu
  * 2. Quản lý SnackbarHostState và CoroutineScope
  * 3. Hàm show() để hiển thị Snackbar
- * 
+ *
  * @author Pham Huu
  * @version 1.0
  * @since 2024
  */
 object SnackbarManager {
-    
+
     // SnackbarHostState và CoroutineScope sẽ được init từ onCreate
     private var _snackbarHostState: SnackbarHostState? = null
     private var _scope: CoroutineScope? = null
@@ -34,10 +34,10 @@ object SnackbarManager {
         this._snackbarHostState = snackbarHostState
         this._scope = scope
     }
-    
+
     /**
      * Show Snackbar với SnackbarData
-     * 
+     *
      * @param data SnackbarData chứa message, type và callback
      */
     fun show(data: SnackbarData) {
@@ -51,10 +51,10 @@ object SnackbarManager {
             data.onActionClick?.invoke()
         }
     }
-    
+
     /**
      * Show Snackbar với message và type
-     * 
+     *
      * @param message Thông báo hiển thị
      * @param type Loại Snackbar (SUCCESS, FAIL, WARNING, INFO)
      * @param onActionClick Callback khi user click action button (optional)

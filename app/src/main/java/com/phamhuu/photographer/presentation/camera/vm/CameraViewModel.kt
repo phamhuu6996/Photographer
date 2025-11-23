@@ -1,7 +1,9 @@
 package com.phamhuu.photographer.presentation.camera.vm
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.annotation.OptIn
@@ -24,24 +26,22 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.ui.geometry.Offset
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import com.phamhuu.photographer.contants.BeautySettings
 import com.phamhuu.photographer.contants.Constants
 import com.phamhuu.photographer.contants.ImageFilter
 import com.phamhuu.photographer.contants.RatioCamera
 import com.phamhuu.photographer.contants.SnackbarType
 import com.phamhuu.photographer.contants.TimerDelay
-import com.phamhuu.photographer.presentation.common.SnackbarManager
-import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
-import com.phamhuu.photographer.data.repository.LocationRepository
-import com.phamhuu.photographer.services.gpu.GPUPixelHelper
 import com.phamhuu.photographer.data.repository.CameraRepository
 import com.phamhuu.photographer.data.repository.GalleryRepository
+import com.phamhuu.photographer.data.repository.LocationRepository
+import com.phamhuu.photographer.presentation.common.SnackbarManager
+import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
+import com.phamhuu.photographer.services.gpu.GPUPixelHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asExecutor
@@ -64,13 +64,13 @@ class CameraViewModel(
     companion object {
         const val INTERSTITIAL_AD_FREQUENCY = 5
     }
-    
+
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState = _uiState.asStateFlow()
-    
+
     val showOnPhotos get() = uiState.value.isLocationEnabled
     val showOnVideos get() = uiState.value.isLocationEnabled
-    
+
     private var recording: Recording? = null
     private var cameraProvider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
@@ -97,7 +97,7 @@ class CameraViewModel(
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        _uiState.update { 
+        _uiState.update {
             it.copy(locationState = it.locationState.copy(hasPermission = hasPermission))
         }
 
@@ -107,7 +107,7 @@ class CameraViewModel(
     }
 
     fun onLocationPermissionGranted() {
-        _uiState.update { 
+        _uiState.update {
             it.copy(locationState = it.locationState.copy(hasPermission = true))
         }
         if (uiState.value.isLocationEnabled) {
@@ -118,7 +118,7 @@ class CameraViewModel(
     fun toggleLocationEnabled() {
         val newState = !uiState.value.isLocationEnabled
         _uiState.update { it.copy(isLocationEnabled = newState) }
-        
+
         if (newState && uiState.value.locationState.hasPermission) {
             startLocationUpdates()
         } else {
@@ -129,7 +129,7 @@ class CameraViewModel(
     private fun startLocationUpdates() {
         if (!uiState.value.locationState.hasPermission) return
 
-        _uiState.update { 
+        _uiState.update {
             it.copy(locationState = it.locationState.copy(isLoading = true, error = null))
         }
 
@@ -137,38 +137,46 @@ class CameraViewModel(
             try {
                 val lastKnown = locationRepository.getLastKnownLocation()
                 if (lastKnown != null) {
-                    _uiState.update { 
-                        it.copy(locationState = it.locationState.copy(
-                            locationInfo = lastKnown,
-                            isLoading = false
-                        ))
+                    _uiState.update {
+                        it.copy(
+                            locationState = it.locationState.copy(
+                                locationInfo = lastKnown,
+                                isLoading = false
+                            )
+                        )
                     }
                 }
 
                 locationRepository.getCurrentLocation()
                     .catch { error ->
-                        _uiState.update { 
-                            it.copy(locationState = it.locationState.copy(
-                                isLoading = false,
-                                error = error.message ?: "Unknown location error"
-                            ))
+                        _uiState.update {
+                            it.copy(
+                                locationState = it.locationState.copy(
+                                    isLoading = false,
+                                    error = error.message ?: "Unknown location error"
+                                )
+                            )
                         }
                     }
                     .collect { locationInfo ->
-                        _uiState.update { 
-                            it.copy(locationState = it.locationState.copy(
-                                locationInfo = locationInfo,
-                                isLoading = false,
-                                error = null
-                            ))
+                        _uiState.update {
+                            it.copy(
+                                locationState = it.locationState.copy(
+                                    locationInfo = locationInfo,
+                                    isLoading = false,
+                                    error = null
+                                )
+                            )
                         }
                     }
             } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(locationState = it.locationState.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to get location"
-                    ))
+                _uiState.update {
+                    it.copy(
+                        locationState = it.locationState.copy(
+                            isLoading = false,
+                            error = e.message ?: "Failed to get location"
+                        )
+                    )
                 }
             }
         }
@@ -176,7 +184,7 @@ class CameraViewModel(
 
     private fun stopLocationUpdates() {
         locationRepository.stopLocationUpdates()
-        _uiState.update { 
+        _uiState.update {
             it.copy(locationState = it.locationState.copy(isLoading = false))
         }
     }
@@ -186,7 +194,7 @@ class CameraViewModel(
             .setAspectRatioStrategy(ratio.ratio).build()
     }
 
-    fun  setFilterHelper(glSurfaceView: CameraGLSurfaceView, context: Context) {
+    fun setFilterHelper(glSurfaceView: CameraGLSurfaceView, context: Context) {
         Log.d("CameraViewModel", "Setting up FilterHelper with GLSurfaceView and FilterRenderer")
         this.gPUPixelHelper = GPUPixelHelper().apply {
             viewModelScope.launch(Dispatchers.Default) {
@@ -197,7 +205,7 @@ class CameraViewModel(
 
     private fun handleImageAnalyzerFrame(imageProxy: ImageProxy) {
         try {
-            if(!isProcessingImage.compareAndSet(false, true)) {
+            if (!isProcessingImage.compareAndSet(false, true)) {
                 return
             }
             gPUPixelHelper?.handleImageAnalytic(
@@ -313,7 +321,7 @@ class CameraViewModel(
     fun takePhoto(context: Context) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            
+
             try {
                 val hasFilter = true
                 delay(_uiState.value.timerDelay.millisecond)
@@ -325,28 +333,28 @@ class CameraViewModel(
             }
         }
     }
-    
+
     private suspend fun capturePhoto(context: Context, useFilter: Boolean) {
         val photoFile = cameraRepository.createImageFile()
-        
+
         if (useFilter) {
             captureFromGLSurface(photoFile)
         } else {
             captureFromCamera(photoFile, context)
         }
     }
-    
+
     private suspend fun captureFromGLSurface(photoFile: File) {
-        val bitmap = gPUPixelHelper?.captureFilteredBitmap() 
+        val bitmap = gPUPixelHelper?.captureFilteredBitmap()
             ?: run {
                 updateError("Failed to capture filtered bitmap")
                 return
             }
-            
+
         saveBitmapToFile(bitmap, photoFile)
         saveToGallery(photoFile)
     }
-    
+
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
         val location = uiState.value.locationState.locationInfo
         val finalBitmap = if (showOnPhotos && location != null) {
@@ -354,7 +362,7 @@ class CameraViewModel(
         } else {
             bitmap
         }
-        
+
         FileOutputStream(file).use { out ->
             finalBitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
         }
@@ -383,7 +391,7 @@ class CameraViewModel(
             }
         )
     }
-    
+
     private suspend fun saveToGallery(photoFile: File) {
         val uri = cameraRepository.saveImageToGallery(photoFile)
         if (uri != null) {
@@ -393,18 +401,18 @@ class CameraViewModel(
             updateError("Failed to save photo to gallery")
         }
     }
-    
+
     private fun incrementMediaCount() {
         val newCount = _uiState.value.mediaCount + 1
         val shouldShowAd = newCount % INTERSTITIAL_AD_FREQUENCY == 0
-        _uiState.update { 
+        _uiState.update {
             it.copy(
                 mediaCount = newCount,
                 shouldShowInterstitialAd = shouldShowAd
             )
         }
     }
-    
+
     fun onInterstitialAdShown() {
         _uiState.update { it.copy(shouldShowInterstitialAd = false) }
     }
@@ -420,7 +428,12 @@ class CameraViewModel(
         cameraControl?.enableTorch(newFlashMode == ImageCapture.FLASH_MODE_ON)
     }
 
-    fun setRatioCamera(ratioCamera: RatioCamera, context: Context, lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
+    fun setRatioCamera(
+        ratioCamera: RatioCamera,
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        previewView: PreviewView
+    ) {
         startCamera(context, lifecycleOwner, previewView, ratioCamera)
     }
 
@@ -447,7 +460,12 @@ class CameraViewModel(
         }
     }
 
-    fun changeCaptureOrVideo(value: Boolean, context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
+    fun changeCaptureOrVideo(
+        value: Boolean,
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        previewView: androidx.camera.view.PreviewView
+    ) {
         _uiState.value = _uiState.value.copy(setupCapture = value)
         startCamera(context, lifecycleOwner, previewView)
     }
@@ -457,42 +475,42 @@ class CameraViewModel(
             isBeautyPanelVisible = !_uiState.value.isBeautyPanelVisible
         )
     }
-    
+
     fun updateBeautySettings(newSettings: BeautySettings) {
         val validatedSettings = newSettings.validate()
         _uiState.value = _uiState.value.copy(beautySettings = validatedSettings)
         applyBeautySettingsToFilter(validatedSettings)
     }
-    
+
     fun updateSkinSmoothing(value: Float) {
         val currentSettings = _uiState.value.beautySettings
         updateBeautySettings(currentSettings.copy(skinSmoothing = value))
     }
-    
+
     fun updateWhiteness(value: Float) {
         val currentSettings = _uiState.value.beautySettings
         updateBeautySettings(currentSettings.copy(whiteness = value))
     }
-    
+
     fun updateThinFace(value: Float) {
         val currentSettings = _uiState.value.beautySettings
         updateBeautySettings(currentSettings.copy(thinFace = value))
     }
-    
+
     fun updateBigEye(value: Float) {
         val currentSettings = _uiState.value.beautySettings
         updateBeautySettings(currentSettings.copy(bigEye = value))
     }
-    
+
     fun updateBlendLevel(value: Float) {
         val currentSettings = _uiState.value.beautySettings
         updateBeautySettings(currentSettings.copy(blendLevel = value))
     }
-    
+
     fun resetBeautySettings() {
         updateBeautySettings(BeautySettings.default())
     }
-    
+
     private fun applyBeautySettingsToFilter(settings: BeautySettings) {
         gPUPixelHelper?.updateBeautySettings(settings)
     }
@@ -506,7 +524,7 @@ class CameraViewModel(
         } else if (zoomDetector < minZoom) {
             zoomDetector = minZoom
         }
-        if(zoomDetector == uiState.value.zoomState) return
+        if (zoomDetector == uiState.value.zoomState) return
         _uiState.value = _uiState.value.copy(zoomState = zoomDetector, isZoomVisible = true)
         cameraControl?.setZoomRatio(zoomDetector)
         hideZoomJob?.cancel()
@@ -516,7 +534,11 @@ class CameraViewModel(
         }
     }
 
-    fun changeCamera(context: Context, lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
+    fun changeCamera(
+        context: Context,
+        lifecycleOwner: LifecycleOwner,
+        previewView: androidx.camera.view.PreviewView
+    ) {
         val lensFacing = if (uiState.value.lensFacing == CameraSelector.LENS_FACING_BACK) {
             CameraSelector.LENS_FACING_FRONT
         } else {
@@ -527,7 +549,7 @@ class CameraViewModel(
     }
 
     private fun changeShowBrightness(value: Float) {
-        if(_uiState.value.isBrightnessVisible) return
+        if (_uiState.value.isBrightnessVisible) return
         _uiState.value = _uiState.value.copy(offsetY = value)
         if (uiState.value.offsetY <= Constants.PAN_TOP) {
             _uiState.value = _uiState.value.copy(isBrightnessVisible = true)
@@ -543,6 +565,7 @@ class CameraViewModel(
         changeZoom(zoomChange)
         changeShowBrightness(pan.y)
     }
+
     override fun onCleared() {
         super.onCleared()
         gPUPixelHelper?.onDestroy()
@@ -559,15 +582,15 @@ class CameraViewModel(
 
     fun clearError() {
     }
-    
+
     fun startRecording(context: Context) {
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
-                
+
                 val videoFile = cameraRepository.createVideoFile()
                 startFilteredRecording(videoFile)
-                
+
             } catch (e: Exception) {
                 updateError("Failed to start recording: ${e.message}")
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -579,7 +602,7 @@ class CameraViewModel(
     private fun startFilteredRecording(videoFile: File) {
         val gpuPixelHelper = this.gPUPixelHelper
         val glSurfaceView = gpuPixelHelper?.glSurfaceView
-        if( glSurfaceView == null) {
+        if (glSurfaceView == null) {
             updateError("GL Surface View not initialized")
             _uiState.value = _uiState.value.copy(isLoading = false)
             return
@@ -608,7 +631,7 @@ class CameraViewModel(
         }
 
         val outputOptions = androidx.camera.video.FileOutputOptions.Builder(videoFile).build()
-        
+
         recording = videoCapture.output
             .prepareRecording(context, outputOptions)
             .withAudioEnabled()
@@ -621,6 +644,7 @@ class CameraViewModel(
                         )
                         Log.d("CameraViewModel", "Normal video recording started")
                     }
+
                     is androidx.camera.video.VideoRecordEvent.Finalize -> {
                         _uiState.value = _uiState.value.copy(isRecording = false)
                         if (!recordEvent.hasError()) {
@@ -640,12 +664,12 @@ class CameraViewModel(
     fun stopRecording() {
         viewModelScope.launch {
             try {
-                val hasFilter = true 
-                
+                val hasFilter = true
+
                 gPUPixelHelper?.let { helper ->
                     helper.glSurfaceView?.stopFilteredVideoRecording { success: Boolean, videoFile: File? ->
                         _uiState.value = _uiState.value.copy(isRecording = false)
-                        
+
                         if (success && videoFile != null) {
                             viewModelScope.launch {
                                 saveVideoToGallery(videoFile)
@@ -663,7 +687,7 @@ class CameraViewModel(
                     _uiState.value = _uiState.value.copy(isRecording = false)
                     updateError("Filter helper not initialized")
                 }
-                
+
             } catch (e: Exception) {
                 Log.e("CameraViewModel", "Error stopping recording: ${e.message}")
                 updateError("Failed to stop recording: ${e.message}")
@@ -671,7 +695,7 @@ class CameraViewModel(
             }
         }
     }
-    
+
     private suspend fun saveVideoToGallery(videoFile: File) {
         try {
             val uri = cameraRepository.saveVideoToGallery(videoFile)
