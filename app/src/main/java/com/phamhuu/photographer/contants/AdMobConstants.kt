@@ -1,5 +1,7 @@
 package com.phamhuu.photographer.contants
 
+import com.phamhuu.photographer.BuildConfig
+
 /**
  * AdMob Ad Unit IDs Constants
  *
@@ -28,10 +30,23 @@ object AdMobConstants {
     private const val PROD_REWARDED_AD_UNIT_ID = "ca-app-pub-6216323825050683/9486439947"
 
     // Automatically select IDs based on build type
-    const val BANNER_AD_UNIT_ID: String = TEST_BANNER_AD_UNIT_ID
+    // BuildConfig.DEBUG is true for debug builds, false for release builds
+    val BANNER_AD_UNIT_ID: String = if (BuildConfig.DEBUG) {
+        TEST_BANNER_AD_UNIT_ID
+    } else {
+        PROD_BANNER_AD_UNIT_ID
+    }
 
-    const val INTERSTITIAL_AD_UNIT_ID: String = TEST_INTERSTITIAL_AD_UNIT_ID
+    val INTERSTITIAL_AD_UNIT_ID: String = if (BuildConfig.DEBUG) {
+        TEST_INTERSTITIAL_AD_UNIT_ID
+    } else {
+        PROD_INTERSTITIAL_AD_UNIT_ID
+    }
 
-    const val REWARDED_AD_UNIT_ID: String = TEST_REWARDED_AD_UNIT_ID
+    val REWARDED_AD_UNIT_ID: String = if (BuildConfig.DEBUG) {
+        TEST_REWARDED_AD_UNIT_ID
+    } else {
+        PROD_REWARDED_AD_UNIT_ID
+    }
 }
 
