@@ -4,12 +4,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -18,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phamhuu.photographer.R
 import com.phamhuu.photographer.contants.BeautySettings
+import com.phamhuu.photographer.contants.ImageMode
+import com.phamhuu.photographer.presentation.common.ImageCustom
 
 /**
  * BeautyAdjustmentPanel - Panel điều chỉnh các thông số beauty filter
@@ -65,15 +69,20 @@ fun BeautyAdjustmentPanel(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable { onDismiss() }
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        // Consume click event và dismiss panel
+                        // Điều này ngăn click event propagate xuống các element bên dưới
+                        onDismiss()
+                    }
+                }
         ) {
             // Card chính không bị ảnh hưởng bởi click
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(12.dp)
-                    .align(Alignment.BottomCenter)
-                    .clickable(enabled = false) { }, // Prevent click through
+                    .align(Alignment.BottomCenter),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 ),
@@ -97,25 +106,27 @@ fun BeautyAdjustmentPanel(
                             fontWeight = FontWeight.Bold
                         )
                         
-                        Row {
-                            // Reset button (using text for now)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Reset button
                             Text(
                                 text = stringResource(R.string.reset),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 12.sp,
                                 modifier = Modifier
                                     .clickable { onResetToDefaults() }
-                                    .padding(6.dp)
+                                    .padding(vertical = 4.dp, horizontal = 8.dp)
                             )
                             
-                            // Close button (using text for now)
-                            Text(
-                                text = stringResource(R.string.close),
+                            // Close button với icon
+                            ImageCustom(
+                                id = R.drawable.ic_close,
+                                imageMode = ImageMode.MEDIUM,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 14.sp,
-                                modifier = Modifier
-                                    .clickable { onDismiss() }
-                                    .padding(6.dp)
+                                onClick = { onDismiss() },
+                                modifier = Modifier.padding(4.dp)
                             )
                         }
                     }
