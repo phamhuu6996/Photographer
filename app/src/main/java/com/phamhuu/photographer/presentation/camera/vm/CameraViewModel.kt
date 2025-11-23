@@ -226,12 +226,17 @@ class CameraViewModel(
             val previewBuilder = Preview.Builder()
             val imageCaptureBuilder = ImageCapture.Builder()
             val imageAnalyzerBuilder = ImageAnalysis.Builder()
-            
+
+            val currentRatio = ratioCamera ?: uiState.value.ratioCamera
+
+            // Always set resolution selector for both photo and video mode
+            val resolutionSelect = resolutionSelector(currentRatio)
+            previewBuilder.setResolutionSelector(resolutionSelect)
+            imageAnalyzerBuilder.setResolutionSelector(resolutionSelect)
+
+            // Only set resolution selector for ImageCapture when in photo mode
             if (uiState.value.setupCapture) {
-                val resolutionSelect = resolutionSelector(ratioCamera ?: uiState.value.ratioCamera)
-                previewBuilder.setResolutionSelector(resolutionSelect)
                 imageCaptureBuilder.setResolutionSelector(resolutionSelect)
-                imageAnalyzerBuilder.setResolutionSelector(resolutionSelect)
             }
 
             val preview = previewBuilder.build().also {
