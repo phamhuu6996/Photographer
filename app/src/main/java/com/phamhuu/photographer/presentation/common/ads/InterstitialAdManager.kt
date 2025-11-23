@@ -26,29 +26,40 @@ class InterstitialAdManager(private val context: Context) {
      * @param adUnitId Ad Unit ID from AdMob console
      */
     fun loadAd(adUnitId: String) {
-        // Don't load if already loading or loaded
-        if (interstitialAd != null) {
-            return
-        }
-
-        val adRequest = AdRequest.Builder().build()
-
-        InterstitialAd.load(
-            context,
-            adUnitId,
-            adRequest,
-            object : InterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: InterstitialAd) {
-                    Log.d(TAG, "Ad was loaded.")
-                    interstitialAd = ad
-                }
-
-                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                    Log.d(TAG, loadAdError.message)
-                    interstitialAd = null
-                }
+        try {
+            // Don't load if already loading or loaded
+            if (interstitialAd != null) {
+                return
             }
-        )
+
+            val activity = context as? Activity
+            if (activity != null && (activity.isFinishing || activity.isDestroyed)) {
+                Log.e(TAG, "Cannot load ad: Activity is finishing or destroyed")
+                return
+            }
+
+            val adRequest = AdRequest.Builder().build()
+
+            InterstitialAd.load(
+                context,
+                adUnitId,
+                adRequest,
+                object : InterstitialAdLoadCallback() {
+                    override fun onAdLoaded(ad: InterstitialAd) {
+                        Log.d(TAG, "Ad was loaded.")
+                        interstitialAd = ad
+                    }
+
+                    override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                        Log.e(TAG, "Ad failed to load: ${loadAdError.message}, code: ${loadAdError.code}")
+                        interstitialAd = null
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while loading ad: ${e.message}", e)
+            interstitialAd = null
+        }
     }
 
     /**
@@ -61,35 +72,64 @@ class InterstitialAdManager(private val context: Context) {
         onAdDismissed: () -> Unit = {},
         onAdFailedToShow: () -> Unit = {}
     ): Boolean {
-        val ad = interstitialAd ?: return false
+        try {
+            val ad = interstitialAd ?: return false
 
-        val activity = context as? Activity ?: return false
-
-        // Update callbacks to include user callbacks
-        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdDismissedFullScreenContent() {
-                Log.d(TAG, "Ad dismissed fullscreen content.")
-                interstitialAd = null
-                onAdDismissed()
+            val activity = context as? Activity ?: run {
+                Log.e(TAG, "Context is not an Activity")
+                return false
             }
 
-            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                Log.e(TAG, "Ad failed to show fullscreen content: ${adError.message}")
+            // Check if activity is finishing or destroyed
+            if (activity.isFinishing || activity.isDestroyed) {
+                Log.e(TAG, "Activity is finishing or destroyed")
                 interstitialAd = null
+                return false
+            }
+
+            // Update callbacks to include user callbacks
+            ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    Log.d(TAG, "Ad dismissed fullscreen content.")
+                    interstitialAd = null
+                    try {
+                        onAdDismissed()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in onAdDismissed callback", e)
+                    }
+                }
+
+                override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                    Log.e(TAG, "Ad failed to show fullscreen content: ${adError.message}")
+                    interstitialAd = null
+                    try {
+                        onAdFailedToShow()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in onAdFailedToShow callback", e)
+                    }
+                }
+
+                override fun onAdShowedFullScreenContent() {
+                    Log.d(TAG, "Ad showed fullscreen content.")
+                }
+
+                override fun onAdClicked() {
+                    Log.d(TAG, "Ad was clicked.")
+                }
+            }
+
+            ad.show(activity)
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while showing ad: ${e.message}", e)
+            interstitialAd = null
+            try {
                 onAdFailedToShow()
+            } catch (callbackError: Exception) {
+                Log.e(TAG, "Error in onAdFailedToShow callback", callbackError)
             }
-
-            override fun onAdShowedFullScreenContent() {
-                Log.d(TAG, "Ad showed fullscreen content.")
-            }
-
-            override fun onAdClicked() {
-                Log.d(TAG, "Ad was clicked.")
-            }
+            return false
         }
-
-        ad.show(activity)
-        return true
     }
 
     /**

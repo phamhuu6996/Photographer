@@ -47,7 +47,7 @@ fun InterstitialAdWrapper(
     // Show ad when trigger is true
     LaunchedEffect(showAd) {
         if (showAd && interstitialAdManager.isAdLoaded()) {
-            interstitialAdManager.showAd(
+            val shown = interstitialAdManager.showAd(
                 onAdDismissed = {
                     onAdDismissed()
                     // Reload ad for next time
@@ -59,6 +59,10 @@ fun InterstitialAdWrapper(
                     interstitialAdManager.loadAd(adsId)
                 }
             )
+            if (!shown) {
+                // Ad was not shown, call failed callback
+                onAdFailedToShow()
+            }
         }
     }
 
