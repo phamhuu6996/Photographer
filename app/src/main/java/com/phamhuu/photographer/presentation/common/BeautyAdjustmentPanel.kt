@@ -201,29 +201,12 @@ private fun BeautySlider(
     Column(
         modifier = modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = label,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Text(
-                text = String.format("%.2f", value),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                textAlign = TextAlign.End
-            )
-        }
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
 
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -256,7 +239,7 @@ private fun BeautySlideHorizontal(
     ) {
         // Custom paint background
         CustomPaintSlider(
-            width = 200, // Chiều rộng slider
+            width = 250, // Chiều rộng slider
             height = 8,  // Chiều cao track tăng lên 8
             firstColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
             lastColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
@@ -271,7 +254,7 @@ private fun BeautySlideHorizontal(
                     valueRange.start + (normalizedVal * (valueRange.endInclusive - valueRange.start))
                 onValueChange(actualValue)
             },
-            width = 200,        // Match paint width
+            width = 250,        // Match paint width
             height = 8,         // Track height tăng lên 8
             widthThumb = 16,    // Small thumb
             thumbColor = MaterialTheme.colorScheme.primary

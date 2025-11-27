@@ -225,7 +225,7 @@ fun CameraControls(
                 ImageCustom(
                     id = R.drawable.magic,
                     imageMode = ImageMode.MEDIUM,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary,
                     onClick = {
                         onImageFilterSelected(ImageFilter.BEAUTY) // Triggers beauty panel toggle
                     }
