@@ -98,7 +98,8 @@ bundle exec fastlane android beta
 ### Chuẩn bị upload lên Google Play
 1. **Service account & quyền**  
    - Tạo service account trong Google Cloud, bật Google Play Android Developer API.  
-   - Liên kết service account trong Play Console → API access → cấp quyền “Release manager” (hoặc cao hơn).  
+   - Liên kết project trong Play Console: `Setup → API access` → Link Google Cloud project nếu chưa.  
+   - Mời service account: `Setup → Users and permissions` → `Invite new user` → nhập email service account → gán vai trò “Release manager” (hoặc cao hơn).  
    - Tải file JSON và cung cấp cho Fastlane qua `PLAY_JSON_KEY_PATH` (đường dẫn file) hoặc `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_KEY` (nội dung JSON), chỉ cần một trong hai.
 2. **App đã tồn tại trên Play Console**  
    - Tạo ứng dụng với package `com.phamhuu.photographer`.  
