@@ -1,0 +1,23 @@
+# Appfile for Fastlane
+# More information: https://docs.fastlane.tools/advanced/Appfile/
+
+app_identifier("com.phamhuu.photographer") # The bundle identifier of your app
+package_name("com.phamhuu.photographer") # Android package name
+
+# Uncomment the following line if you want to specify a team ID
+# team_id("YOUR_TEAM_ID")
+
+# Google Play service account JSON key.
+# Provide the path via environment variable PLAY_JSON_KEY_PATH to avoid committing secrets.
+if ENV["PLAY_JSON_KEY_PATH"]&.strip&.length&.positive?
+  json_key_file(ENV["PLAY_JSON_KEY_PATH"])
+end
+
+# Alternatively, provide the raw JSON content via GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_KEY
+if ENV["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_KEY"]&.strip&.length&.positive?
+  json_key(ENV["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_KEY"])
+end
+
+# Uncomment the following line if you want to specify a Google Play service account email
+# json_key("service_account_email@example.com")
+

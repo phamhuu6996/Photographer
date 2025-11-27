@@ -1,0 +1,118 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:android)
+
+platform :android do
+  desc "Build release AAB (App Bundle) for Play Store"
+  lane :build_bundle do
+    gradle(
+      task: "bundleRelease",
+      project_dir: "."
+    )
+  end
+
+  desc "Build release APK"
+  lane :build_release do
+    gradle(
+      task: "assembleRelease",
+      project_dir: "."
+    )
+  end
+
+  desc "Run tests"
+  lane :test do
+    gradle(
+      task: "test",
+      project_dir: "."
+    )
+  end
+
+  desc "Build and upload to Play Store (Internal Testing)"
+  lane :beta do
+    build_bundle
+    upload_to_play_store(
+      track: "internal", # or "alpha", "beta", "production"
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
+    )
+  end
+
+  desc "Build and upload to Play Store (Production)"
+  lane :release do
+    build_bundle
+    upload_to_play_store(
+      track: "production",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
+    )
+  end
+
+  desc "Capture Play Store screenshots via instrumentation tests"
+  lane :screenshots do
+    screengrab(
+      app_package_name: "com.phamhuu.photographer",
+      tests_package_name: "com.phamhuu.photographer.test",
+      test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
+      locales: ["en-US", "vi-VN"],
+      clear_previous_screenshots: true,
+      skip_open_summary: true
+    )
+  end
+
+  desc "Increment version code"
+  lane :increment_version_code do
+    gradle_file = "app/build.gradle.kts"
+    current_version_code = sh("grep -o 'versionCode = [0-9]*' #{gradle_file} | grep -o '[0-9]*'").strip.to_i
+    new_version_code = current_version_code + 1
+    sh("sed -i '' 's/versionCode = #{current_version_code}/versionCode = #{new_version_code}/' #{gradle_file}")
+    UI.success("Version code incremented from #{current_version_code} to #{new_version_code}")
+  end
+
+  desc "Increment version name (e.g., 1.0.0 -> 1.0.1)"
+  lane :increment_version_name do |options|
+    gradle_file = "app/build.gradle.kts"
+    current_version = sh("grep -o 'versionName = \"[^\"]*\"' #{gradle_file} | grep -o '\"[^\"]*\"' | tr -d '\"'").strip
+    
+    if options[:version_name]
+      new_version = options[:version_name]
+    else
+      # Auto-increment patch version (1.0.0 -> 1.0.1)
+      version_parts = current_version.split(".")
+      if version_parts.length == 3
+        patch = version_parts[2].to_i + 1
+        new_version = "#{version_parts[0]}.#{version_parts[1]}.#{patch}"
+      else
+        UI.user_error!("Version format not supported. Current: #{current_version}")
+      end
+    end
+    
+    sh("sed -i '' 's/versionName = \"#{current_version}\"/versionName = \"#{new_version}\"/' #{gradle_file}")
+    UI.success("Version name updated from #{current_version} to #{new_version}")
+  end
+  desc "Lint check"
+  lane :lint do
+    gradle(
+      task: "lint",
+      project_dir: "."
+    )
+  end
+end

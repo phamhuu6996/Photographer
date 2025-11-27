@@ -9,30 +9,30 @@
 
     <!-- Material3 Dark Theme - Ban đêm: Nền đen, Chữ trắng -->
     <!-- Primary: Màu thương hiệu vàng/gold cho app chụp ảnh -->
-    <color name="md_theme_dark_primary">#FFC107</color>
-    <color name="md_theme_dark_onPrimary">#000000</color>
-    <color name="md_theme_dark_primaryContainer">#F57F17</color>
-    <color name="md_theme_dark_onPrimaryContainer">#FFF9C4</color>
-    <color name="md_theme_dark_secondary">#BDBDBD</color>
-    <color name="md_theme_dark_onSecondary">#000000</color>
-    <color name="md_theme_dark_secondaryContainer">#616161</color>
-    <color name="md_theme_dark_onSecondaryContainer">#FFFFFF</color>
-    <color name="md_theme_dark_tertiary">#9E9E9E</color>
-    <color name="md_theme_dark_onTertiary">#000000</color>
-    <color name="md_theme_dark_tertiaryContainer">#757575</color>
-    <color name="md_theme_dark_onTertiaryContainer">#FFFFFF</color>
-    <color name="md_theme_dark_error">#FFB4AB</color>
-    <color name="md_theme_dark_onError">#690005</color>
-    <color name="md_theme_dark_errorContainer">#93000A</color>
-    <color name="md_theme_dark_onErrorContainer">#FFDAD6</color>
-    <color name="md_theme_dark_background">#000000</color>
-    <color name="md_theme_dark_onBackground">#FFFFFF</color>
-    <color name="md_theme_dark_surface">#000000</color>
-    <color name="md_theme_dark_onSurface">#FFFFFF</color>
-    <color name="md_theme_dark_surfaceVariant">#1A1A1A</color>
-    <color name="md_theme_dark_onSurfaceVariant">#FFFFFF</color>
-    <color name="md_theme_dark_outline">#757575</color>
-    <color name="md_theme_dark_outlineVariant">#424242</color>
+    <color name="md_theme_light_primary">#FFC107</color>
+    <color name="md_theme_light_onPrimary">#000000</color>
+    <color name="md_theme_light_primaryContainer">#F57F17</color>
+    <color name="md_theme_light_onPrimaryContainer">#FFF9C4</color>
+    <color name="md_theme_light_secondary">#BDBDBD</color>
+    <color name="md_theme_light_onSecondary">#000000</color>
+    <color name="md_theme_light_secondaryContainer">#616161</color>
+    <color name="md_theme_light_onSecondaryContainer">#FFFFFF</color>
+    <color name="md_theme_light_tertiary">#9E9E9E</color>
+    <color name="md_theme_light_onTertiary">#000000</color>
+    <color name="md_theme_light_tertiaryContainer">#757575</color>
+    <color name="md_theme_light_onTertiaryContainer">#FFFFFF</color>
+    <color name="md_theme_light_error">#FFB4AB</color>
+    <color name="md_theme_light_onError">#690005</color>
+    <color name="md_theme_light_errorContainer">#93000A</color>
+    <color name="md_theme_light_onErrorContainer">#FFDAD6</color>
+    <color name="md_theme_light_background">#000000</color>
+    <color name="md_theme_light_onBackground">#FFFFFF</color>
+    <color name="md_theme_light_surface">#000000</color>
+    <color name="md_theme_light_onSurface">#FFFFFF</color>
+    <color name="md_theme_light_surfaceVariant">#1A1A1A</color>
+    <color name="md_theme_light_onSurfaceVariant">#FFFFFF</color>
+    <color name="md_theme_light_outline">#757575</color>
+    <color name="md_theme_light_outlineVariant">#424242</color>
 
     <!-- Common colors -->
     <color name="black">#FF000000</color>
