@@ -353,7 +353,7 @@ class CameraViewModel(
     }
 
     fun takePhoto(context: Context) {
-        if (!uiState.value.isCameraReady) {
+        if (!uiState.value.isCameraReady || gPUPixelHelper?.glSurfaceView == null) {
             updateError("Camera chưa sẵn sàng, vui lòng đợi...")
             return
         }
@@ -396,8 +396,8 @@ class CameraViewModel(
 
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
         val combinedText = uiState.value.getLocationTextWithDateTime()
-        val finalBitmap = if (combinedText.isNullOrEmpty()) {
-            cameraRepository.addAddressCapture(bitmap, combinedText!!)
+        val finalBitmap = if (!combinedText.isNullOrEmpty()) {
+            cameraRepository.addAddressCapture(bitmap, combinedText)
         } else {
             bitmap
         }
@@ -624,7 +624,7 @@ class CameraViewModel(
     }
 
     fun startRecording(context: Context) {
-        if (!uiState.value.isCameraReady) {
+        if (!uiState.value.isCameraReady || gPUPixelHelper?.glSurfaceView == null) {
             updateError("Camera chưa sẵn sàng, vui lòng đợi...")
             return
         }

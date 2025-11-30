@@ -44,10 +44,14 @@ object AddTextService {
      * Wraps text to fit within specified width using StaticLayout
      * StaticLayout automatically handles text wrapping based on width
      */
-    fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
+    fun wrapText(input: String, paint: Paint, maxWidth: Float): List<String> {
+        if (input.isBlank()) {
+            return emptyList()
+        }
+        
         val textPaint = TextPaint(paint)
         val layout = StaticLayout.Builder
-            .obtain(text, 0, text.length, textPaint, maxWidth.toInt())
+            .obtain(input, 0, input.length, textPaint, maxWidth.toInt())
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setLineSpacing(0f, 1f)
             .setIncludePad(false)
@@ -57,11 +61,10 @@ object AddTextService {
         for (i in 0 until layout.lineCount) {
             val start = layout.getLineStart(i)
             val end = layout.getLineEnd(i)
-            lines.add(text.substring(start, end).trim())
+            lines.add(input.substring(start, end).trim())
         }
         
-        // Return all lines, no limit
-        return if (lines.isEmpty()) listOf(text) else lines
+        return lines
     }
 
     /**
@@ -97,8 +100,7 @@ object AddTextService {
         val textPaint = createTextPaint(textSizePx)
 
         val maxWidth = bitmapWidth * Constants.MAX_WIDTH_RATIO
-        val formattedAddress = formatAddress(address)
-        val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
+        val wrappedLines = wrapText(address, textPaint, maxWidth)
 
         val padding = bitmapWidth * 0.02f
         val lineHeight = textSizePx * Constants.LINE_HEIGHT_MULTIPLIER
@@ -148,8 +150,7 @@ object AddTextService {
             shadowColor = shadowColor ?: Color.Black.toArgb()
         )
         val maxWidth = canvasWidth * 0.9f
-        val formattedAddress = formatAddress(address)
-        val wrappedLines = wrapText(formattedAddress, textPaint, maxWidth)
+        val wrappedLines = wrapText(address, textPaint, maxWidth)
 
         val lineHeight = textSizePx * Constants.LINE_HEIGHT_MULTIPLIER
 
@@ -170,23 +171,17 @@ object AddTextService {
         )
     }
 
-    fun formatAddress(address: String): String {
-        // Remove extra spaces and normalize
-        return address.trim().replace(Regex("\\s+"), " ")
-    }
-
     fun addTextOverlay(
         bitmap: Bitmap,
         address: String
     ): Bitmap {
-        val addressSafe = formatAddress(address)
         val mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(mutableBitmap)
 
         // Use AddTextService for photo capture
         renderAddressToPhoto(
             canvas = canvas,
-            address = addressSafe,
+            address = address,
             bitmapWidth = bitmap.width,
         )
 

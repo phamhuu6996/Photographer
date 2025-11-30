@@ -58,6 +58,6 @@ data class CameraUiState(
         if (dateTimeText.isNullOrEmpty()) {
             return locationText
         }
-        return "$locationText, $dateTimeText"
+        return "$locationText\n$dateTimeText"
     }
 }
