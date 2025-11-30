@@ -47,7 +47,7 @@ platform :android do
   lane :beta do
     build_bundle
     upload_to_play_store(
-      track: "internal", # or "alpha", "beta", "production"
+      track: "alpha", # "internal" or "alpha", "beta", "production"
       aab: "app/build/outputs/bundle/release/app-release.aab",
       skip_upload_apk: true,
       skip_upload_metadata: true,
