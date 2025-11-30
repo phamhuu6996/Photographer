@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.phamhuu.photographer.contants.Constants
-import com.phamhuu.photographer.data.model.LocationInfo
 import com.phamhuu.photographer.services.renderer.AddTextService
 
 @Composable
@@ -44,12 +43,12 @@ fun CanvasAddressText(
 
 @Composable
 fun CanvasAddressOverlay(
-    locationInfo: LocationInfo?,
+    locationTextWithDateTime: String?,
     modifier: Modifier
 ) {
-    if (locationInfo != null) {
+    if (locationTextWithDateTime != null) {
         CanvasAddressText(
-            text = locationInfo.address,
+            text = locationTextWithDateTime,
             modifier = modifier
         )
     } else {

@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.phamhuu.photographer.services.android.TimeService
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
@@ -60,6 +61,7 @@ class CameraViewModel(
     private val cameraRepository: CameraRepository,
     private val galleryRepository: GalleryRepository,
     private val locationRepository: LocationRepository,
+    private val timeService: TimeService,
 ) : ViewModel() {
     companion object {
         const val INTERSTITIAL_AD_FREQUENCY = 5
@@ -67,9 +69,6 @@ class CameraViewModel(
 
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState = _uiState.asStateFlow()
-
-    val showOnPhotos get() = uiState.value.isLocationEnabled
-    val showOnVideos get() = uiState.value.isLocationEnabled
 
     private var recording: Recording? = null
     private var cameraProvider: ProcessCameraProvider? = null
@@ -83,6 +82,7 @@ class CameraViewModel(
     private val isProcessingImage = AtomicBoolean(false)
     private var hideZoomJob: Job? = null
     private var hideBrightnessJob: Job? = null
+    private var dateTimeUpdateJob: Job? = null
 
     @OptIn(ExperimentalCamera2Interop::class)
     fun getCameraId(): String? {
@@ -104,14 +104,10 @@ class CameraViewModel(
         if (hasPermission && uiState.value.isLocationEnabled) {
             startLocationUpdates()
         }
-    }
 
-    fun onLocationPermissionGranted() {
-        _uiState.update {
-            it.copy(locationState = it.locationState.copy(hasPermission = true))
-        }
+        // Start time update if location is enabled (independent of permission)
         if (uiState.value.isLocationEnabled) {
-            startLocationUpdates()
+            startDateTimeUpdate()
         }
     }
 
@@ -121,8 +117,10 @@ class CameraViewModel(
 
         if (newState && uiState.value.locationState.hasPermission) {
             startLocationUpdates()
+            startDateTimeUpdate() // Start time update independently
         } else {
             stopLocationUpdates()
+            stopDateTimeUpdate() // Stop time update when location disabled
         }
     }
 
@@ -189,6 +187,32 @@ class CameraViewModel(
         }
     }
 
+    private fun startDateTimeUpdate() {
+        stopDateTimeUpdate() // Cancel existing job if any
+
+        if (!uiState.value.isLocationEnabled) return
+
+        // Start updating datetime every second (independent of location updates)
+        dateTimeUpdateJob = viewModelScope.launch {
+            // Update immediately first
+            val dateTime = timeService.getCurrentDateTime()
+            _uiState.update { it.copy(currentDateTime = dateTime) }
+
+            // Then update every second
+            while (true) {
+                delay(1000) // Update every second
+                val dateTime = timeService.getCurrentDateTime()
+                _uiState.update { it.copy(currentDateTime = dateTime) }
+            }
+        }
+    }
+
+    private fun stopDateTimeUpdate() {
+        dateTimeUpdateJob?.cancel()
+        dateTimeUpdateJob = null
+        _uiState.update { it.copy(currentDateTime = null) }
+    }
+
     private fun resolutionSelector(ratio: RatioCamera): ResolutionSelector {
         return ResolutionSelector.Builder()
             .setAspectRatioStrategy(ratio.ratio).build()
@@ -225,6 +249,9 @@ class CameraViewModel(
         previewView: PreviewView,
         ratioCamera: RatioCamera? = null,
     ) {
+        // Set camera as not ready when starting
+        _uiState.update { it.copy(isCameraReady = false) }
+
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         var setRatio = false
 
@@ -287,8 +314,15 @@ class CameraViewModel(
 
                 applyBeautySettingsToFilter(_uiState.value.beautySettings)
 
+                // Set camera as ready after a short delay to ensure initialization is complete
+                viewModelScope.launch {
+                    delay(300) // Small delay to ensure camera is fully ready
+                    _uiState.update { it.copy(isCameraReady = true) }
+                }
+
             } catch (e: Exception) {
                 updateError("Không thể khởi động camera: ${e.message}")
+                _uiState.update { it.copy(isCameraReady = false) }
             }
         }, ContextCompat.getMainExecutor(context))
     }
@@ -319,6 +353,11 @@ class CameraViewModel(
     }
 
     fun takePhoto(context: Context) {
+        if (!uiState.value.isCameraReady) {
+            updateError("Camera chưa sẵn sàng, vui lòng đợi...")
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
@@ -356,9 +395,9 @@ class CameraViewModel(
     }
 
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
-        val location = uiState.value.locationState.locationInfo
-        val finalBitmap = if (showOnPhotos && location != null) {
-            cameraRepository.addAddressCapture(bitmap, location.address)
+        val combinedText = uiState.value.getLocationTextWithDateTime()
+        val finalBitmap = if (combinedText.isNullOrEmpty()) {
+            cameraRepository.addAddressCapture(bitmap, combinedText!!)
         } else {
             bitmap
         }
@@ -570,6 +609,7 @@ class CameraViewModel(
         super.onCleared()
         gPUPixelHelper?.onDestroy()
         stopLocationUpdates()
+        stopDateTimeUpdate()
     }
 
     private fun updateError(message: String) {
@@ -584,6 +624,11 @@ class CameraViewModel(
     }
 
     fun startRecording(context: Context) {
+        if (!uiState.value.isCameraReady) {
+            updateError("Camera chưa sẵn sàng, vui lòng đợi...")
+            return
+        }
+
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
@@ -609,7 +654,7 @@ class CameraViewModel(
         }
 
         val textOverlay = {
-            uiState.value.locationState.locationInfo?.address
+            uiState.value.getLocationTextWithDateTime()
         }
         glSurfaceView.startFilteredVideoRecording(videoFile, textOverlay) { success ->
             _uiState.value = _uiState.value.copy(

@@ -4,6 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.phamhuu.photographer.contants.Constants
@@ -38,35 +41,27 @@ object AddTextService {
     }
 
     /**
-     * Wraps text to fit within specified width using Paint measurement
+     * Wraps text to fit within specified width using StaticLayout
+     * StaticLayout automatically handles text wrapping based on width
      */
     fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
-        val words = text.split(" ")
+        val textPaint = TextPaint(paint)
+        val layout = StaticLayout.Builder
+            .obtain(text, 0, text.length, textPaint, maxWidth.toInt())
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setLineSpacing(0f, 1f)
+            .setIncludePad(false)
+            .build()
+        
         val lines = mutableListOf<String>()
-        var currentLine = ""
-
-        for (word in words) {
-            val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-            val textWidth = paint.measureText(testLine)
-
-            if (textWidth <= maxWidth) {
-                currentLine = testLine
-            } else {
-                if (currentLine.isNotEmpty()) {
-                    lines.add(currentLine)
-                    currentLine = word
-                } else {
-                    // Word is too long, add it anyway
-                    lines.add(word)
-                }
-            }
+        for (i in 0 until layout.lineCount) {
+            val start = layout.getLineStart(i)
+            val end = layout.getLineEnd(i)
+            lines.add(text.substring(start, end).trim())
         }
-
-        if (currentLine.isNotEmpty()) {
-            lines.add(currentLine)
-        }
-
-        return lines.take(Constants.MAX_LINES).ifEmpty { listOf(text) }
+        
+        // Return all lines, no limit
+        return if (lines.isEmpty()) listOf(text) else lines
     }
 
     /**

@@ -34,5 +34,30 @@ data class CameraUiState(
 
     // Ad tracking
     val mediaCount: Int = 0,
-    val shouldShowInterstitialAd: Boolean = false
-)
+    val shouldShowInterstitialAd: Boolean = false,
+
+    // Camera ready state
+    val isCameraReady: Boolean = false,
+
+    // Time (updated every second)
+    val currentDateTime: String? = null
+) {
+    /**
+     * Combine location text and datetime for display
+     * @return Combined text "location\ndatetime" or single value if one is empty, or null if both are missing
+     */
+    fun getLocationTextWithDateTime(): String? {
+
+        val locationInfo = locationState.locationInfo
+        val locationText = locationInfo?.address?.trim()
+        val dateTimeText = currentDateTime?.trim()
+
+        if (locationText.isNullOrEmpty()) {
+            return dateTimeText
+        }
+        if (dateTimeText.isNullOrEmpty()) {
+            return locationText
+        }
+        return "$locationText, $dateTimeText"
+    }
+}

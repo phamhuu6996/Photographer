@@ -11,6 +11,7 @@ import com.phamhuu.photographer.data.repository.LocationRepositoryImpl
 import com.phamhuu.photographer.presentation.camera.vm.CameraViewModel
 import com.phamhuu.photographer.presentation.gallery.vm.GalleryViewModel
 import com.phamhuu.photographer.presentation.video.vm.VideoPlayerViewModel
+import com.phamhuu.photographer.services.android.TimeService
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.services.gl.FilterRenderer
 import org.koin.android.ext.koin.androidContext
@@ -31,6 +32,7 @@ val appModule = module {
     }
     factory { FilterRenderer() }
     factory { CameraGLSurfaceView(androidContext(), get()) }
+    single { TimeService() }
 
     // ViewModels
     viewModel {
@@ -38,6 +40,7 @@ val appModule = module {
             get<CameraRepository>(),
             get<GalleryRepository>(),
             get<LocationRepository>(),
+            get<TimeService>(),
         )
     }
     viewModel { GalleryViewModel(get<GalleryRepository>()) }

@@ -117,7 +117,7 @@ fun CameraScreen(
 
                 if (uiState.value.isLocationEnabled) {
                     CanvasAddressOverlay(
-                        locationInfo = uiState.value.locationState.locationInfo,
+                        locationTextWithDateTime = uiState.value.getLocationTextWithDateTime(),
                         modifier = Modifier.align(Alignment.TopEnd)
                     )
                 }
