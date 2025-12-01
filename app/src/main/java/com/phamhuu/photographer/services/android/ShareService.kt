@@ -1,5 +1,6 @@
 package com.phamhuu.photographer.services.android
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -29,12 +30,15 @@ object ShareService {
             if (uris.isEmpty()) return
             val mimeType = "*/*"
 
-            val shareIntent = Intent().apply {
+            val shareIntent = if (uris.size > 1) Intent().apply {
                 action = Intent.ACTION_SEND_MULTIPLE
-                type = mimeType
                 putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } else Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_STREAM, uris[0])
             }
+            shareIntent.type = mimeType
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
             val chooserIntent = Intent.createChooser(shareIntent, "Chia sẻ qua...")
             chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
