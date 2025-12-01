@@ -243,6 +243,10 @@ class CameraViewModel(
         isProcessingImage.set(false)
     }
 
+    fun stopCamera() {
+        _uiState.update { it.copy(isCameraReady = false) }
+    }
+
     fun startCamera(
         context: Context,
         lifecycleOwner: LifecycleOwner,
@@ -316,7 +320,7 @@ class CameraViewModel(
 
                 // Set camera as ready after a short delay to ensure initialization is complete
                 viewModelScope.launch {
-                    delay(300) // Small delay to ensure camera is fully ready
+                    delay(1000) // Small delay to ensure camera is fully ready
                     _uiState.update { it.copy(isCameraReady = true) }
                 }
 
@@ -354,7 +358,6 @@ class CameraViewModel(
 
     fun takePhoto(context: Context) {
         if (!uiState.value.isCameraReady || gPUPixelHelper?.glSurfaceView == null) {
-            updateError("Camera chưa sẵn sàng, vui lòng đợi...")
             return
         }
 
@@ -625,7 +628,6 @@ class CameraViewModel(
 
     fun startRecording(context: Context) {
         if (!uiState.value.isCameraReady || gPUPixelHelper?.glSurfaceView == null) {
-            updateError("Camera chưa sẵn sàng, vui lòng đợi...")
             return
         }
 

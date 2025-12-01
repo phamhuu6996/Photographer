@@ -73,6 +73,9 @@ fun CameraScreen(
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.startCamera(context, lifecycleOwner, previewView)
                 }
+                Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.stopCamera()
+                }
 
                 else -> {}
             }
