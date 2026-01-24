@@ -30,7 +30,7 @@ data class CameraUiState(
     val isBeautyPanelVisible: Boolean = false,
 
     val locationState: LocationState = LocationState(),
-    val isLocationEnabled: Boolean = true,
+    val isLocationEnabled: Boolean = false,
 
     // Ad tracking
     val mediaCount: Int = 0,

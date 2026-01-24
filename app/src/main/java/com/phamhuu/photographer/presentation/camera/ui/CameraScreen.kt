@@ -1,6 +1,8 @@
 package com.phamhuu.photographer.presentation.camera.ui
 
 import LocalNavController
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -37,6 +39,7 @@ import com.phamhuu.photographer.presentation.common.CanvasAddressOverlay
 import com.phamhuu.photographer.presentation.common.DetectGestures
 import com.phamhuu.photographer.presentation.common.InitCameraPermission
 import com.phamhuu.photographer.presentation.common.ads.InterstitialAdWrapper
+import com.phamhuu.photographer.services.android.AppPermissionManager
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.context.GlobalContext
@@ -61,10 +64,22 @@ fun CameraScreen(
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
 
+    // Location permission launcher - only request when user enables location
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.all { it.value }
+        if (allGranted) {
+            // Permission granted, check permission in ViewModel and enable location
+            viewModel.checkLocationPermission(context)
+            viewModel.toggleLocationEnabled()
+        }
+        // If permission denied, location stays OFF (no action needed)
+    }
+
     InitCameraPermission({
         viewModel.setFilterHelper(filterGLSurfaceView, context)
         viewModel.checkGalleryContent()
-        viewModel.checkLocationPermission(context)
     }, context)
 
     DisposableEffect(Unit) {
@@ -154,7 +169,22 @@ fun CameraScreen(
                     viewModel.toggleBeautyPanel()
                 },
                 onChangeLocationToggle = {
-                    viewModel.toggleLocationEnabled()
+                    // If location is currently enabled, toggle it OFF
+                    if (uiState.value.isLocationEnabled) {
+                        viewModel.toggleLocationEnabled()
+                    } else {
+                        // Location is disabled, check if we have permission
+                        if (AppPermissionManager.hasLocationPermission(context)) {
+                            // Permission already granted, sync state and toggle ON
+                            viewModel.checkLocationPermission(context)
+                            viewModel.toggleLocationEnabled()
+                        } else {
+                            // No permission, request it
+                            locationPermissionLauncher.launch(
+                                AppPermissionManager.getLocationPermissions()
+                            )
+                        }
+                    }
                 }
             )
 

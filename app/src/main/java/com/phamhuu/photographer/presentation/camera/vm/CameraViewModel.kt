@@ -40,6 +40,7 @@ import com.phamhuu.photographer.data.repository.CameraRepository
 import com.phamhuu.photographer.data.repository.GalleryRepository
 import com.phamhuu.photographer.data.repository.LocationRepository
 import com.phamhuu.photographer.presentation.common.SnackbarManager
+import com.phamhuu.photographer.services.android.AppPermissionManager
 import com.phamhuu.photographer.services.gl.CameraGLSurfaceView
 import com.phamhuu.photographer.services.gpu.GPUPixelHelper
 import kotlinx.coroutines.Dispatchers
@@ -92,10 +93,7 @@ class CameraViewModel(
     }
 
     fun checkLocationPermission(context: Context) {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+        val hasPermission = AppPermissionManager.hasLocationPermission(context)
 
         _uiState.update {
             it.copy(locationState = it.locationState.copy(hasPermission = hasPermission))
