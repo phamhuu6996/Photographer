@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,7 +86,7 @@ fun CameraControls(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5F))
-                .padding(top = 50.dp, start = 16.dp, end = 16.dp, bottom = 30.dp),
+                .padding(top = 10.dp, start = 16.dp, end = 16.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -148,7 +149,7 @@ fun CameraControls(
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(16.dp)
+                    .padding(top = 50.dp)
             )
         }
 
@@ -162,7 +163,7 @@ fun CameraControls(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(5.dp),
             ) {
                 CameraExtensionControl(
                     title = stringResource(R.string.photo),
@@ -179,7 +180,7 @@ fun CameraControls(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(top = 5.dp, bottom = 16.dp, start = 16.dp, end = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -244,9 +245,13 @@ fun CameraExtensionControl(
     title: String,
 
     ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Text(
         text = title,
-        modifier = Modifier.clickable { callBack() },
+        modifier = Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null
+        ) { callBack() },
         color = if (selected)
             MaterialTheme.colorScheme.primary
         else
