@@ -45,15 +45,19 @@ class GPUPixelHelper {
         val rotation = imageProxy.imageInfo.rotationDegrees
         val width = imageProxy.width
         val height = imageProxy.height
-        val buffer = imageProxy.planes[0].buffer
+        val planes = imageProxy.planes[0]
+        val buffer = planes.buffer
+        val stride = planes.rowStride
+        val scale = stride.toDouble()/width.toDouble()
         val rgbaBytes = ByteArray(buffer.remaining())
         buffer.get(rgbaBytes)
         val rotatedData = GPUPixel.rotateRgbaImage(rgbaBytes, width, height, rotation)
         val outWidth = if ((rotation == 90 || rotation == 270)) height else width
         val outHeight = if ((rotation == 90 || rotation == 270)) width else height
+        val outStride = (outWidth * scale).toInt()
         val landmarks = mFaceDetector!!.detect(
             rotatedData, outWidth, outHeight,
-            outWidth * 4, FaceDetector.GPUPIXEL_MODE_FMT_VIDEO,
+            outStride, FaceDetector.GPUPIXEL_MODE_FMT_VIDEO,
             FaceDetector.GPUPIXEL_FRAME_TYPE_RGBA
         )
         val previousFaceState = hasFaceDetected
@@ -68,7 +72,7 @@ class GPUPixelHelper {
             applyBeautySettings(currentBeautySettings!!)
         }
         mSourceRawData!!.ProcessData(
-            rotatedData, outWidth, outHeight, outWidth * 4,
+            rotatedData, outWidth, outHeight, outStride,
             GPUPixelSourceRawData.FRAME_TYPE_RGBA
         )
         val processedRgba = mSinkRawData!!.GetRgbaBuffer()
