@@ -396,7 +396,11 @@ class CameraViewModel(
     }
 
     private suspend fun saveBitmapToFile(bitmap: Bitmap, file: File) = withContext(Dispatchers.IO) {
-        val combinedText = uiState.value.getLocationTextWithDateTime()
+        val combinedText = if (uiState.value.isLocationEnabled) {
+            uiState.value.getLocationTextWithDateTime()
+        } else {
+            null
+        }
         val finalBitmap = if (!combinedText.isNullOrEmpty()) {
             cameraRepository.addAddressCapture(bitmap, combinedText)
         } else {
@@ -654,7 +658,11 @@ class CameraViewModel(
         }
 
         val textOverlay = {
-            uiState.value.getLocationTextWithDateTime()
+            if (uiState.value.isLocationEnabled) {
+                uiState.value.getLocationTextWithDateTime()
+            } else {
+                null
+            }
         }
         glSurfaceView.startFilteredVideoRecording(videoFile, textOverlay) { success ->
             _uiState.value = _uiState.value.copy(
