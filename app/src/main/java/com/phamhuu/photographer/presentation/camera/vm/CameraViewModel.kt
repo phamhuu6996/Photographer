@@ -293,7 +293,6 @@ class CameraViewModel(
                             _uiState.value = _uiState.value.copy(ratioCamera = ratioCamera)
                         }
                         handleImageAnalyzerFrame(image)
-                        image.close()
                     }
                 }
 

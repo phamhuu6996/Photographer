@@ -24,6 +24,9 @@ class GPUPixelHelper {
     var glSurfaceView: CameraGLSurfaceView? = null
     private var hasFaceDetected: Boolean = false
     private var currentBeautySettings: BeautySettings? = null
+    // Buffer dùng lại giữa các frame
+    private var tightRgba: ByteArray? = null
+    private var tightCapacity = 0
 
     fun initGpuPixel(context: Context, gLSurfaceView: CameraGLSurfaceView) {
         this.glSurfaceView = gLSurfaceView
@@ -40,42 +43,107 @@ class GPUPixelHelper {
         mFaceReshapeFilter!!.AddSink(mSinkRawData)
     }
 
+    private fun copyTightRgba(imageProxy: ImageProxy): ByteArray {
+        val plane = imageProxy.planes[0]
+        val srcBuffer = plane.buffer
+        val rowStride = plane.rowStride
+        val pixelStride = plane.pixelStride // RGBA = 4
+        val width = imageProxy.width
+        val height = imageProxy.height
+
+        val rowBytes = width * pixelStride
+        val neededBytes = rowBytes * height
+
+        // Chỉ cấp phát lại khi thật sự cần
+        if (tightRgba == null || tightCapacity < neededBytes) {
+            tightRgba = ByteArray(neededBytes)
+            tightCapacity = neededBytes
+        }
+
+        val out = tightRgba!!
+
+        // 🚀 FAST PATH: Không có padding
+        if (rowStride == rowBytes) {
+            srcBuffer.position(0)
+            srcBuffer.get(out, 0, neededBytes)
+            return out
+        }
+
+        // 🧩 Có padding cuối mỗi dòng → copy từng dòng
+        var srcOffset = 0
+        var dstOffset = 0
+
+        for (row in 0 until height) {
+            srcBuffer.position(srcOffset)
+            srcBuffer.get(out, dstOffset, rowBytes)
+
+            srcOffset += rowStride
+            dstOffset += rowBytes
+        }
+
+        return out
+    }
+
+
     fun handleImageAnalytic(imageProxy: ImageProxy, isFrontCamera: Boolean) {
-        if (glSurfaceView == null) return
+        if (glSurfaceView == null) {
+            imageProxy.close()
+            return
+        }
         val rotation = imageProxy.imageInfo.rotationDegrees
         val width = imageProxy.width
         val height = imageProxy.height
-        val planes = imageProxy.planes[0]
-        val buffer = planes.buffer
-        val stride = planes.rowStride
-        val scale = stride.toDouble()/width.toDouble()
-        val rgbaBytes = ByteArray(buffer.remaining())
-        buffer.get(rgbaBytes)
-        val rotatedData = GPUPixel.rotateRgbaImage(rgbaBytes, width, height, rotation)
-        val outWidth = if ((rotation == 90 || rotation == 270)) height else width
-        val outHeight = if ((rotation == 90 || rotation == 270)) width else height
-        val outStride = (outWidth * scale).toInt()
-        val landmarks = mFaceDetector!!.detect(
-            rotatedData, outWidth, outHeight,
-            outStride, FaceDetector.GPUPIXEL_MODE_FMT_VIDEO,
+
+        // ✅ Lấy RGBA chuẩn, không padding
+        val rgbaBytes = copyTightRgba(imageProxy)
+
+        // Có thể đóng imageProxy NGAY sau khi copy xong để tránh đầy buffer CameraX
+        imageProxy.close()
+
+        // ✅ Rotate bằng GPUPixel (giữ nguyên cách bạn đang dùng)
+        val rotatedData = GPUPixel.rotateRgbaImage(
+            rgbaBytes,
+            width,
+            height,
+            rotation
+        )
+
+        val outWidth = if (rotation == 90 || rotation == 270) height else width
+        val outHeight = if (rotation == 90 || rotation == 270) width else height
+
+        // ✅ Face detect
+        val landmarks = mFaceDetector?.detect(
+            rotatedData,
+            outWidth,
+            outHeight,
+            outWidth * 4,
+            FaceDetector.GPUPIXEL_MODE_FMT_VIDEO,
             FaceDetector.GPUPIXEL_FRAME_TYPE_RGBA
         )
+
         val previousFaceState = hasFaceDetected
         if (landmarks != null && landmarks.isNotEmpty()) {
             hasFaceDetected = true
-            mFaceReshapeFilter!!.SetProperty("face_landmark", landmarks)
-            mLipstickFilter!!.SetProperty("face_landmark", landmarks)
+            mFaceReshapeFilter?.SetProperty("face_landmark", landmarks)
+            mLipstickFilter?.SetProperty("face_landmark", landmarks)
         } else {
             hasFaceDetected = false
         }
         if (previousFaceState != hasFaceDetected && currentBeautySettings != null) {
             applyBeautySettings(currentBeautySettings!!)
         }
-        mSourceRawData!!.ProcessData(
-            rotatedData, outWidth, outHeight, outStride,
+
+        // ✅ Đưa vào pipeline GPUPixel
+        mSourceRawData?.ProcessData(
+            rotatedData,
+            outWidth,
+            outHeight,
+            outWidth * 4,
             GPUPixelSourceRawData.FRAME_TYPE_RGBA
         )
-        val processedRgba = mSinkRawData!!.GetRgbaBuffer()
+
+        // ✅ Lấy output từ GPU
+        val processedRgba = mSinkRawData?.GetRgbaBuffer()
         if (processedRgba != null) {
             val rgbaWidth = mSinkRawData!!.GetWidth()
             val rgbaHeight = mSinkRawData!!.GetHeight()
