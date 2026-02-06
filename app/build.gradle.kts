@@ -21,8 +21,8 @@ android {
         applicationId = "com.phamhuu.photographer"
         minSdk = 28
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.1.5"
+        versionCode = 9
+        versionName = "1.1.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
