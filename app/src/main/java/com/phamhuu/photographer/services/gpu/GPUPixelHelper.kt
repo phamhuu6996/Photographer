@@ -24,6 +24,10 @@ class GPUPixelHelper {
     var glSurfaceView: CameraGLSurfaceView? = null
     private var hasFaceDetected: Boolean = false
     private var currentBeautySettings: BeautySettings? = null
+    
+    // Reusable buffer để tránh OOM - chỉ allocate 1 lần
+    private var reusableCleanBuffer: ByteArray? = null
+    private var lastBufferSize = 0
 
     fun initGpuPixel(context: Context, gLSurfaceView: CameraGLSurfaceView) {
         this.glSurfaceView = gLSurfaceView
@@ -46,15 +50,17 @@ class GPUPixelHelper {
         val width = imageProxy.width
         val height = imageProxy.height
         val planes = imageProxy.planes[0]
-        val buffer = planes.buffer
-        val stride = planes.rowStride
-        val scale = stride.toDouble()/width.toDouble()
-        val rgbaBytes = ByteArray(buffer.remaining())
-        buffer.get(rgbaBytes)
+        
+        // Remove padding và get clean data (reuse buffer)
+        val rgbaBytes = removePaddingAndGetCleanData(planes.buffer, width, height, planes.rowStride)
+        
+        // Rotate image (không còn padding)
         val rotatedData = GPUPixel.rotateRgbaImage(rgbaBytes, width, height, rotation)
         val outWidth = if ((rotation == 90 || rotation == 270)) height else width
         val outHeight = if ((rotation == 90 || rotation == 270)) width else height
-        val outStride = (outWidth * scale).toInt()
+        val outStride = outWidth * 4  // Không còn padding
+        
+        // Face detection
         val landmarks = mFaceDetector!!.detect(
             rotatedData, outWidth, outHeight,
             outStride, FaceDetector.GPUPIXEL_MODE_FMT_VIDEO,
@@ -71,6 +77,8 @@ class GPUPixelHelper {
         if (previousFaceState != hasFaceDetected && currentBeautySettings != null) {
             applyBeautySettings(currentBeautySettings!!)
         }
+        
+        // Process with GpuPixel
         mSourceRawData!!.ProcessData(
             rotatedData, outWidth, outHeight, outStride,
             GPUPixelSourceRawData.FRAME_TYPE_RGBA
@@ -89,6 +97,53 @@ class GPUPixelHelper {
             glSurfaceView?.requestRender()
         }
     }
+    
+    /**
+     * Remove padding từ camera buffer và return clean data
+     * Reuse buffer để tránh OOM
+     */
+    private fun removePaddingAndGetCleanData(
+        buffer: java.nio.ByteBuffer,
+        width: Int,
+        height: Int,
+        stride: Int
+    ): ByteArray {
+        val pixelStride = width * 4  // RGBA = 4 bytes per pixel
+        
+        return if (stride != pixelStride) {
+            // Có padding - cần remove
+            val requiredSize = height * pixelStride
+            
+            // Reuse buffer nếu size không đổi, chỉ allocate khi cần
+            if (reusableCleanBuffer == null || lastBufferSize != requiredSize) {
+                reusableCleanBuffer = ByteArray(requiredSize)
+                lastBufferSize = requiredSize
+            }
+            
+            val cleanData = reusableCleanBuffer!!
+            
+            // Copy từng dòng, loại bỏ padding
+            for (row in 0 until height) {
+                val srcOffset = row * stride
+                val dstOffset = row * pixelStride
+                buffer.position(srcOffset)
+                buffer.get(cleanData, dstOffset, pixelStride)
+            }
+            cleanData
+        } else {
+            // Không có padding - đọc trực tiếp
+            val requiredSize = buffer.remaining()
+            
+            // Reuse buffer
+            if (reusableCleanBuffer == null || lastBufferSize != requiredSize) {
+                reusableCleanBuffer = ByteArray(requiredSize)
+                lastBufferSize = requiredSize
+            }
+            
+            buffer.get(reusableCleanBuffer!!)
+            reusableCleanBuffer!!
+        }
+    }
 
     suspend fun captureFilteredBitmap(): Bitmap? = suspendCancellableCoroutine { continuation ->
         glSurfaceView?.queueEvent {
@@ -102,6 +157,10 @@ class GPUPixelHelper {
     }
 
     fun onDestroy() {
+        // Clear reusable buffer
+        reusableCleanBuffer = null
+        lastBufferSize = 0
+        
         if (mFaceDetector != null) {
             mFaceDetector!!.destroy()
             mFaceDetector = null
