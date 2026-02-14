@@ -19,7 +19,7 @@ data class BeautySettings(
     val whiteness: Float = 3f / 10.0f,      // 0.3
     val thinFace: Float = 3f / 160.0f,      // 0.01875
     val bigEye: Float = 3f / 40.0f,         // 0.075
-    val blendLevel: Float = 1f / 10.0f      // 0.3
+    val blendLevel: Float = 0f / 10.0f      // 0
 ) {
     /**
      * Validate ranges cho tất cả parameters
