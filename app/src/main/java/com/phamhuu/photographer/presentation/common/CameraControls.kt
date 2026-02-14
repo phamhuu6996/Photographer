@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +67,10 @@ fun CameraControls(
     val state = timerViewModel.elapsedTime.collectAsState()
     val context = LocalContext.current
 
+    val safeDrawingPadding = WindowInsets.safeDrawing.asPaddingValues()
+    val statusBarHeight = safeDrawingPadding.calculateTopPadding()
+    val navigationBarHeight = safeDrawingPadding.calculateBottomPadding()
+
     val onChangeCameraModifier = remember(onShowGallery) {
         modifier.clickable {
             if (onShowGallery != null) {
@@ -86,7 +93,7 @@ fun CameraControls(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5F))
-                .padding(top = 10.dp, start = 16.dp, end = 16.dp, bottom = 10.dp),
+                .padding(top = statusBarHeight + 10.dp, start = 16.dp, end = 16.dp, bottom = navigationBarHeight + 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
